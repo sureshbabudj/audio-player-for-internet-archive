@@ -1,0 +1,72 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-dark-950 text-white antialiased;
+    width: 380px;
+    height: 600px;
+    margin: 0;
+    overflow: hidden;
+  }
+
+  #root {
+    @apply h-full p-4;
+  }
+}
+
+@layer components {
+  .custom-scrollbar::-webkit-scrollbar {
+    @apply w-1.5;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-dark-700 rounded-full;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    @apply bg-dark-600;
+  }
+}
+
+/* Custom range input styling */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #e94560;
+  cursor: pointer;
+  box-shadow: 0 0 10px rgba(233, 69, 96, 0.5);
+}
+
+/* Glass morphism utilities */
+.glass {
+  @apply bg-white/5 backdrop-blur-lg border border-white/10;
+}
+
+/* 3D Transform utilities */
+.perspective-1000 {
+  perspective: 1000px;
+}
+
+.preserve-3d {
+  transform-style: preserve-3d;
+}
+
+.rotate-y-12 {
+  transform: rotateY(12deg);
+}
