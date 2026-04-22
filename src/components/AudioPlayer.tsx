@@ -93,7 +93,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
           </div>
           <div>
             <h1 className="text-white font-bold text-lg leading-tight">
-              MP3 Player
+              Audio Player
             </h1>
             <p className="text-dark-500 text-xs">for Internet Archive</p>
           </div>
@@ -332,13 +332,13 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
                   </h3>
                   <div className="p-4 rounded-2xl bg-dark-900/50 border border-dark-800">
                     <p className="text-dark-400 text-xs leading-relaxed">
-                      MP3 player is a high-fidelity music player powered by
+                      Audio Player is a high-fidelity music player powered by
                       Archive.org collections. Built for performance and
                       privacy.
                     </p>
                     <div className="mt-4 pt-4 border-t border-dark-800 flex justify-between text-[10px] text-dark-600 font-bold">
                       <span>Version 2.0.0</span>
-                      <span>© 2026 MP3 Player</span>
+                      <span>© 2026 Audio Player</span>
                     </div>
                   </div>
                 </section>

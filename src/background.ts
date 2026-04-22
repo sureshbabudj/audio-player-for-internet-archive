@@ -1,7 +1,7 @@
 import browser from "webextension-polyfill";
 
 browser.runtime.onInstalled.addListener((details) => {
-  console.log("[MP3 Player] Extension installed", details.reason);
+  console.log("[Audio Player] Extension installed", details.reason);
 });
 
 // Keep alive for Chrome MV3 service workers
@@ -10,7 +10,7 @@ browser.alarms?.create("keepAlive", { periodInMinutes: 4.9 });
 
 browser.alarms?.onAlarm.addListener((alarm) => {
   if (alarm.name === "keepAlive") {
-    console.log("[MP3 Player] Keep alive ping");
+    console.log("[Audio Player] Keep alive ping");
   }
 });
 
@@ -135,7 +135,7 @@ async function loadStateFromStorage() {
         firefoxAudio.currentTime = currentAudioState.currentTime || 0;
       }
 
-      console.log("[MP3 Player] State restored from storage");
+      console.log("[Audio Player] State restored from storage");
     }
   } catch (err) {
     console.error("Failed to load state", err);
@@ -143,7 +143,7 @@ async function loadStateFromStorage() {
     isInitialized = true;
     // If we have no tracks after loading storage, fetch defaults
     if (tracksList.length === 0) {
-      fetchTracksFromArchive().then(tracks => {
+      fetchTracksFromArchive().then((tracks) => {
         tracksList = tracks;
         broadcastState();
       });
