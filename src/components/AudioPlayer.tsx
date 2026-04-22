@@ -376,19 +376,31 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
                 {[
                   {
                     q: "How do I import songs?",
-                    a: "Go to Library > My Collections and click 'Import IA'. Paste an Archive.org URL or identifier.",
+                    a: "Go to Library > My Collections and click 'Import IA'. You can paste a full Archive.org URL or just the collection ID.",
                   },
                   {
-                    q: "What is the Queue?",
-                    a: "The 'Queue' tab shows the songs currently loaded in your player. You can switch between playlists easily.",
+                    q: "What is 'Play Now' vs 'Import'?",
+                    a: "'Play Now' streams the collection immediately without saving it. 'Import' saves it permanently to your local library.",
                   },
                   {
-                    q: "How do I backup my music?",
-                    a: "Use the 'Settings' tab to export your playlists as a JSON file. You can import them on any device.",
+                    q: "Does it keep playing if I close the popup?",
+                    a: "Yes! The player uses a background service worker to keep your music playing non-stop even when the window is closed.",
                   },
                   {
-                    q: "Does it work offline?",
-                    a: "It requires an internet connection to stream from Archive.org, but your playlists are saved locally.",
+                    q: "How do I find the currently playing song?",
+                    a: "Opening the 'Queue' tab will automatically scroll to and center the currently playing track for you.",
+                  },
+                  {
+                    q: "Where does the Artist/Album info come from?",
+                    a: "The player automatically extracts embedded ID3 tags (Artist, Album Title, Year) from the Archive.org metadata.",
+                  },
+                  {
+                    q: "How do I backup my playlists?",
+                    a: "Go to Settings and click 'Export Data'. This saves all your custom collections as a JSON file you can restore later.",
+                  },
+                  {
+                    q: "How do I use Shuffle and Repeat?",
+                    a: "Use the icons in the bottom player bar. Repeat has three modes: Off, Repeat All, and Repeat One (current track).",
                   },
                 ].map((item, i) => (
                   <div
