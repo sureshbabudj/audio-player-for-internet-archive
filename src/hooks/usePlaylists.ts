@@ -78,15 +78,35 @@ export function usePlaylists() {
   };
 
   const importFromArchive = async (urlOrId: string, customName?: string) => {
-    const identifier = extractIdentifier(urlOrId) || urlOrId;
-    if (!identifier) throw new Error("Invalid Archive.org URL or Identifier");
+    let tracks: Track[] = [];
+    let identifier = extractIdentifier(urlOrId) || urlOrId;
+    let finalName = customName || identifier;
 
-    const metadata = await fetchArchiveMetadata(identifier);
-    const tracks = convertToTracks(metadata);
-    
+    try {
+      // Method 1: Try Metadata API (Best for structured data and official IDs)
+      const metadata = await fetchArchiveMetadata(identifier);
+      tracks = convertToTracks(metadata);
+      finalName = customName || metadata.metadata.title || identifier;
+    } catch (apiError) {
+      console.warn("Metadata API failed, trying scraper fallback...", apiError);
+      // Method 2: Try Scraper (Best for direct download URLs or if API fails)
+      try {
+        const scrapeUrl = urlOrId.startsWith("http") 
+          ? urlOrId 
+          : `https://archive.org/download/${urlOrId}`;
+        
+        const { fetchTracks } = await import("../utils/parser");
+        tracks = await fetchTracks(scrapeUrl);
+        
+        if (tracks.length === 0) throw new Error("No tracks found at this URL");
+      } catch (scrapeError) {
+        throw new Error("Could not find any audio tracks at this Archive.org location.");
+      }
+    }
+
     const newPlaylist: Playlist = {
       id: crypto.randomUUID(),
-      name: customName || identifier,
+      name: finalName,
       tracks,
       createdAt: Date.now(),
     };

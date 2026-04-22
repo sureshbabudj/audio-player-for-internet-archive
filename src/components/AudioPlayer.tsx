@@ -261,7 +261,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
                 />
               )
             ) : activeTab === "settings" ? (
-              <div className="flex flex-col space-y-6 px-1 pt-2">
+              <div className="flex-1 overflow-y-auto custom-scrollbar space-y-6 px-1 pt-2 pb-4">
                 <section>
                   <h3 className="text-[10px] font-bold text-dark-500 uppercase tracking-widest mb-4">
                     Backup & Restore
@@ -328,17 +328,42 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
 
                 <section>
                   <h3 className="text-[10px] font-bold text-dark-500 uppercase tracking-widest mb-4">
-                    About
+                    About & Support
                   </h3>
-                  <div className="p-4 rounded-2xl bg-dark-900/50 border border-dark-800">
+                  <div className="p-4 rounded-2xl bg-dark-900/50 border border-dark-800 space-y-4">
                     <p className="text-dark-400 text-xs leading-relaxed">
                       Audio Player is a high-fidelity music player powered by
                       Archive.org collections. Built for performance and
                       privacy.
                     </p>
-                    <div className="mt-4 pt-4 border-t border-dark-800 flex justify-between text-[10px] text-dark-600 font-bold">
-                      <span>Version 2.0.0</span>
-                      <span>© 2026 Audio Player</span>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <a
+                        href="https://github.com/sureshbabudj/audio-player-for-internet-archive"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-primary-500/10 border border-primary-500/20 text-primary-400 hover:bg-primary-500 hover:text-white transition-all text-[10px] font-bold"
+                      >
+                        <Icon icon="solar:star-bold" className="w-3.5 h-3.5" />
+                        Star on GitHub
+                      </a>
+                      <a
+                        href="https://github.com/sureshbabudj/audio-player-for-internet-archive/issues"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-dark-800 border border-dark-700 text-dark-200 hover:border-dark-500 transition-all text-[10px] font-bold"
+                      >
+                        <Icon icon="solar:bug-bold" className="w-3.5 h-3.5" />
+                        Report Issue
+                      </a>
+                    </div>
+
+                    <div className="pt-4 border-t border-dark-800 flex justify-between text-[10px] text-dark-600 font-bold">
+                      <span>Version 1.0.1</span>
+                      <span>
+                        © {new Date().getFullYear()} Audio Player for Internet
+                        Archive
+                      </span>
                     </div>
                   </div>
                 </section>
@@ -379,18 +404,23 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
                   </div>
                 ))}
 
-                <div className="mt-auto p-4 rounded-2xl bg-primary-500/10 border border-primary-500/20 text-center">
+                <a
+                  href="https://github.com/sureshbabudj/audio-player-for-internet-archive"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-auto p-4 rounded-2xl bg-primary-500/10 border border-primary-500/20 text-center hover:bg-primary-500/20 transition-all block group"
+                >
                   <Icon
                     icon="solar:heart-bold"
-                    className="w-8 h-8 text-primary-500 mx-auto mb-2"
+                    className="w-8 h-8 text-primary-500 mx-auto mb-2 group-hover:scale-110 transition-transform"
                   />
                   <p className="text-primary-400 text-xs font-bold">
                     Enjoying the player?
                   </p>
                   <p className="text-primary-400/60 text-[9px]">
-                    Check out more on Archive.org
+                    Give it a star on GitHub
                   </p>
-                </div>
+                </a>
               </div>
             )}
           </div>

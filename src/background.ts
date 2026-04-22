@@ -154,30 +154,40 @@ async function loadStateFromStorage() {
 // Initialize persistence
 initializationPromise = loadStateFromStorage();
 
-async function fetchTracksFromArchive() {
-  const response = await fetch(BASE_URL);
-  const html = await response.text();
+async function fetchTracksFromArchive(url: string = BASE_URL) {
+  try {
+    const response = await fetch(url);
+    const html = await response.text();
 
-  const regex = /href="([^"]+\.mp3)"/g;
-  const tracks: any[] = [];
-  let match;
-  let index = 0;
+    const regex = /href="([^"]+\.mp3)"/g;
+    const tracks: any[] = [];
+    let match;
+    let index = 0;
 
-  while ((match = regex.exec(html)) !== null) {
-    const href = match[1];
-    const name = decodeURIComponent(href)
-      .replace(".mp3", "")
-      .replace(/[_-]/g, " ")
-      .replace(/\b\w/g, (l) => l.toUpperCase());
+    // Extract identifier from URL for artwork
+    const identifier = url.match(/\/download\/([^/]+)/)?.[1] || "tamil-melody-hits";
 
-    tracks.push({
-      id: index++,
-      name,
-      url: BASE_URL + href,
-      artwork: `https://archive.org/services/img/tamil-melody-hits`,
-    });
+    while ((match = regex.exec(html)) !== null) {
+      const href = match[1];
+      const name = decodeURIComponent(href)
+        .replace(".mp3", "")
+        .replace(/[_-]/g, " ")
+        .replace(/\b\w/g, (l) => l.toUpperCase());
+
+      tracks.push({
+        id: `${identifier}-${index++}`,
+        name,
+        url: (url.endsWith("/") ? url : url + "/") + href,
+        artwork: `https://archive.org/services/img/${identifier}`,
+        artist: "Archive Collection",
+        album: identifier.replace(/[_-]/g, " "),
+      });
+    }
+    return tracks;
+  } catch (error) {
+    console.error("Scraping failed:", error);
+    return [];
   }
-  return tracks;
 }
 
 function getNextTrack() {
@@ -262,7 +272,7 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message.type === "FETCH_TRACKS") {
-    fetchTracksFromArchive()
+    fetchTracksFromArchive(message.url)
       .then((tracks) => (sendResponse as any)(tracks))
       .catch((error) => (sendResponse as any)({ error: error.message }));
     return true;

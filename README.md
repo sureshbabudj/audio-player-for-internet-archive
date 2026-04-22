@@ -1,5 +1,9 @@
 # 🎵 Audio Player for Internet Archive
 
+[![GitHub Stars](https://img.shields.io/github/stars/sureshbabudj/audio-player-for-internet-archive?style=for-the-badge&color=e94560)](https://github.com/sureshbabudj/audio-player-for-internet-archive/stargazers)
+[![GitHub Issues](https://img.shields.io/github/issues/sureshbabudj/audio-player-for-internet-archive?style=for-the-badge&color=e94560)](https://github.com/sureshbabudj/audio-player-for-internet-archive/issues)
+[![GitHub License](https://img.shields.io/github/license/sureshbabudj/audio-player-for-internet-archive?style=for-the-badge&color=e94560)](https://github.com/sureshbabudj/audio-player-for-internet-archive/blob/master/LICENSE)
+
 A premium, high-fidelity music player extension designed for seamless streaming from Archive.org. Built with a focus on visual excellence, persistent playback, and advanced metadata management.
 
 ## ✨ Key Functionalities
@@ -48,8 +52,8 @@ A premium, high-fidelity music player extension designed for seamless streaming 
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/mp3-player-extension.git
-cd mp3-player
+git clone https://github.com/sureshbabudj/audio-player-for-internet-archive.git
+cd audio-player-for-internet-archive
 
 # Install dependencies
 pnpm install

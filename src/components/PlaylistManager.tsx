@@ -246,6 +246,22 @@ const PlaylistManager: React.FC<PlaylistManagerProps> = ({
                     </div>
                   </div>
                 ))}
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setIsImportModalOpen(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white text-xs font-bold rounded-xl transition-all active:scale-95 shadow-lg shadow-primary-500/20"
+                  >
+                    <Icon icon="solar:import-bold" className="w-4 h-4" />
+                    Import IA
+                  </button>
+                  <button
+                    onClick={() => setIsCreateModalOpen(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-dark-800 hover:bg-dark-700 text-white text-xs font-bold rounded-xl transition-all active:scale-95"
+                  >
+                    <Icon icon="solar:add-circle-bold" className="w-4 h-4" />
+                    Create
+                  </button>
+                </div>
               </>
             )}
           </div>
@@ -289,18 +305,45 @@ const PlaylistManager: React.FC<PlaylistManagerProps> = ({
               {error}
             </p>
           )}
-          <button
-            type="submit"
-            disabled={isImporting}
-            className="w-full bg-primary-500 hover:bg-primary-600 disabled:opacity-50 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-primary-500/20 flex items-center justify-center gap-2"
-          >
-            {isImporting ? (
-              <Icon icon="svg-spinners:180-ring" className="w-5 h-5" />
-            ) : (
-              <Icon icon="solar:import-bold" className="w-5 h-5" />
-            )}
-            {isImporting ? "Fetching..." : "Import Collection"}
-          </button>
+          <div className="flex gap-2">
+            <button
+              type="submit"
+              disabled={isImporting}
+              className="flex-1 bg-primary-500 hover:bg-primary-600 disabled:opacity-50 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-primary-500/20 flex items-center justify-center gap-2"
+            >
+              {isImporting ? (
+                <Icon icon="svg-spinners:180-ring" className="w-5 h-5" />
+              ) : (
+                <Icon icon="solar:import-bold" className="w-5 h-5" />
+              )}
+              {isImporting ? "Fetching..." : "Import to Library"}
+            </button>
+            <button
+              type="button"
+              disabled={isImporting}
+              onClick={async () => {
+                if (!archiveUrl.trim()) return;
+                setIsImporting(true);
+                setError(null);
+                try {
+                  const newP = await onImportFromArchive(
+                    archiveUrl,
+                    customName,
+                  );
+                  onPlayPlaylist(newP);
+                  setIsImportModalOpen(false);
+                } catch (err: any) {
+                  setError(err.message);
+                } finally {
+                  setIsImporting(false);
+                }
+              }}
+              className="flex-1 bg-dark-800 hover:bg-dark-700 disabled:opacity-50 text-white font-bold py-3 rounded-xl transition-all flex items-center justify-center gap-2"
+            >
+              <Icon icon="solar:play-bold" className="w-5 h-5" />
+              Play Now
+            </button>
+          </div>
         </form>
       </Modal>
 
