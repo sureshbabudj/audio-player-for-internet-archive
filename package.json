@@ -6,9 +6,15 @@
   "scripts": {
     "dev": "vite",
     "dev:firefox": "BROWSER=firefox vite",
+    "dev:pwa": "vite --config vite.config.pwa.ts",
     "build": "vite build",
     "build:firefox": "BROWSER=firefox vite build",
-    "build:all": "pnpm run build && pnpm run build:firefox"
+    "build:pwa": "vite build --config vite.config.pwa.ts",
+    "build:pages": "vite build --config vite.config.pwa.ts --outDir dist-pages",
+    "build:all": "pnpm run build && pnpm run build:firefox && pnpm run build:pwa && pnpm run build:pages",
+    "build:release": "rm -rf release && mkdir -p release && pnpm run build && cp -R dist release/extension-chrome && pnpm run build:firefox && cp -R dist release/extension-firefox && pnpm run build:pwa && cp -R dist-pwa release/pwa && pnpm run build:pages && cp -R dist-pages release/pages",
+    "preview:pwa": "vite preview --config vite.config.pwa.ts",
+    "preview:pages": "pnpm run build:pages && vite preview dist-pages"
   },
   "dependencies": {
     "react": "^18.2.0",
