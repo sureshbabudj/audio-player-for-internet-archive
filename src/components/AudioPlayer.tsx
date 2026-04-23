@@ -7,6 +7,8 @@ import PlaylistManager from "./PlaylistManager";
 import { Icon } from "@iconify/react";
 import { usePlaylists } from "../hooks/usePlaylists";
 
+const PLAYER_UI_STORAGE_KEY = "audioPlayerWebUiState";
+
 interface AudioPlayerProps {
   tracks: Track[];
   currentTrack: Track | null;
@@ -52,6 +54,9 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   onToggleShuffle,
   onToggleRepeat,
 }) => {
+  const isExtensionRuntime =
+    typeof globalThis !== "undefined" &&
+    !!(globalThis as any).chrome?.runtime?.id;
   const [isPlaylistOpen, setIsPlaylistOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<
     "browse" | "library" | "settings" | "help"
@@ -69,6 +74,52 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     exportAll,
     importAll,
   } = usePlaylists();
+
+  React.useEffect(() => {
+    if (isExtensionRuntime) return;
+
+    try {
+      const raw = localStorage.getItem(PLAYER_UI_STORAGE_KEY);
+      if (!raw) return;
+
+      const parsed = JSON.parse(raw) as {
+        activeTab?: "browse" | "library" | "settings" | "help";
+        selectedPlaylistId?: string | null;
+      };
+
+      if (parsed.activeTab) {
+        setActiveTab(parsed.activeTab);
+      }
+
+      if (parsed.selectedPlaylistId && playlists.length > 0) {
+        const restoredPlaylist = playlists.find(
+          (playlist) => playlist.id === parsed.selectedPlaylistId,
+        );
+        if (restoredPlaylist) {
+          setSelectedPlaylist(restoredPlaylist);
+          setIsPlaylistOpen(true);
+        }
+      }
+    } catch {
+      // Ignore malformed persisted UI state.
+    }
+  }, [isExtensionRuntime, playlists]);
+
+  React.useEffect(() => {
+    if (isExtensionRuntime) return;
+
+    try {
+      localStorage.setItem(
+        PLAYER_UI_STORAGE_KEY,
+        JSON.stringify({
+          activeTab,
+          selectedPlaylistId: selectedPlaylist?.id ?? null,
+        }),
+      );
+    } catch {
+      // Ignore local storage write failures.
+    }
+  }, [activeTab, isExtensionRuntime, selectedPlaylist?.id]);
 
   // For the 'Browse' tab, we want to show the current active tracks list from background
   // but since we get 'tracks' as a prop (which is initialTracks), we use that for now.
@@ -240,6 +291,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
                     currentTrack={currentTrack}
                     isPlaying={isPlaying}
                     onTrackSelect={(track) => {
+                      setActiveTab("library");
                       onPlayTracks(selectedPlaylist.tracks, track);
                       setIsPlaylistOpen(false);
                     }}
@@ -254,6 +306,8 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
                   onSelect={setSelectedPlaylist}
                   onPlayPlaylist={(p) => {
                     if (p.tracks.length > 0) {
+                      setActiveTab("library");
+                      setSelectedPlaylist(p);
                       onPlayTracks(p.tracks, p.tracks[0]);
                       setIsPlaylistOpen(false);
                     }

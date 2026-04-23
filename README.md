@@ -60,7 +60,53 @@ pnpm install
 
 # Build the extension
 pnpm run build
+
+# Build the PWA
+pnpm run build:pwa
+
+# Build GitHub Pages bundle
+pnpm run build:pages
+
+# Build all release artifacts in one command
+pnpm run build:release
 ```
+
+### Run Targets
+
+```bash
+# Browser extension (Chrome MV3 default)
+pnpm run dev
+
+# Browser extension (Firefox MV2)
+pnpm run dev:firefox
+
+# PWA web app
+pnpm run dev:pwa
+
+# Preview GitHub Pages build locally
+pnpm run preview:pages
+```
+
+### Release Output
+
+Running `pnpm run build:release` creates a `release/` folder with:
+
+- `release/extension-chrome`
+- `release/extension-firefox`
+- `release/pwa`
+- `release/pages`
+
+### GitHub Pages Deployment
+
+GitHub Actions workflow is included at `.github/workflows/deploy-pages.yml`.
+
+1. Open your GitHub repository settings.
+2. Go to **Pages**.
+3. Set **Source** to **GitHub Actions**.
+4. Push to `main` or `master`.
+5. The workflow builds `dist-pages` and deploys automatically.
+
+The GitHub Actions workflow sets the correct Pages base path automatically from the repository name, so forks do not need manual script edits.
 
 ### Load into Browser
 
