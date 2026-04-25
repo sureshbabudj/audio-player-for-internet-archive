@@ -25,7 +25,7 @@ export default function PlaylistDetailScreen() {
 
   const handlePlayAll = () => {
     if (playlist.tracks.length > 0) {
-      loadTrack(playlist.tracks[0], playlist.tracks);
+      loadTrack(playlist.tracks[0], playlist.tracks, playlist.name);
     }
   };
 
@@ -94,6 +94,7 @@ export default function PlaylistDetailScreen() {
       ) : (
         <TrackList
           tracks={playlist.tracks}
+          title={playlist.name}
           onRemove={(trackId) => removeTrackFromPlaylist(playlist.id, trackId)}
         />
       )}

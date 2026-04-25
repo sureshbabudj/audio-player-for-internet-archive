@@ -1,25 +1,30 @@
 import { useLibraryStore } from "@/store/useLibraryStore";
 import { usePlayerStore } from "@/store/usePlayerStore";
 import { ArchiveTrack } from "@/types";
-import { Clock, Play, Plus } from "lucide-react-native";
+import { Clock, Heart, Play, Plus } from "lucide-react-native";
 import React from "react";
 import { Image, Text, TouchableOpacity, View } from "react-native";
 
 interface SearchResultCardProps {
   track: ArchiveTrack;
+  queue?: ArchiveTrack[];
+  title?: string;
   onAddToPlaylist?: (track: ArchiveTrack) => void;
 }
 
 export function SearchResultCard({
   track,
+  queue,
+  title,
   onAddToPlaylist,
 }: SearchResultCardProps) {
   const { loadTrack } = usePlayerStore();
-  const { addToLibrary, isInLibrary } = useLibraryStore();
+  const { addToLibrary, isInLibrary, toggleLike, isLiked } = useLibraryStore();
+  const liked = isLiked(track.id);
 
   return (
     <TouchableOpacity
-      onPress={() => loadTrack(track)}
+      onPress={() => loadTrack(track, queue, title)}
       className="flex-row items-center p-4 mx-4 mb-3 bg-surface rounded-2xl"
     >
       <View className="w-16 h-16 rounded-xl bg-surface-light items-center justify-center overflow-hidden mr-4">
@@ -55,10 +60,28 @@ export function SearchResultCard({
         )}
       </View>
 
-      <View className="flex-row space-x-2">
+      <View className="flex-row items-center space-x-3">
+        <TouchableOpacity
+          onPress={(e) => {
+            e.stopPropagation();
+            toggleLike(track.id);
+          }}
+          className="w-8 h-8 rounded-full bg-surface-light items-center justify-center"
+        >
+          <Heart
+            size={16}
+            color={liked ? "#FF6B35" : "#fff"}
+            fill={liked ? "#FF6B35" : "none"}
+            opacity={liked ? 1 : 0.4}
+          />
+        </TouchableOpacity>
+
         {!isInLibrary(track.id) && (
           <TouchableOpacity
-            onPress={() => addToLibrary(track)}
+            onPress={(e) => {
+              e.stopPropagation();
+              addToLibrary(track);
+            }}
             className="w-8 h-8 rounded-full bg-surface-light items-center justify-center"
           >
             <Plus size={16} color="#FF6B35" />
@@ -66,7 +89,10 @@ export function SearchResultCard({
         )}
         {onAddToPlaylist && (
           <TouchableOpacity
-            onPress={() => onAddToPlaylist(track)}
+            onPress={(e) => {
+              e.stopPropagation();
+              onAddToPlaylist(track);
+            }}
             className="w-8 h-8 rounded-full bg-primary items-center justify-center"
           >
             <Plus size={16} color="#fff" />

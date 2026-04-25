@@ -12,6 +12,15 @@ export interface ArchiveTrack {
   fileName: string;
 }
 
+export interface ArchiveItem {
+  identifier: string;
+  title: string;
+  creator: string;
+  description?: string;
+  thumbnail?: string;
+  date?: string;
+}
+
 export interface Playlist {
   id: string;
   name: string;

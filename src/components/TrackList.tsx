@@ -1,29 +1,32 @@
 import { useLibraryStore } from "@/store/useLibraryStore";
 import { usePlayerStore } from "@/store/usePlayerStore";
-import { usePlaylistStore } from "@/store/usePlaylistStore";
 import { ArchiveTrack } from "@/types";
-import { useRouter } from "expo-router";
-import { Heart, MoreVertical, Music } from "lucide-react-native";
+import { Image } from "expo-image";
+import {
+  BarChart3 as BarChart,
+  Heart as HeartIcon,
+  Music as MusicIcon,
+  Plus as PlusIcon,
+  Trash2 as TrashIcon,
+} from "lucide-react-native";
 import React, { useEffect, useRef } from "react";
 import { Animated, FlatList, Text, TouchableOpacity, View } from "react-native";
 
 interface TrackListProps {
   tracks: ArchiveTrack[];
-  showAddToPlaylist?: boolean;
-  playlistId?: string;
+  title?: string;
   onRemove?: (trackId: string) => void;
+  showAddToPlaylist?: boolean;
 }
 
 export function TrackList({
   tracks,
-  showAddToPlaylist,
-  playlistId,
+  title,
   onRemove,
+  showAddToPlaylist,
 }: TrackListProps) {
-  const router = useRouter();
   const { loadTrack, currentTrack, isPlaying } = usePlayerStore();
-  const { isInLibrary, addToLibrary, removeFromLibrary } = useLibraryStore();
-  const { playlists, addTrackToPlaylist } = usePlaylistStore();
+  const { isLiked, toggleLike } = useLibraryStore();
   const pulseAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -32,60 +35,56 @@ export function TrackList({
         Animated.sequence([
           Animated.timing(pulseAnim, {
             toValue: 1,
-            duration: 500,
-            useNativeDriver: false,
+            duration: 600,
+            useNativeDriver: true,
           }),
           Animated.timing(pulseAnim, {
-            toValue: 0,
-            duration: 500,
-            useNativeDriver: false,
+            toValue: 0.3,
+            duration: 600,
+            useNativeDriver: true,
           }),
-        ])
+        ]),
       ).start();
+    } else {
+      pulseAnim.stopAnimation();
     }
   }, [isPlaying, pulseAnim]);
 
-  const handlePlay = (track: ArchiveTrack, index: number) => {
-    loadTrack(track, tracks);
+  const handlePlay = (track: ArchiveTrack) => {
+    loadTrack(track, tracks, title);
   };
 
-  const renderItem = ({
-    item,
-    index,
-  }: {
-    item: ArchiveTrack;
-    index: number;
-  }) => {
+  const renderItem = ({ item }: { item: ArchiveTrack }) => {
     const isCurrent = currentTrack?.id === item.id;
-    const saved = isInLibrary(item.id);
+    const liked = isLiked(item.id);
 
     return (
       <TouchableOpacity
-        onPress={() => handlePlay(item, index)}
-        className={`flex-row items-center p-4 mx-4 mb-2 rounded-2xl ${
-          isCurrent ? "bg-primary/20 border border-primary/30" : "bg-surface"
+        onPress={() => handlePlay(item)}
+        className={`flex-row items-center px-6 py-3 mb-1 ${
+          isCurrent ? "bg-white/5" : ""
         }`}
       >
-        <View className="w-12 h-12 rounded-xl bg-surface-light items-center justify-center mr-3">
-          {isCurrent && isPlaying ? (
-            <View className="flex-row space-x-0.5">
-              {[1, 2, 3].map((i) => (
-                <Animated.View
-                  key={i}
-                  className="w-1 bg-primary rounded-full"
-                  style={{
-                    height: i === 2 ? 16 : 10,
-                    opacity: pulseAnim,
-                  }}
-                />
-              ))}
-            </View>
+        <View className="w-12 h-12 rounded-xl bg-surface-light items-center justify-center overflow-hidden mr-4">
+          {item.thumbnail ? (
+            <Image
+              source={{ uri: item.thumbnail }}
+              className="w-full h-full"
+              contentFit="cover"
+            />
           ) : (
-            <Music size={20} color="#FF6B35" />
+            <MusicIcon size={20} color="#FF6B35" />
+          )}
+          {isCurrent && isPlaying && (
+            <View className="absolute inset-0 bg-black/40 items-center justify-center">
+              <Animated.View style={{ opacity: pulseAnim }}>
+                <BarChart size={20} color="#fff" />
+              </Animated.View>
+            </View>
           )}
         </View>
 
-        <View className="flex-1 mr-2">
+        <View className="flex-1 mr-4">
           <Text
             className={`font-semibold text-sm ${
               isCurrent ? "text-primary" : "text-white"
@@ -94,41 +93,37 @@ export function TrackList({
           >
             {item.title}
           </Text>
-          <Text className="text-white/50 font-body text-xs" numberOfLines={1}>
+          <Text
+            className="text-white/40 font-body text-xs mt-0.5"
+            numberOfLines={1}
+          >
             {item.creator || "Unknown Artist"}
           </Text>
         </View>
 
-        <View className="flex-row items-center space-x-2">
+        <View className="flex-row items-center space-x-3">
           <TouchableOpacity
-            onPress={() => {
-              if (saved) removeFromLibrary(item.id);
-              else addToLibrary(item);
+            onPress={(e) => {
+              e.stopPropagation();
+              toggleLike(item.id);
             }}
           >
-            <Heart
+            <HeartIcon
               size={18}
-              color={saved ? "#FF6B35" : "#fff"}
-              fill={saved ? "#FF6B35" : "none"}
-              opacity={0.7}
+              color={liked ? "#FF6B35" : "#fff"}
+              fill={liked ? "#FF6B35" : "none"}
+              opacity={liked ? 1 : 0.3}
             />
           </TouchableOpacity>
 
-          {showAddToPlaylist && playlists.length > 0 && (
+          {onRemove && (
             <TouchableOpacity
-              onPress={() => {
-                // Show playlist picker modal
-                const firstPlaylist = playlists[0];
-                if (firstPlaylist) addTrackToPlaylist(firstPlaylist.id, item);
+              onPress={(e) => {
+                e.stopPropagation();
+                onRemove(item.id);
               }}
             >
-              <MoreVertical size={18} color="#fff" opacity={0.7} />
-            </TouchableOpacity>
-          )}
-
-          {onRemove && (
-            <TouchableOpacity onPress={() => onRemove(item.id)}>
-              <Text className="text-red-400 text-xs">Remove</Text>
+              <TrashIcon size={18} color="#ef4444" opacity={0.5} />
             </TouchableOpacity>
           )}
         </View>
@@ -142,7 +137,7 @@ export function TrackList({
       renderItem={renderItem}
       keyExtractor={(item) => item.id}
       showsVerticalScrollIndicator={false}
-      contentContainerStyle={{ paddingBottom: 120 }}
+      contentContainerStyle={{ paddingBottom: 180 }}
     />
   );
 }

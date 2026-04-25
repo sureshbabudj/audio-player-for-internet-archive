@@ -1,3 +1,4 @@
+import { useLibraryStore } from "@/store/useLibraryStore";
 import { ArchiveTrack, RepeatMode } from "@/types";
 import { createAudioPlayer, type AudioPlayer } from "expo-audio";
 import { create } from "zustand";
@@ -6,8 +7,11 @@ interface PlayerState {
   player: AudioPlayer | null;
   currentTrack: ArchiveTrack | null;
   queue: ArchiveTrack[];
+  queueTitle: string;
   currentIndex: number;
   isPlaying: boolean;
+  isBuffering: boolean;
+  isLoaded: boolean;
   position: number;
   duration: number;
   repeatMode: RepeatMode;
@@ -15,7 +19,11 @@ interface PlayerState {
   volume: number;
   playbackSpeed: number;
 
-  loadTrack: (track: ArchiveTrack, queue?: ArchiveTrack[]) => Promise<void>;
+  loadTrack: (
+    track: ArchiveTrack,
+    queue?: ArchiveTrack[],
+    title?: string,
+  ) => Promise<void>;
   togglePlayPause: () => Promise<void>;
   seekTo: (position: number) => Promise<void>;
   skipNext: () => Promise<void>;
@@ -30,25 +38,17 @@ interface PlayerState {
   playFromQueue: (index: number) => Promise<void>;
 }
 
-type Subscription = { remove: () => void };
-let statusSubscription: Subscription | null = null;
-
-function teardownPlayer(player: AudioPlayer | null) {
-  if (statusSubscription) {
-    statusSubscription.remove();
-    statusSubscription = null;
-  }
-  if (player) {
-    player.remove();
-  }
-}
+let statusSubscription: { remove: () => void } | null = null;
 
 export const usePlayerStore = create<PlayerState>((set, get) => ({
   player: null,
   currentTrack: null,
   queue: [],
+  queueTitle: "",
   currentIndex: 0,
   isPlaying: false,
+  isBuffering: false,
+  isLoaded: false,
   position: 0,
   duration: 0,
   repeatMode: "off",
@@ -56,39 +56,97 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   volume: 1,
   playbackSpeed: 1,
 
-  loadTrack: async (track, queue = []) => {
-    teardownPlayer(get().player);
-
+  loadTrack: async (track, queue = [], title = "Now Playing") => {
+    const { player: currentPlayer } = get();
     const newQueue = queue.length > 0 ? queue : [track];
     const trackIndex = newQueue.findIndex((t) => t.id === track.id);
 
-    const player = createAudioPlayer({ uri: track.url }, { updateInterval: 250 });
-    player.volume = get().volume;
-    player.setPlaybackRate(get().playbackSpeed);
-
-    statusSubscription = player.addListener("playbackStatusUpdate", (status) => {
-      set({
-        isPlaying: status.playing,
-        position: Math.floor(status.currentTime * 1000),
-        duration: Math.floor(status.duration * 1000),
-      });
-
-      if (status.didJustFinish) {
-        get().skipNext();
+    const setupStatusListener = (p: AudioPlayer) => {
+      if (statusSubscription) {
+        statusSubscription.remove();
       }
-    });
+      statusSubscription = p.addListener("playbackStatusUpdate", (status) => {
+        set({
+          isPlaying: status.playing,
+          isBuffering: status.isBuffering,
+          isLoaded: status.isLoaded,
+          position: Math.floor((status.currentTime || 0) * 1000),
+          duration: Math.floor((status.duration || 0) * 1000),
+        });
 
-    player.play();
+        if (status.didJustFinish) {
+          get().skipNext();
+        }
+      });
+    };
+
+    // If player already exists, use replace() to avoid re-creating native objects
+    // This often resolves FigFilePlayer errors on iOS
+    if (currentPlayer) {
+      try {
+        currentPlayer.pause();
+        currentPlayer.replace({ uri: track.url });
+        setupStatusListener(currentPlayer);
+        set({
+          currentTrack: track,
+          queue: newQueue,
+          queueTitle: title,
+          currentIndex: trackIndex >= 0 ? trackIndex : 0,
+          isPlaying: false,
+          isBuffering: true,
+          isLoaded: false,
+          position: 0,
+          duration: 0,
+        });
+        currentPlayer.play();
+        useLibraryStore.getState().addToRecentlyPlayed(track);
+        return;
+      } catch (e) {
+        console.error("Error replacing source, falling back to re-creation:", e);
+        if (statusSubscription) {
+          statusSubscription.remove();
+          statusSubscription = null;
+        }
+        currentPlayer.remove();
+      }
+    }
 
     set({
-      player,
       currentTrack: track,
-      queue: newQueue,
-      currentIndex: trackIndex >= 0 ? trackIndex : 0,
-      isPlaying: true,
+      isPlaying: false,
+      isBuffering: true,
+      isLoaded: false,
       position: 0,
       duration: 0,
     });
+
+    try {
+      const player = createAudioPlayer(
+        { uri: track.url },
+        { updateInterval: 250 },
+      );
+
+      player.volume = get().volume;
+      player.setPlaybackRate(get().playbackSpeed);
+
+      setupStatusListener(player);
+
+      player.play();
+      useLibraryStore.getState().addToRecentlyPlayed(track);
+
+      set({
+        player,
+        queue: newQueue,
+        queueTitle: title,
+        currentIndex: trackIndex >= 0 ? trackIndex : 0,
+        isPlaying: true,
+        isBuffering: false,
+        isLoaded: player.isLoaded,
+      });
+    } catch (error) {
+      console.error("Error loading track:", error);
+      set({ isBuffering: false, isLoaded: false });
+    }
   },
 
   togglePlayPause: async () => {
@@ -103,9 +161,13 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   },
 
   seekTo: async (position) => {
-    const { player } = get();
-    if (player) {
-      await player.seekTo(position / 1000);
+    const { player, isLoaded } = get();
+    if (player && isLoaded) {
+      try {
+        await player.seekTo(position / 1000);
+      } catch (e) {
+        console.error("Seek error:", e);
+      }
     }
   },
 
@@ -133,8 +195,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       }
     }
 
-    await get().loadTrack(queue[nextIndex], queue);
     set({ currentIndex: nextIndex });
+    await get().loadTrack(queue[nextIndex], queue);
   },
 
   skipPrevious: async () => {
@@ -156,8 +218,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       }
     }
 
-    await get().loadTrack(queue[prevIndex], queue);
     set({ currentIndex: prevIndex });
+    await get().loadTrack(queue[prevIndex], queue);
   },
 
   setRepeatMode: (mode) => set({ repeatMode: mode }),
@@ -196,8 +258,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   playFromQueue: async (index) => {
     const { queue } = get();
     if (index >= 0 && index < queue.length) {
-      await get().loadTrack(queue[index], queue);
       set({ currentIndex: index });
+      await get().loadTrack(queue[index], queue);
     }
   },
 }));

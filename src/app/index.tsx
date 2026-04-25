@@ -1,5 +1,6 @@
 import { WaveAnimation } from "@/components/WaveAnimation";
 import { useLibraryStore } from "@/store/useLibraryStore";
+import { usePlayerStore } from "@/store/usePlayerStore";
 import { usePlaylistStore } from "@/store/usePlaylistStore";
 import { useRouter } from "expo-router";
 import {
@@ -13,134 +14,200 @@ import {
 } from "lucide-react-native";
 import React from "react";
 import { ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { savedTracks, recentlyPlayed } = useLibraryStore();
+  const insets = useSafeAreaInsets();
+  const { savedTracks, recentlyPlayed, likedTrackIds, playCounts } =
+    useLibraryStore();
   const { playlists } = usePlaylistStore();
+  const { loadTrack } = usePlayerStore();
 
-  const quickActions = [
-    {
-      icon: Search,
-      label: "Search",
-      color: "#FF6B35",
-      onPress: () => router.push("/search" as any),
-    },
-    {
-      icon: Library,
-      label: "Library",
-      color: "#004E89",
-      onPress: () => router.push("/library" as any),
-    },
-    {
-      icon: ListMusic,
-      label: "Playlists",
-      color: "#7209B7",
-      onPress: () => router.push("/playlists" as any),
-    },
-    {
-      icon: Heart,
-      label: "Liked",
-      color: "#F72585",
-      onPress: () => router.push("/library" as any),
-    },
-  ];
+  const likedTracks = savedTracks.filter((t) => likedTrackIds.includes(t.id));
 
   return (
-    <ScrollView
-      className="flex-1 bg-darker"
-      showsVerticalScrollIndicator={false}
-    >
-      {/* Header */}
-      <View className="px-6 pt-14 pb-6">
-        <Text className="text-white/60 font-medium text-sm uppercase tracking-widest mb-2">
-          Archive Audio
-        </Text>
-        <Text className="text-white font-display text-4xl">Discover</Text>
-      </View>
-
-      {/* Wave Animation */}
-      <View className="items-center mb-8">
-        <WaveAnimation size="large" />
-      </View>
-
-      {/* Quick Actions */}
-      <View className="flex-row flex-wrap px-4 mb-8">
-        {quickActions.map((action) => (
-          <TouchableOpacity
-            key={action.label}
-            onPress={action.onPress}
-            className="w-[48%] m-1 p-4 rounded-2xl bg-surface flex-row items-center"
-          >
-            <View
-              className="w-10 h-10 rounded-xl items-center justify-center mr-3"
-              style={{ backgroundColor: action.color + "20" }}
-            >
-              <action.icon size={20} color={action.color} />
-            </View>
-            <Text className="text-white font-semibold">{action.label}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      {/* Stats */}
-      <View className="px-6 mb-8">
-        <Text className="text-white font-display text-xl mb-4">Your Stats</Text>
-        <View className="flex-row space-x-4">
-          <View className="flex-1 bg-surface p-4 rounded-2xl">
-            <Music size={20} color="#FF6B35" />
-            <Text className="text-white font-display text-2xl mt-2">
-              {savedTracks.length}
-            </Text>
-            <Text className="text-white/50 font-body text-xs">
-              Saved Tracks
-            </Text>
-          </View>
-          <View className="flex-1 bg-surface p-4 rounded-2xl">
-            <ListMusic size={20} color="#004E89" />
-            <Text className="text-white font-display text-2xl mt-2">
-              {playlists.length}
-            </Text>
-            <Text className="text-white/50 font-body text-xs">Playlists</Text>
-          </View>
-          <View className="flex-1 bg-surface p-4 rounded-2xl">
-            <Clock size={20} color="#7209B7" />
-            <Text className="text-white font-display text-2xl mt-2">
-              {recentlyPlayed.length}
-            </Text>
-            <Text className="text-white/50 font-body text-xs">Recent</Text>
-          </View>
-        </View>
-      </View>
-
-      {/* Recent Activity */}
-      {recentlyPlayed.length > 0 && (
-        <View className="px-6 mb-8">
-          <Text className="text-white font-display text-xl mb-4">
-            Recently Played
+    <View className="flex-1 bg-darker">
+      <ScrollView
+        className="flex-1"
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{
+          paddingTop: Math.max(insets.top, 20),
+          paddingBottom: 150,
+        }}
+      >
+        {/* Header */}
+        <View className="px-6 pb-6">
+          <Text className="text-white/60 font-medium text-sm uppercase tracking-widest mb-2">
+            Archive Audio
           </Text>
-          {recentlyPlayed.slice(0, 3).map((track) => (
-            <TouchableOpacity
-              key={track.id}
-              onPress={() => router.push("/player" as any)}
-              className="flex-row items-center p-3 mb-2 bg-surface rounded-xl"
-            >
-              <View className="w-10 h-10 rounded-lg bg-surface-light items-center justify-center mr-3">
-                <Radio size={16} color="#FF6B35" />
-              </View>
-              <View className="flex-1">
-                <Text
-                  className="text-white font-medium text-sm"
-                  numberOfLines={1}
-                >
-                  {track.title}
-                </Text>
-                <Text className="text-white/50 text-xs">{track.creator}</Text>
-              </View>
-            </TouchableOpacity>
-          ))}
+          <Text className="text-white font-display text-4xl">Discover</Text>
         </View>
-      )}
-    </ScrollView>
+
+        {/* Wave Animation */}
+        <View className="items-center mb-8">
+          <WaveAnimation size="large" />
+        </View>
+
+
+        {/* Recent Activity */}
+        {recentlyPlayed.length > 0 && (
+          <View className="px-6 mb-8">
+            <View className="flex-row items-center justify-between mb-4">
+              <Text className="text-white font-display text-xl">
+                Recently Played
+              </Text>
+              <TouchableOpacity
+                onPress={() =>
+                  router.push({
+                    pathname: "/library",
+                    params: { tab: "recent" },
+                  } as any)
+                }
+              >
+                <Text className="text-primary text-xs font-bold uppercase tracking-wider">
+                  View All
+                </Text>
+              </TouchableOpacity>
+            </View>
+            {recentlyPlayed.slice(0, 5).map((track) => (
+              <TouchableOpacity
+                key={`recent-${track.id}`}
+                onPress={() => loadTrack(track, recentlyPlayed, "Recent Plays")}
+                className="flex-row items-center p-3 mb-2 bg-surface rounded-2xl"
+              >
+                <View className="w-12 h-12 rounded-xl bg-surface-light items-center justify-center mr-4 overflow-hidden">
+                  <Radio size={20} color="#FF6B35" />
+                </View>
+                <View className="flex-1">
+                  <Text
+                    className="text-white font-semibold text-sm"
+                    numberOfLines={1}
+                  >
+                    {track.title}
+                  </Text>
+                  <Text className="text-white/40 text-xs">{track.creator}</Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+
+        {/* Playlists */}
+        {playlists.length > 0 && (
+          <View className="mb-8">
+            <View className="px-6 flex-row items-center justify-between mb-4">
+              <Text className="text-white font-display text-xl">My Playlists</Text>
+              <TouchableOpacity onPress={() => router.push("/playlists" as any)}>
+                <Text className="text-primary text-xs font-bold uppercase tracking-wider">
+                  See All
+                </Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ paddingHorizontal: 24 }}
+            >
+              {playlists.map((playlist) => (
+                <TouchableOpacity
+                  key={playlist.id}
+                  onPress={() => router.push(`/playlists/${playlist.id}` as any)}
+                  className="mr-4 w-40"
+                >
+                  <View className="w-40 h-40 rounded-3xl bg-surface items-center justify-center mb-3 border border-white/5 overflow-hidden">
+                    <ListMusic size={40} color="#7209B7" opacity={0.5} />
+                  </View>
+                  <Text className="text-white font-semibold text-sm" numberOfLines={1}>
+                    {playlist.name}
+                  </Text>
+                  <Text className="text-white/40 text-xs">
+                    {playlist.tracks.length} tracks
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
+        {/* Mostly Played */}
+        {Object.keys(playCounts).length > 0 && (
+          <View className="px-6 mb-10">
+            <View className="flex-row items-center justify-between mb-4">
+              <Text className="text-white font-display text-xl">Mostly Played</Text>
+              <TouchableOpacity onPress={() => router.push("/stats" as any)}>
+                <Text className="text-primary text-xs font-bold uppercase tracking-wider">
+                  Full Stats
+                </Text>
+              </TouchableOpacity>
+            </View>
+            {savedTracks
+              .filter((t) => playCounts[t.id])
+              .sort((a, b) => (playCounts[b.id] || 0) - (playCounts[a.id] || 0))
+              .slice(0, 5)
+              .map((track) => (
+                <TouchableOpacity
+                  key={`top-${track.id}`}
+                  onPress={() => loadTrack(track, savedTracks, "Mostly Played")}
+                  className="flex-row items-center p-3 mb-2 bg-surface rounded-2xl"
+                >
+                  <View className="w-12 h-12 rounded-xl bg-surface-light items-center justify-center mr-4 overflow-hidden">
+                    <Music size={20} color="#7209B7" />
+                  </View>
+                  <View className="flex-1">
+                    <Text className="text-white font-semibold text-sm" numberOfLines={1}>
+                      {track.title}
+                    </Text>
+                    <Text className="text-white/40 text-xs">{track.creator}</Text>
+                  </View>
+                  <View className="bg-primary/10 px-2 py-1 rounded-lg">
+                    <Text className="text-primary text-[10px] font-bold">
+                      {playCounts[track.id]}x
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+          </View>
+        )}
+
+        {/* Liked Tracks */}
+        {likedTracks.length > 0 && (
+          <View className="px-6 mb-10">
+            <View className="flex-row items-center justify-between mb-4">
+              <Text className="text-white font-display text-xl">Favorites</Text>
+              <TouchableOpacity
+                onPress={() =>
+                  router.push({
+                    pathname: "/library",
+                    params: { tab: "liked" },
+                  } as any)
+                }
+              >
+                <Text className="text-primary text-xs font-bold uppercase tracking-wider">
+                  View All
+                </Text>
+              </TouchableOpacity>
+            </View>
+            {likedTracks.slice(0, 5).map((track) => (
+              <TouchableOpacity
+                key={`liked-${track.id}`}
+                onPress={() => loadTrack(track, likedTracks, "Favorites")}
+                className="flex-row items-center p-3 mb-2 bg-surface rounded-2xl"
+              >
+                <View className="w-12 h-12 rounded-xl bg-surface-light items-center justify-center mr-4 overflow-hidden">
+                  <Heart size={20} color="#F72585" fill="#F72585" />
+                </View>
+                <View className="flex-1">
+                  <Text className="text-white font-semibold text-sm" numberOfLines={1}>
+                    {track.title}
+                  </Text>
+                  <Text className="text-white/40 text-xs">{track.creator}</Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+      </ScrollView>
+    </View>
   );
 }

@@ -30,14 +30,7 @@
     },
     "plugins": [
       "expo-router",
-      [
-        "expo-font",
-        {
-          "fonts": [
-            "node_modules/@expo-google-fonts/inter/900Black/Inter_900Black.ttf"
-          ]
-        }
-      ],
+      "expo-font",
       [
         "expo-splash-screen",
         {
@@ -48,7 +41,6 @@
           }
         }
       ],
-      "expo-font",
       "expo-audio",
       "expo-asset"
     ],
