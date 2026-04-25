@@ -1,6 +1,19 @@
 {
   "fill" : {
-    "automatic-gradient" : "extended-srgb:0.00000,0.47843,1.00000,1.00000"
+    "linear-gradient" : [
+      "display-p3:0.19314,0.17947,0.16480,1.00000",
+      "display-p3:0.44836,0.21038,0.13902,1.00000"
+    ],
+    "orientation" : {
+      "start" : {
+        "x" : 0.5,
+        "y" : 0
+      },
+      "stop" : {
+        "x" : 0.5,
+        "y" : 0.7
+      }
+    }
   },
   "groups" : [
     {
@@ -9,14 +22,15 @@
           "image-name" : "expo-symbol 2.svg",
           "name" : "expo-symbol 2",
           "position" : {
-            "scale" : 1,
+            "scale" : 3.8,
             "translation-in-points" : [
-              1.1008400065293245e-05,
+              0,
               -16.046875
             ]
           }
         },
         {
+          "hidden" : true,
           "image-name" : "grid.png",
           "name" : "grid"
         }

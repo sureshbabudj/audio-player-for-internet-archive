@@ -1,6 +1,11 @@
 import { useLibraryStore } from "@/store/useLibraryStore";
 import { ArchiveTrack, RepeatMode } from "@/types";
-import { createAudioPlayer, type AudioPlayer } from "expo-audio";
+import { getEmbeddedArtwork } from "@/utils/metadata";
+import {
+  createAudioPlayer,
+  setAudioModeAsync,
+  type AudioPlayer,
+} from "expo-audio";
 import { create } from "zustand";
 
 interface PlayerState {
@@ -39,6 +44,14 @@ interface PlayerState {
 }
 
 let statusSubscription: { remove: () => void } | null = null;
+let isChangingTrack = false;
+
+// Configure audio session once at startup for background play
+setAudioModeAsync({
+  playsInSilentMode: true,
+  shouldPlayInBackground: true,
+  interruptionMode: "doNotMix", // Required for lockscreen controls and stable background play
+}).catch(console.error);
 
 export const usePlayerStore = create<PlayerState>((set, get) => ({
   player: null,
@@ -57,6 +70,9 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   playbackSpeed: 1,
 
   loadTrack: async (track, queue = [], title = "Now Playing") => {
+    if (isChangingTrack) return;
+    isChangingTrack = true;
+
     const { player: currentPlayer } = get();
     const newQueue = queue.length > 0 ? queue : [track];
     const trackIndex = newQueue.findIndex((t) => t.id === track.id);
@@ -80,58 +96,77 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       });
     };
 
-    // If player already exists, use replace() to avoid re-creating native objects
-    // This often resolves FigFilePlayer errors on iOS
-    if (currentPlayer) {
-      try {
+    try {
+      // Clean up current player thoroughly
+      if (currentPlayer) {
         currentPlayer.pause();
-        currentPlayer.replace({ uri: track.url });
-        setupStatusListener(currentPlayer);
-        set({
-          currentTrack: track,
-          queue: newQueue,
-          queueTitle: title,
-          currentIndex: trackIndex >= 0 ? trackIndex : 0,
-          isPlaying: false,
-          isBuffering: true,
-          isLoaded: false,
-          position: 0,
-          duration: 0,
-        });
-        currentPlayer.play();
-        useLibraryStore.getState().addToRecentlyPlayed(track);
-        return;
-      } catch (e) {
-        console.error("Error replacing source, falling back to re-creation:", e);
         if (statusSubscription) {
           statusSubscription.remove();
           statusSubscription = null;
         }
         currentPlayer.remove();
+        // Wait longer for native release
+        await new Promise((resolve) => setTimeout(resolve, 200));
       }
-    }
 
-    set({
-      currentTrack: track,
-      isPlaying: false,
-      isBuffering: true,
-      isLoaded: false,
-      position: 0,
-      duration: 0,
-    });
+      set({
+        currentTrack: track,
+        isPlaying: false,
+        isBuffering: true,
+        isLoaded: false,
+        position: 0,
+        duration: 0,
+      });
 
-    try {
       const player = createAudioPlayer(
         { uri: track.url },
-        { updateInterval: 250 },
+        {
+          updateInterval: 250,
+          preferredForwardBufferDuration: 30,
+          keepAudioSessionActive: true, // Crucial for background playback
+        },
       );
+
+      // Set lockscreen/Control Center metadata
+      player.setActiveForLockScreen(true, {
+        title: track.title,
+        artist: track.creator,
+        albumTitle: track.description?.slice(0, 50),
+        artworkUrl: track.thumbnail || `https://archive.org/services/img/${track.identifier}`,
+      });
 
       player.volume = get().volume;
       player.setPlaybackRate(get().playbackSpeed);
 
       setupStatusListener(player);
 
+      // Immediately call play. The native player will handle the buffering/ready state.
+      // Removed the brittle setInterval polling which was causing "never played" issues.
       player.play();
+
+      // Asynchronously fetch embedded metadata from the MP3 file itself
+      getEmbeddedArtwork(track.url).then((embeddedArt) => {
+        if (embeddedArt) {
+          console.log("Found embedded artwork via jsmediatags");
+          set((state) => {
+            // Only update if we're still on the same track
+            if (state.currentTrack?.id === track.id) {
+              const updatedTrack = { ...state.currentTrack, thumbnail: embeddedArt };
+              
+              // Update native lockscreen metadata with the real embedded art
+              if (state.player) {
+                state.player.updateLockScreenMetadata({
+                  artworkUrl: embeddedArt
+                });
+              }
+              
+              return { currentTrack: updatedTrack };
+            }
+            return state;
+          });
+        }
+      });
+
       useLibraryStore.getState().addToRecentlyPlayed(track);
 
       set({
@@ -146,6 +181,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     } catch (error) {
       console.error("Error loading track:", error);
       set({ isBuffering: false, isLoaded: false });
+    } finally {
+      isChangingTrack = false;
     }
   },
 

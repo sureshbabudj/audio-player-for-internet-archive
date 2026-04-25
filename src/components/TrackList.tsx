@@ -66,15 +66,14 @@ export function TrackList({
         }`}
       >
         <View className="w-12 h-12 rounded-xl bg-surface-light items-center justify-center overflow-hidden mr-4">
-          {item.thumbnail ? (
-            <Image
-              source={{ uri: item.thumbnail }}
-              className="w-full h-full"
-              contentFit="cover"
-            />
-          ) : (
-            <MusicIcon size={20} color="#FF6B35" />
-          )}
+          <Image
+            source={{ 
+              uri: item.thumbnail || `https://archive.org/services/img/${item.identifier}` 
+            }}
+            placeholder={require("../../assets/images/splash-icon-dark.png")}
+            className="w-full h-full"
+            contentFit="cover"
+          />
           {isCurrent && isPlaying && (
             <View className="absolute inset-0 bg-black/40 items-center justify-center">
               <Animated.View style={{ opacity: pulseAnim }}>
@@ -105,7 +104,7 @@ export function TrackList({
           <TouchableOpacity
             onPress={(e) => {
               e.stopPropagation();
-              toggleLike(item.id);
+              toggleLike(item);
             }}
           >
             <HeartIcon

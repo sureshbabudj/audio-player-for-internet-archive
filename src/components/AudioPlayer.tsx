@@ -20,6 +20,7 @@ import {
 import React from "react";
 import { ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { WaveAnimation } from "./WaveAnimation";
 
 export function AudioPlayer() {
   const router = useRouter();
@@ -58,7 +59,7 @@ export function AudioPlayer() {
   const liked = isLiked(currentTrack.id);
 
   const handleToggleLike = () => {
-    toggleLike(currentTrack.id);
+    toggleLike(currentTrack);
   };
 
   const displayPosition = slidingPosition !== null ? slidingPosition : position;
@@ -80,7 +81,7 @@ export function AudioPlayer() {
             Playing From
           </Text>
           <Text
-            className="text-white font-display text-base text-primary"
+            className="font-display text-base text-primary"
             numberOfLines={1}
           >
             {queueTitle || "Now Playing"}
@@ -93,15 +94,16 @@ export function AudioPlayer() {
 
       {!showQueue ? (
         <View className="flex-1">
-          {/* Album Art Carousel Effect */}
-          <View className="flex-1 items-center justify-center my-4">
-            <View className="w-[80%] aspect-square rounded-[40px] overflow-hidden shadow-2xl shadow-black/80 border border-white/10 bg-surface-light">
+          {/* Album Art Section */}
+          <View className="flex-1 items-center justify-center mt-4">
+            <View className="w-[70%] aspect-square rounded-[40px] overflow-hidden shadow-2xl shadow-black/80 border border-white/10 bg-surface-light mb-6">
               <Image
-                source={{
-                  uri:
-                    currentTrack.thumbnail ||
-                    `https://archive.org/services/img/${currentTrack.identifier}`,
-                }}
+                source={[
+                  { uri: currentTrack.thumbnail },
+                  { uri: `https://archive.org/services/img/${currentTrack.identifier}` },
+                  { uri: `https://archive.org/download/${currentTrack.identifier}/__ia_thumb.jpg` },
+                ]}
+                placeholder={require("../../assets/images/splash-icon-dark.png")}
                 className="w-full h-full"
                 contentFit="cover"
                 transition={300}
@@ -112,6 +114,11 @@ export function AudioPlayer() {
                   <Zap size={48} color="#FF6B35" />
                 </View>
               )}
+            </View>
+
+            {/* Visualizer */}
+            <View className="h-[72px] items-center justify-center">
+              <WaveAnimation size="large" height={72} />
             </View>
           </View>
 
@@ -276,7 +283,7 @@ export function AudioPlayer() {
         <TouchableOpacity className="flex-row items-center bg-surface px-4 py-2 rounded-full">
           <Globe size={14} color="#FF6B35" />
           <Text className="text-white/60 text-xs font-medium ml-2">
-            Archive Audio Player
+            ArchiPlay
           </Text>
         </TouchableOpacity>
       </View>

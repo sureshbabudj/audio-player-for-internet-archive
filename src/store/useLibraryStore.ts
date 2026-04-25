@@ -11,7 +11,7 @@ interface LibraryState {
   addToLibrary: (track: ArchiveTrack) => void;
   removeFromLibrary: (trackId: string) => void;
   isInLibrary: (trackId: string) => boolean;
-  toggleLike: (trackId: string) => void;
+  toggleLike: (track: ArchiveTrack) => void;
   isLiked: (trackId: string) => boolean;
   addToRecentlyPlayed: (track: ArchiveTrack) => void;
   clearRecentlyPlayed: () => void;
@@ -44,16 +44,19 @@ export const useLibraryStore = create<LibraryState>()(
         return get().savedTracks.some((t) => t.id === trackId);
       },
 
-      toggleLike: (trackId) => {
+      toggleLike: (track) => {
         set((state) => {
-          const isLiked = state.likedTrackIds.includes(trackId);
+          const isLiked = state.likedTrackIds.includes(track.id);
           if (isLiked) {
             return {
-              likedTrackIds: state.likedTrackIds.filter((id) => id !== trackId),
+              likedTrackIds: state.likedTrackIds.filter((id) => id !== track.id),
             };
           } else {
+            // Also ensure track metadata is saved so it shows up in "Liked" tab
+            const inLibrary = state.savedTracks.some((t) => t.id === track.id);
             return {
-              likedTrackIds: [...state.likedTrackIds, trackId],
+              likedTrackIds: [...state.likedTrackIds, track.id],
+              savedTracks: inLibrary ? state.savedTracks : [track, ...state.savedTracks],
             };
           }
         });

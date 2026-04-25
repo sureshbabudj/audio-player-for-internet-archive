@@ -1,9 +1,10 @@
 import { useLibraryStore } from "@/store/useLibraryStore";
 import { usePlayerStore } from "@/store/usePlayerStore";
 import { ArchiveTrack } from "@/types";
-import { Clock, Heart, Play, Plus } from "lucide-react-native";
+import { Image } from "expo-image";
+import { Clock, Heart, Plus } from "lucide-react-native";
 import React from "react";
-import { Image, Text, TouchableOpacity, View } from "react-native";
+import { Text, TouchableOpacity, View } from "react-native";
 
 interface SearchResultCardProps {
   track: ArchiveTrack;
@@ -28,15 +29,18 @@ export function SearchResultCard({
       className="flex-row items-center p-4 mx-4 mb-3 bg-surface rounded-2xl"
     >
       <View className="w-16 h-16 rounded-xl bg-surface-light items-center justify-center overflow-hidden mr-4">
-        {track.thumbnail ? (
-          <Image
-            source={{ uri: track.thumbnail }}
-            className="w-full h-full"
-            resizeMode="cover"
-          />
-        ) : (
-          <Play size={24} color="#FF6B35" />
-        )}
+        <Image
+          source={[
+            { uri: track.thumbnail },
+            { uri: `https://archive.org/services/img/${track.identifier}` },
+            {
+              uri: `https://archive.org/download/${track.identifier}/__ia_thumb.jpg`,
+            },
+          ]}
+          placeholder={require("../../assets/images/splash-icon-dark.png")}
+          className="w-full h-full"
+          contentFit="cover"
+        />
       </View>
 
       <View className="flex-1 mr-2">
@@ -64,7 +68,7 @@ export function SearchResultCard({
         <TouchableOpacity
           onPress={(e) => {
             e.stopPropagation();
-            toggleLike(track.id);
+            toggleLike(track);
           }}
           className="w-8 h-8 rounded-full bg-surface-light items-center justify-center"
         >

@@ -14,22 +14,31 @@ const BAR_COUNT = 24;
 
 export function WaveAnimation({
   size = "large",
+  height: customHeight,
 }: {
   size?: "small" | "large";
+  height?: number;
 }) {
   const { isPlaying } = usePlayerStore();
   const bars = Array.from({ length: BAR_COUNT }, (_, i) => i);
 
   const getBarHeight = (index: number) => {
-    const base = size === "large" ? 60 : 20;
+    const baseHeight = customHeight || (size === "large" ? 60 : 20);
+    const amplitude = size === "large" ? baseHeight * 0.4 : 10;
     return (
-      base +
-      Math.sin((index / BAR_COUNT) * Math.PI * 2) * (size === "large" ? 40 : 10)
+      baseHeight * 0.6 +
+      Math.sin((index / BAR_COUNT) * Math.PI * 2) * amplitude
     );
   };
 
   return (
-    <View style={[styles.container, size === "small" && styles.smallContainer]}>
+    <View
+      style={[
+        styles.container,
+        size === "small" && styles.smallContainer,
+        customHeight ? { height: customHeight } : null,
+      ]}
+    >
       {bars.map((i) => (
         <WaveBar
           key={i}
