@@ -1,7 +1,8 @@
 import { ArchiveItem } from "@/types";
+import { Image } from "expo-image";
 import { Plus, Users } from "lucide-react-native";
 import React from "react";
-import { ActivityIndicator, Image, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Text, TouchableOpacity, View } from "react-native";
 
 interface SearchResultItemCardProps {
   item: ArchiveItem;

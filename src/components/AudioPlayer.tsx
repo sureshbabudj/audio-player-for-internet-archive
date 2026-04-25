@@ -18,9 +18,17 @@ import {
   Zap,
 } from "lucide-react-native";
 import React from "react";
-import { ScrollView, Text, TouchableOpacity, View } from "react-native";
+import {
+  Dimensions,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { WaveAnimation } from "./WaveAnimation";
+
+const { width } = Dimensions.get("window");
 
 export function AudioPlayer() {
   const router = useRouter();
@@ -43,10 +51,24 @@ export function AudioPlayer() {
     setRepeatMode,
     toggleShuffle,
     playFromQueue,
+    player,
   } = usePlayerStore();
 
-  const { addToLibrary, removeFromLibrary, isInLibrary, toggleLike, isLiked } =
-    useLibraryStore();
+  // player.metadata contains the info the native player has extracted
+  const albumArt = (player as any)?.metadata?.artwork;
+  const title = (player as any)?.metadata?.title;
+
+  const liked = useLibraryStore((state) =>
+    currentTrack ? state.likedTrackIds.includes(currentTrack.id) : false,
+  );
+  const saved = useLibraryStore((state) =>
+    currentTrack
+      ? state.collections.some((c) =>
+          c.tracks.some((t) => t.id === currentTrack.id),
+        )
+      : false,
+  );
+  const { addToLibrary, removeFromLibrary, toggleLike } = useLibraryStore();
 
   const [slidingPosition, setSlidingPosition] = React.useState<number | null>(
     null,
@@ -54,9 +76,6 @@ export function AudioPlayer() {
   const [showQueue, setShowQueue] = React.useState(false);
 
   if (!currentTrack) return null;
-
-  const saved = isInLibrary(currentTrack.id);
-  const liked = isLiked(currentTrack.id);
 
   const handleToggleLike = () => {
     toggleLike(currentTrack);
@@ -98,15 +117,15 @@ export function AudioPlayer() {
           <View className="flex-1 items-center justify-center mt-4">
             <View className="w-[70%] aspect-square rounded-[40px] overflow-hidden shadow-2xl shadow-black/80 border border-white/10 bg-surface-light mb-6">
               <Image
-                source={[
-                  { uri: currentTrack.thumbnail },
-                  { uri: `https://archive.org/services/img/${currentTrack.identifier}` },
-                  { uri: `https://archive.org/download/${currentTrack.identifier}/__ia_thumb.jpg` },
-                ]}
+                source={{
+                  uri:
+                    albumArt ||
+                    `https://archive.org/services/img/${currentTrack.identifier}`,
+                }}
                 placeholder={require("../../assets/images/splash-icon-dark.png")}
                 className="w-full h-full"
                 contentFit="cover"
-                transition={300}
+                transition={500}
                 cachePolicy="memory-disk"
               />
               {isBuffering && (

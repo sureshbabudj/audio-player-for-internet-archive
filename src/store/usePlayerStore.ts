@@ -1,6 +1,5 @@
 import { useLibraryStore } from "@/store/useLibraryStore";
 import { ArchiveTrack, RepeatMode } from "@/types";
-import { getEmbeddedArtwork } from "@/utils/metadata";
 import {
   createAudioPlayer,
   setAudioModeAsync,
@@ -118,12 +117,14 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
         duration: 0,
       });
 
+      console.log("Loading track:", track.url);
+
       const player = createAudioPlayer(
         { uri: track.url },
         {
           updateInterval: 250,
           preferredForwardBufferDuration: 30,
-          keepAudioSessionActive: true, // Crucial for background playback
+          keepAudioSessionActive: true,
         },
       );
 
@@ -132,7 +133,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
         title: track.title,
         artist: track.creator,
         albumTitle: track.description?.slice(0, 50),
-        artworkUrl: track.thumbnail || `https://archive.org/services/img/${track.identifier}`,
+        artworkUrl: `https://archive.org/services/img/${track.identifier}`,
       });
 
       player.volume = get().volume;
@@ -140,32 +141,11 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
 
       setupStatusListener(player);
 
-      // Immediately call play. The native player will handle the buffering/ready state.
-      // Removed the brittle setInterval polling which was causing "never played" issues.
-      player.play();
-
-      // Asynchronously fetch embedded metadata from the MP3 file itself
-      getEmbeddedArtwork(track.url).then((embeddedArt) => {
-        if (embeddedArt) {
-          console.log("Found embedded artwork via jsmediatags");
-          set((state) => {
-            // Only update if we're still on the same track
-            if (state.currentTrack?.id === track.id) {
-              const updatedTrack = { ...state.currentTrack, thumbnail: embeddedArt };
-              
-              // Update native lockscreen metadata with the real embedded art
-              if (state.player) {
-                state.player.updateLockScreenMetadata({
-                  artworkUrl: embeddedArt
-                });
-              }
-              
-              return { currentTrack: updatedTrack };
-            }
-            return state;
-          });
-        }
-      });
+      // Wait a tiny bit for the native layer to initialize before calling play
+      setTimeout(() => {
+        console.log("Starting playback for:", track.title);
+        player.play();
+      }, 100);
 
       useLibraryStore.getState().addToRecentlyPlayed(track);
 

@@ -19,12 +19,13 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { savedTracks, recentlyPlayed, likedTrackIds, playCounts } =
+  const { collections, recentlyPlayed, likedTrackIds, playCounts } =
     useLibraryStore();
   const { playlists } = usePlaylistStore();
   const { loadTrack, currentTrack } = usePlayerStore();
 
-  const likedTracks = savedTracks.filter((t) => likedTrackIds.includes(t.id));
+  const allTracks = collections.flatMap((c) => c.tracks);
+  const likedTracks = allTracks.filter((t) => likedTrackIds.includes(t.id));
 
   return (
     <View className="flex-1 bg-darker">
@@ -152,14 +153,14 @@ export default function HomeScreen() {
                 </Text>
               </TouchableOpacity>
             </View>
-            {savedTracks
+            {allTracks
               .filter((t) => playCounts[t.id])
               .sort((a, b) => (playCounts[b.id] || 0) - (playCounts[a.id] || 0))
               .slice(0, 5)
               .map((track) => (
                 <TouchableOpacity
                   key={`top-${track.id}`}
-                  onPress={() => loadTrack(track, savedTracks, "Mostly Played")}
+                  onPress={() => loadTrack(track, allTracks, "Mostly Played")}
                   className="flex-row items-center p-3 mb-2 bg-surface rounded-2xl"
                 >
                   <View className="w-12 h-12 rounded-xl bg-surface-light items-center justify-center mr-4 overflow-hidden">

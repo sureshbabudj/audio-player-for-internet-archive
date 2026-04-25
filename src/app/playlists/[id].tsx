@@ -1,17 +1,22 @@
 import { TrackList } from "@/components/TrackList";
+import { useLibraryStore } from "@/store/useLibraryStore";
 import { usePlayerStore } from "@/store/usePlayerStore";
 import { usePlaylistStore } from "@/store/usePlaylistStore";
+import { ArchiveTrack } from "@/types";
+import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { ArrowLeft, Play, Trash2 } from "lucide-react-native";
-import React from "react";
-import { Text, TouchableOpacity, View } from "react-native";
+import { ArrowLeft, Play, Plus, Trash2, X } from "lucide-react-native";
+import React, { useState } from "react";
+import { Modal, ScrollView, Text, TouchableOpacity, View } from "react-native";
 
 export default function PlaylistDetailScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
-  const { getPlaylist, deletePlaylist, removeTrackFromPlaylist } =
+  const { getPlaylist, deletePlaylist, addTrackToPlaylist, removeTrackFromPlaylist } =
     usePlaylistStore();
   const { loadTrack } = usePlayerStore();
+  const { collections } = useLibraryStore();
+  const [showAddModal, setShowAddModal] = useState(false);
 
   const playlist = getPlaylist(id as string);
 
@@ -29,6 +34,8 @@ export default function PlaylistDetailScreen() {
     }
   };
 
+  const allAvailableTracks = collections.flatMap(c => c.tracks);
+
   return (
     <View className="flex-1 bg-darker">
       {/* Header */}
@@ -41,13 +48,22 @@ export default function PlaylistDetailScreen() {
           <Text className="text-white/60 font-body ml-2">Back</Text>
         </TouchableOpacity>
 
-        <View
-          className="w-24 h-24 rounded-3xl items-center justify-center mb-4"
-          style={{ backgroundColor: playlist.color + "30" }}
-        >
-          <Text className="text-4xl" style={{ color: playlist.color }}>
-            {playlist.name[0].toUpperCase()}
-          </Text>
+        <View className="flex-row items-center justify-between">
+          <View
+            className="w-24 h-24 rounded-3xl items-center justify-center mb-4"
+            style={{ backgroundColor: playlist.color + "30" }}
+          >
+            <Text className="text-4xl" style={{ color: playlist.color }}>
+              {playlist.name[0].toUpperCase()}
+            </Text>
+          </View>
+
+          <TouchableOpacity
+            onPress={() => setShowAddModal(true)}
+            className="w-12 h-12 rounded-2xl bg-white/5 items-center justify-center"
+          >
+            <Plus size={24} color="#FF6B35" />
+          </TouchableOpacity>
         </View>
 
         <Text className="text-white font-display text-3xl mb-1">
@@ -85,10 +101,10 @@ export default function PlaylistDetailScreen() {
             No tracks in this playlist
           </Text>
           <TouchableOpacity
-            onPress={() => router.push("/search")}
+            onPress={() => setShowAddModal(true)}
             className="mt-4 bg-surface px-6 py-3 rounded-xl"
           >
-            <Text className="text-primary font-semibold">Add Tracks</Text>
+            <Text className="text-primary font-semibold">Add from Library</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -98,6 +114,58 @@ export default function PlaylistDetailScreen() {
           onRemove={(trackId) => removeTrackFromPlaylist(playlist.id, trackId)}
         />
       )}
+
+      {/* Add Tracks Modal */}
+      <Modal
+        visible={showAddModal}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setShowAddModal(false)}
+      >
+        <View className="flex-1 bg-black/90 justify-end">
+          <View className="bg-surface rounded-t-[32px] p-6 h-[80%]">
+            <View className="flex-row items-center justify-between mb-6">
+              <Text className="text-white font-display text-xl">Add from Library</Text>
+              <TouchableOpacity onPress={() => setShowAddModal(false)}>
+                <X size={24} color="#fff" opacity={0.5} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {allAvailableTracks.length === 0 ? (
+                <Text className="text-white/30 text-center py-20">Your library is empty</Text>
+              ) : (
+                allAvailableTracks.map((track) => {
+                  const isInPlaylist = playlist.tracks.some(t => t.id === track.id);
+                  return (
+                    <TouchableOpacity
+                      key={track.id}
+                      onPress={() => !isInPlaylist && addTrackToPlaylist(playlist.id, track)}
+                      className="flex-row items-center p-3 mb-2 bg-white/5 rounded-2xl"
+                    >
+                      <Image 
+                        source={{ uri: track.thumbnail || `https://archive.org/services/img/${track.identifier}` }}
+                        className="w-12 h-12 rounded-lg mr-4"
+                      />
+                      <View className="flex-1">
+                        <Text className="text-white font-medium" numberOfLines={1}>{track.title}</Text>
+                        <Text className="text-white/40 text-xs">{track.creator}</Text>
+                      </View>
+                      <View className={`w-8 h-8 rounded-full items-center justify-center ${isInPlaylist ? 'bg-primary/20' : 'bg-primary'}`}>
+                        {isInPlaylist ? (
+                          <X size={16} color="#FF6B35" />
+                        ) : (
+                          <Plus size={16} color="#fff" />
+                        )}
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }

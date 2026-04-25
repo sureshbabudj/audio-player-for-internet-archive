@@ -14,18 +14,23 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 export default function StatsScreen() {
   const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<"stats" | "liked">("stats");
-  const { savedTracks, playCounts, recentlyPlayed, isLiked } =
+  const { collections, playCounts, recentlyPlayed, isLiked } =
     useLibraryStore();
 
+  const allTracks = useMemo(
+    () => collections.flatMap((c) => c.tracks),
+    [collections],
+  );
+
   const likedTracks = useMemo(
-    () => savedTracks.filter((t) => isLiked(t.id)),
-    [savedTracks, isLiked],
+    () => allTracks.filter((t) => isLiked(t.id)),
+    [allTracks, isLiked],
   );
 
   const stats = useMemo(() => {
     // Top Artists
     const artistCounts: Record<string, number> = {};
-    savedTracks.forEach((t) => {
+    allTracks.forEach((t) => {
       const artist = t.creator || "Unknown Artist";
       artistCounts[artist] = (artistCounts[artist] || 0) + 1;
     });
@@ -40,7 +45,7 @@ export default function StatsScreen() {
       .slice(0, 5);
 
     return { topArtists, topPlayed };
-  }, [savedTracks, playCounts, recentlyPlayed]);
+  }, [allTracks, playCounts, recentlyPlayed]);
 
   return (
     <View className="flex-1 bg-darker" style={{ paddingTop: insets.top }}>
@@ -97,7 +102,7 @@ export default function StatsScreen() {
                 <Music size={20} color="#FF6B35" />
               </View>
               <Text className="text-white font-display text-2xl">
-                {savedTracks.length}
+                {allTracks.length}
               </Text>
               <Text className="text-white/40 text-xs font-body">
                 Total Saved

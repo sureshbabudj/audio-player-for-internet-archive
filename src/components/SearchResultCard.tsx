@@ -20,8 +20,9 @@ export function SearchResultCard({
   onAddToPlaylist,
 }: SearchResultCardProps) {
   const { loadTrack } = usePlayerStore();
-  const { addToLibrary, isInLibrary, toggleLike, isLiked } = useLibraryStore();
+  const isLiked = useLibraryStore((state) => state.isLiked);
   const liked = isLiked(track.id);
+  const { addToLibrary, toggleLike } = useLibraryStore();
 
   return (
     <TouchableOpacity
@@ -30,13 +31,11 @@ export function SearchResultCard({
     >
       <View className="w-16 h-16 rounded-xl bg-surface-light items-center justify-center overflow-hidden mr-4">
         <Image
-          source={[
-            { uri: track.thumbnail },
-            { uri: `https://archive.org/services/img/${track.identifier}` },
-            {
-              uri: `https://archive.org/download/${track.identifier}/__ia_thumb.jpg`,
-            },
-          ]}
+          source={{
+            uri:
+              track.thumbnail ||
+              `https://archive.org/services/img/${track.identifier}`,
+          }}
           placeholder={require("../../assets/images/splash-icon-dark.png")}
           className="w-full h-full"
           contentFit="cover"
@@ -80,17 +79,6 @@ export function SearchResultCard({
           />
         </TouchableOpacity>
 
-        {!isInLibrary(track.id) && (
-          <TouchableOpacity
-            onPress={(e) => {
-              e.stopPropagation();
-              addToLibrary(track);
-            }}
-            className="w-8 h-8 rounded-full bg-surface-light items-center justify-center"
-          >
-            <Plus size={16} color="#FF6B35" />
-          </TouchableOpacity>
-        )}
         {onAddToPlaylist && (
           <TouchableOpacity
             onPress={(e) => {

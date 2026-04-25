@@ -35,11 +35,11 @@ export function MiniPlayer() {
           {/* Thumbnail */}
           <View className="w-12 h-12 rounded-xl overflow-hidden mr-3 bg-surface-light">
             <Image
-              source={[
-                { uri: currentTrack.thumbnail },
-                { uri: `https://archive.org/services/img/${currentTrack.identifier}` },
-                { uri: `https://archive.org/download/${currentTrack.identifier}/__ia_thumb.jpg` },
-              ]}
+              source={{
+                uri:
+                  currentTrack.thumbnail ||
+                  `https://archive.org/services/img/${currentTrack.identifier}`,
+              }}
               placeholder={require("../../assets/images/splash-icon-dark.png")}
               className="w-full h-full"
               contentFit="cover"

@@ -1,16 +1,27 @@
-import { ArchiveTrack } from "@/types";
+import { ArchiveItem, ArchiveTrack } from "@/types";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
+interface Collection {
+  id: string;
+  title: string;
+  creator: string;
+  thumbnail: string;
+  tracks: ArchiveTrack[];
+  addedAt: number;
+}
+
 interface LibraryState {
-  savedTracks: ArchiveTrack[];
+  collections: Collection[];
   likedTrackIds: string[];
   recentlyPlayed: ArchiveTrack[];
   playCounts: Record<string, number>;
-  addToLibrary: (track: ArchiveTrack) => void;
+
+  addCollection: (item: ArchiveItem, tracks: ArchiveTrack[]) => void;
+  removeCollection: (collectionId: string) => void;
+  addToLibrary: (track: ArchiveTrack) => void; // Single track add (fallback)
   removeFromLibrary: (trackId: string) => void;
-  isInLibrary: (trackId: string) => boolean;
   toggleLike: (track: ArchiveTrack) => void;
   isLiked: (trackId: string) => boolean;
   addToRecentlyPlayed: (track: ArchiveTrack) => void;
@@ -20,28 +31,80 @@ interface LibraryState {
 export const useLibraryStore = create<LibraryState>()(
   persist(
     (set, get) => ({
-      savedTracks: [],
+      collections: [],
       likedTrackIds: [],
       recentlyPlayed: [],
       playCounts: {},
 
+      addCollection: (item, tracks) => {
+        set((state) => {
+          const existingIndex = state.collections.findIndex(
+            (c) => c.id === item.identifier,
+          );
+          const newCollection: Collection = {
+            id: item.identifier,
+            title: item.title,
+            creator: item.creator,
+            thumbnail: item.thumbnail || "",
+            tracks: tracks,
+            addedAt: Date.now(),
+          };
+
+          if (existingIndex >= 0) {
+            const newCollections = [...state.collections];
+            newCollections[existingIndex] = newCollection;
+            return { collections: newCollections };
+          }
+          return { collections: [newCollection, ...state.collections] };
+        });
+      },
+
+      removeCollection: (collectionId) => {
+        set((state) => ({
+          collections: state.collections.filter((c) => c.id !== collectionId),
+        }));
+      },
+
       addToLibrary: (track) => {
-        if (!get().isInLibrary(track.id)) {
-          set((state) => ({
-            savedTracks: [track, ...state.savedTracks],
-          }));
+        // Find existing collection or create a dummy one for the track
+        const { collections } = get();
+        const existing = collections.find((c) => c.id === track.identifier);
+
+        if (existing) {
+          if (!existing.tracks.some((t) => t.id === track.id)) {
+            const updated = {
+              ...existing,
+              tracks: [...existing.tracks, track],
+            };
+            set((state) => ({
+              collections: state.collections.map((c) =>
+                c.id === track.identifier ? updated : c,
+              ),
+            }));
+          }
+        } else {
+          get().addCollection(
+            {
+              identifier: track.identifier,
+              title: track.title, // Use track title as collection title if unknown
+              creator: track.creator,
+              thumbnail: track.thumbnail || "",
+            } as any,
+            [track],
+          );
         }
       },
 
       removeFromLibrary: (trackId) => {
         set((state) => ({
-          savedTracks: state.savedTracks.filter((t) => t.id !== trackId),
+          collections: state.collections
+            .map((c) => ({
+              ...c,
+              tracks: c.tracks.filter((t) => t.id !== trackId),
+            }))
+            .filter((c) => c.tracks.length > 0),
           likedTrackIds: state.likedTrackIds.filter((id) => id !== trackId),
         }));
-      },
-
-      isInLibrary: (trackId) => {
-        return get().savedTracks.some((t) => t.id === trackId);
       },
 
       toggleLike: (track) => {
@@ -49,14 +112,13 @@ export const useLibraryStore = create<LibraryState>()(
           const isLiked = state.likedTrackIds.includes(track.id);
           if (isLiked) {
             return {
-              likedTrackIds: state.likedTrackIds.filter((id) => id !== track.id),
+              likedTrackIds: state.likedTrackIds.filter(
+                (id) => id !== track.id,
+              ),
             };
           } else {
-            // Also ensure track metadata is saved so it shows up in "Liked" tab
-            const inLibrary = state.savedTracks.some((t) => t.id === track.id);
             return {
               likedTrackIds: [...state.likedTrackIds, track.id],
-              savedTracks: inLibrary ? state.savedTracks : [track, ...state.savedTracks],
             };
           }
         });

@@ -5,7 +5,9 @@ import { Music, Plus, X } from "lucide-react-native";
 import React, { useState } from "react";
 import {
   FlatList,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Text,
   TextInput,
   TouchableOpacity,
@@ -67,43 +69,49 @@ export default function PlaylistsScreen() {
         visible={modalVisible}
         onRequestClose={() => setModalVisible(false)}
       >
-        <View className="flex-1 bg-black/80 justify-end">
-          <View className="bg-surface rounded-t-3xl p-6">
-            <View className="flex-row items-center justify-between mb-6">
-              <Text className="text-white font-display text-xl">
-                New Playlist
-              </Text>
-              <TouchableOpacity onPress={() => setModalVisible(false)}>
-                <X size={24} color="#fff" />
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          className="flex-1"
+        >
+          <View className="flex-1 bg-black/80 justify-end">
+            <View className="bg-surface rounded-t-3xl p-6 pb-10">
+              <View className="flex-row items-center justify-between mb-6">
+                <Text className="text-white font-display text-xl">
+                  New Playlist
+                </Text>
+                <TouchableOpacity onPress={() => setModalVisible(false)}>
+                  <X size={24} color="#fff" />
+                </TouchableOpacity>
+              </View>
+
+              <TextInput
+                className="bg-darker text-white font-body text-base p-4 rounded-xl mb-4"
+                placeholder="Playlist name"
+                placeholderTextColor="#666"
+                value={newName}
+                onChangeText={setNewName}
+                autoFocus
+              />
+
+              <TextInput
+                className="bg-darker text-white font-body text-base p-4 rounded-xl mb-6"
+                placeholder="Description (optional)"
+                placeholderTextColor="#666"
+                value={newDesc}
+                onChangeText={setNewDesc}
+                multiline
+                numberOfLines={2}
+              />
+
+              <TouchableOpacity
+                onPress={handleCreate}
+                className="bg-primary py-4 rounded-xl items-center"
+              >
+                <Text className="text-white font-bold text-lg">Create</Text>
               </TouchableOpacity>
             </View>
-
-            <TextInput
-              className="bg-darker text-white font-body text-base p-4 rounded-xl mb-4"
-              placeholder="Playlist name"
-              placeholderTextColor="#666"
-              value={newName}
-              onChangeText={setNewName}
-            />
-
-            <TextInput
-              className="bg-darker text-white font-body text-base p-4 rounded-xl mb-6"
-              placeholder="Description (optional)"
-              placeholderTextColor="#666"
-              value={newDesc}
-              onChangeText={setNewDesc}
-              multiline
-              numberOfLines={2}
-            />
-
-            <TouchableOpacity
-              onPress={handleCreate}
-              className="bg-primary py-4 rounded-xl items-center"
-            >
-              <Text className="text-white font-bold text-lg">Create</Text>
-            </TouchableOpacity>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
