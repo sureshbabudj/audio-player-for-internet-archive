@@ -21,7 +21,7 @@ export function MiniPlayer() {
   return (
     <View
       className="absolute left-0 right-0 px-0"
-      style={{ bottom: insets.bottom + 70 }}
+      style={{ bottom: insets.bottom + 50 }}
     >
       <TouchableOpacity
         activeOpacity={0.9}

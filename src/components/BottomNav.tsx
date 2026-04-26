@@ -1,6 +1,11 @@
 import { THEME } from "@/constants/colors";
 import { usePathname, useRouter } from "expo-router";
-import { Heart, Home, Library, ListMusic, Search } from "lucide-react-native";
+import {
+  ChartNoAxesCombined,
+  Home,
+  Library,
+  ListMusic,
+} from "lucide-react-native";
 import React from "react";
 import { TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -13,9 +18,8 @@ export function BottomNav() {
   const navItems = [
     { icon: Home, route: "/", label: "Home" },
     { icon: Library, route: "/library", label: "Library" },
-    { icon: Search, route: "/search", label: "Search", isCenter: true },
     { icon: ListMusic, route: "/playlists", label: "Playlists" },
-    { icon: Heart, route: "/stats", label: "Liked" },
+    { icon: ChartNoAxesCombined, route: "/stats", label: "Stats" },
   ];
 
   return (
@@ -27,18 +31,6 @@ export function BottomNav() {
         const isActive =
           pathname === item.route ||
           (item.route === "/" && pathname === "/index");
-
-        if (item.isCenter) {
-          return (
-            <TouchableOpacity
-              key={index}
-              onPress={() => router.push(item.route as any)}
-              className="w-16 h-16 rounded-full bg-primary items-center justify-center shadow-2xl shadow-primary/60 border-4 border-darker"
-            >
-              <Search size={30} color={THEME.white} strokeWidth={3} />
-            </TouchableOpacity>
-          );
-        }
 
         return (
           <TouchableOpacity
