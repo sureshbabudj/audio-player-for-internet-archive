@@ -147,6 +147,10 @@ export default function RootLayout() {
               options={{ title: "Insights", headerShown: false }}
             />
             <Stack.Screen
+              name="settings"
+              options={{ title: "Settings", headerShown: false }}
+            />
+            <Stack.Screen
               name="playlists/index"
               options={{ title: "Playlists", headerShown: false }}
             />

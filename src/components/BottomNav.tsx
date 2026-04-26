@@ -5,6 +5,7 @@ import {
   Home,
   Library,
   ListMusic,
+  Settings,
 } from "lucide-react-native";
 import React from "react";
 import { TouchableOpacity, View } from "react-native";
@@ -20,6 +21,7 @@ export function BottomNav() {
     { icon: Library, route: "/library", label: "Library" },
     { icon: ListMusic, route: "/playlists", label: "Playlists" },
     { icon: ChartNoAxesCombined, route: "/stats", label: "Stats" },
+    { icon: Settings, route: "/settings", label: "Settings" },
   ];
 
   return (

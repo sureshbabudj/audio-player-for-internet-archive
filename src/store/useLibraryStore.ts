@@ -27,6 +27,7 @@ interface LibraryState {
   isLiked: (trackId: string) => boolean;
   addToRecentlyPlayed: (track: ArchiveTrack) => void;
   clearRecentlyPlayed: () => void;
+  clearLibrary: () => void;
 }
 
 export const useLibraryStore = create<LibraryState>()(
@@ -151,6 +152,15 @@ export const useLibraryStore = create<LibraryState>()(
       },
 
       clearRecentlyPlayed: () => set({ recentlyPlayed: [], playCounts: {} }),
+
+      clearLibrary: () =>
+        set({
+          collections: [],
+          likedTracks: [],
+          likedTrackIds: [],
+          recentlyPlayed: [],
+          playCounts: {},
+        }),
     }),
     {
       name: "library-storage",
