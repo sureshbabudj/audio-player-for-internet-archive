@@ -1,11 +1,12 @@
 Pod::Spec.new do |s|
   s.name           = 'ExpoAudioControls'
   s.version        = '1.0.0'
-  s.summary        = 'A sample project summary'
-  s.description    = 'A sample project description'
-  s.author         = ''
+  s.summary        = 'Native audio controls for Expo'
+  s.description    = 'Extends Expo Audio with native lock screen controls and listeners'
+  s.author         = 'ArchiPlay'
   s.homepage       = 'https://docs.expo.dev/modules/'
-  s.platforms      = {
+  s.license        = 'MIT'
+    s.platforms      = {
     :ios => '15.1',
     :tvos => '15.1'
   }

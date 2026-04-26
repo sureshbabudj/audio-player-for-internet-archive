@@ -1,21 +1,21 @@
 import { useLibraryStore } from "@/store/useLibraryStore";
 import { ArchiveTrack, RepeatMode } from "@/types";
-import { AudioService } from "@/utils/audioService";
-import ExpoAudioControls from "../../modules/expo-audio-controls";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
-  useAudioPlayer,
+  createAudioPlayer,
+  preload,
+  setAudioModeAsync,
   useAudioPlayerStatus,
   type AudioPlayer,
 } from "expo-audio";
 import { useEffect, useRef } from "react";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import ExpoAudioControls from "../../modules/expo-audio-controls";
 
 interface PlayerState {
   // Native Object
-  player: AudioPlayer | null;
-  setPlayer: (player: AudioPlayer) => void;
+  player: AudioPlayer;
 
   // Track State
   currentTrack: ArchiveTrack | null;
@@ -56,15 +56,22 @@ interface PlayerState {
   setVolume: (vol: number) => void;
   setPlaybackSpeed: (speed: number) => void;
   resetPlayer: () => void;
+  preloadNext: () => void;
 
   // Internal Sync
   setPlaybackStatus: (status: any) => void;
 }
 
+// Global Player Singleton for stability
+const globalPlayer = createAudioPlayer(null, {
+  updateInterval: 500,
+  keepAudioSessionActive: true,
+});
+
 export const usePlayerStore = create<PlayerState>()(
   persist(
     (set, get) => ({
-      player: null,
+      player: globalPlayer,
       currentTrack: null,
       queue: [],
       originalQueue: [],
@@ -79,8 +86,6 @@ export const usePlayerStore = create<PlayerState>()(
       repeatMode: "off",
       isShuffled: false,
       isInternalStateChange: false,
-
-      setPlayer: (player) => set({ player }),
 
       setPlaybackStatus: (status) => {
         const state = get();
@@ -97,7 +102,7 @@ export const usePlayerStore = create<PlayerState>()(
       },
 
       loadQueue: async (tracks, startIndex = 0, title = "Playlist") => {
-        const { volume, playbackSpeed } = get();
+        const { player, volume, playbackSpeed } = get();
         const track = tracks[startIndex];
         if (!track) return;
 
@@ -110,15 +115,14 @@ export const usePlayerStore = create<PlayerState>()(
           isShuffled: false,
         });
 
-        const player = await AudioService.initializePlayer(
-          track,
-          volume,
-          playbackSpeed,
-          (status) => get().setPlaybackStatus(status),
-          () => get().skipNext(),
-        );
+        if (player) {
+          player.replace(track.url);
+          player.play();
+          player.volume = volume;
+          player.setPlaybackRate(playbackSpeed);
+          get().preloadNext();
+        }
 
-        set({ player });
         useLibraryStore.getState().addToRecentlyPlayed(track);
       },
 
@@ -179,21 +183,20 @@ export const usePlayerStore = create<PlayerState>()(
       },
 
       playFromQueue: async (index) => {
-        const { queue, volume, playbackSpeed } = get();
+        const { player, queue, volume, playbackSpeed } = get();
         const track = queue[index];
         if (!track) return;
 
         set({ currentIndex: index, currentTrack: track });
 
-        const player = await AudioService.initializePlayer(
-          track,
-          volume,
-          playbackSpeed,
-          (status) => get().setPlaybackStatus(status),
-          () => get().skipNext(),
-        );
+        if (player) {
+          player.replace(track.url);
+          player.play();
+          player.volume = volume;
+          player.setPlaybackRate(playbackSpeed);
+          get().preloadNext();
+        }
 
-        set({ player });
         useLibraryStore.getState().addToRecentlyPlayed(track);
       },
 
@@ -274,6 +277,14 @@ export const usePlayerStore = create<PlayerState>()(
           duration: 0,
         });
       },
+      preloadNext: () => {
+        const { currentIndex, queue } = get();
+        const nextIndex = currentIndex + 1;
+        if (nextIndex < queue.length) {
+          const nextTrack = queue[nextIndex];
+          preload(nextTrack.url);
+        }
+      },
     }),
     {
       name: "player-storage",
@@ -308,65 +319,88 @@ export const usePlayerStore = create<PlayerState>()(
  * Call this once in the root layout.
  */
 export const useInitializePlayer = () => {
-  const { currentTrack, setPlayer, setPlaybackStatus, volume, playbackSpeed } =
+  const { currentTrack, player, setPlaybackStatus, volume, playbackSpeed } =
     usePlayerStore();
   const isHydrated = useRef(false);
 
-  // Initialize Native Player
-  const player = useAudioPlayer(currentTrack?.url || null, {
-    updateInterval: 500,
-    keepAudioSessionActive: true,
-  });
-
+  // Use the singleton status
   const status = useAudioPlayerStatus(player);
 
   // Sync player object and handle hydration
   useEffect(() => {
-    setPlayer(player);
+    // Configure audio mode for lock screen
+    setAudioModeAsync({
+      interruptionMode: "doNotMix",
+      playsInSilentMode: true,
+      shouldRouteThroughEarpiece: false,
+    }).catch(console.error);
 
     if (!isHydrated.current && currentTrack?.url) {
       // Small delay to ensure native player is ready
       setTimeout(() => {
+        player.replace(currentTrack.url);
         player.volume = volume;
         player.setPlaybackRate(playbackSpeed);
-      }, 100);
+        isHydrated.current = true;
+      }, 500);
+    } else {
       isHydrated.current = true;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [player]);
 
-  // Sync status and handle finish logic
+    // Initialize native listeners
+    let nextSub: any;
+    let prevSub: any;
+
+    try {
+      if (ExpoAudioControls) {
+        ExpoAudioControls.setupRemoteControls();
+        nextSub = ExpoAudioControls.addListener("onNextTrack", () => {
+          usePlayerStore.getState().skipNext();
+        });
+        prevSub = ExpoAudioControls.addListener("onPreviousTrack", () => {
+          usePlayerStore.getState().skipPrevious();
+        });
+      }
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (e) {
+      console.warn("Custom AudioControls module not found, skipping setup.");
+    }
+
+    return () => {
+      nextSub?.remove();
+      prevSub?.remove();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Sync status and handle finish/lockscreen
   useEffect(() => {
     if (!isHydrated.current) return;
     setPlaybackStatus(status);
 
+    // Update Lock Screen
+    if (player && currentTrack && status.isLoaded) {
+      player.setActiveForLockScreen(
+        true,
+        {
+          title: currentTrack.title,
+          artist: currentTrack.creator || "Unknown Artist",
+          artworkUrl:
+            currentTrack.thumbnail ||
+            `https://archive.org/services/img/${currentTrack.identifier}`,
+        },
+        {
+          showSeekBackward: false,
+          showSeekForward: false,
+        },
+      );
+    }
+
     if (status.didJustFinish) {
       usePlayerStore.getState().skipNext();
     }
-  }, [status, setPlaybackStatus]);
-
-  // Update Lock Screen Metadata and Activation
-  useEffect(() => {
-    if (player && currentTrack) {
-      // Activate for lock screen
-      if (player.setActiveForLockScreen) {
-        player.setActiveForLockScreen(
-          true,
-          {
-            title: currentTrack.title,
-            artist: currentTrack.creator || "Unknown Artist",
-            artworkUrl:
-              currentTrack.thumbnail ||
-              `https://archive.org/services/img/${currentTrack.identifier}`,
-          },
-          {
-            showSeekBackward: true,
-            showSeekForward: true,
-          },
-        );
-      }
-    }
-  }, [player, currentTrack]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, setPlaybackStatus, currentTrack]);
 
   // Setup Remote Media Controls (Next/Previous)
   useEffect(() => {
