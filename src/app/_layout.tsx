@@ -85,11 +85,21 @@ export default function RootLayout() {
             />
             <Stack.Screen
               name="playlists/[id]"
-              options={{ title: "Playlist", headerShown: false }}
+              options={{
+                title: "Playlist",
+                headerShown: false,
+                animation: "slide_from_bottom",
+                presentation: "fullScreenModal",
+              }}
             />
             <Stack.Screen
               name="collection/[id]"
-              options={{ title: "Collection", headerShown: false }}
+              options={{
+                title: "Collection",
+                headerShown: false,
+                animation: "slide_from_bottom",
+                presentation: "fullScreenModal",
+              }}
             />
             <Stack.Screen
               name="player"

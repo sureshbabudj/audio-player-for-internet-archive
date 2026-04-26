@@ -30,7 +30,7 @@ export class AudioService {
       { uri: track.url },
       {
         updateInterval: 250,
-        preferredForwardBufferDuration: 30,
+        preferredForwardBufferDuration: 60, // Increased from 30 to 60 for better buffering
         keepAudioSessionActive: true,
       }
     );

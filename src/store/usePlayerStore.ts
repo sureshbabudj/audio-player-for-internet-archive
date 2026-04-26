@@ -65,46 +65,83 @@ export const usePlayerStore = create<PlayerState>()(
         const newQueue = queue.length > 0 ? queue : [track];
         const trackIndex = newQueue.findIndex((t) => t.id === track.id);
 
-        try {
-          set({
-            currentTrack: track,
-            isPlaying: false,
-            isBuffering: true,
-            isLoaded: false,
-            position: 0,
-            duration: 0,
-            queue: newQueue,
-            queueTitle: title,
-            currentIndex: trackIndex >= 0 ? trackIndex : 0,
-          });
+        let attempts = 0;
+        const maxAttempts = 2;
 
-          const player = await AudioService.initializePlayer(
-            track,
-            get().volume,
-            get().playbackSpeed,
-            (status) => {
-              set({
-                isPlaying: status.playing,
-                isBuffering: status.isBuffering,
-                isLoaded: status.isLoaded,
-                position: Math.floor((status.currentTime || 0) * 1000),
-                duration: Math.floor((status.duration || 0) * 1000),
-              });
-            },
-            () => get().skipNext(),
-          );
+        while (attempts < maxAttempts) {
+          try {
+            set({
+              currentTrack: track,
+              isPlaying: false,
+              isBuffering: true,
+              isLoaded: false,
+              position: 0,
+              duration: 0,
+              queue: newQueue,
+              queueTitle: title,
+              currentIndex: trackIndex >= 0 ? trackIndex : 0,
+            });
 
-          setTimeout(() => {
+            // Fail-safe: Verify URL connectivity before loading into native player
+            if (attempts === 0) {
+              try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 5000);
+                const check = await fetch(track.url, { 
+                  method: "HEAD", 
+                  signal: controller.signal 
+                });
+                clearTimeout(timeoutId);
+                
+                if (!check.ok && check.status !== 405) { // 405 Method Not Allowed is fine for HEAD
+                  throw new Error(`URL not reachable: ${check.status}`);
+                }
+              } catch (e) {
+                console.warn("Pre-fetch check failed, but proceeding to native player:", e);
+              }
+            }
+
+            const player = await AudioService.initializePlayer(
+              track,
+              get().volume,
+              get().playbackSpeed,
+              (status) => {
+                if (status.error) {
+                  console.error("Playback status error:", status.error);
+                  set({ isPlaying: false, isBuffering: false, isLoaded: false });
+                } else {
+                  set({
+                    isPlaying: status.playing,
+                    isBuffering: status.isBuffering,
+                    isLoaded: status.isLoaded,
+                    position: Math.floor((status.currentTime || 0) * 1000),
+                    duration: Math.floor((status.duration || 0) * 1000),
+                  });
+                }
+              },
+              () => get().skipNext(),
+            );
+
+            // Small delay to ensure native buffer is ready
+            await new Promise(resolve => setTimeout(resolve, 200));
             player.play();
-          }, 100);
-
-          useLibraryStore.getState().addToRecentlyPlayed(track);
-        } catch (error) {
-          console.error("Error loading track:", error);
-          set({ isBuffering: false, isLoaded: false });
-        } finally {
-          isChangingTrack = false;
+            
+            useLibraryStore.getState().addToRecentlyPlayed(track);
+            break; // Success!
+          } catch (error) {
+            attempts++;
+            console.error(`Attempt ${attempts} failed for ${track.title}:`, error);
+            
+            if (attempts >= maxAttempts) {
+              set({ isBuffering: false, isLoaded: false });
+            } else {
+              // Wait before retry
+              await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+          }
         }
+        
+        isChangingTrack = false;
       },
 
       togglePlayPause: async () => {

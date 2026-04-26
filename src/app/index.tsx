@@ -45,13 +45,13 @@ export default function HomeScreen() {
         <View className="items-center mb-4">
           <WaveAnimation size="large" />
           {currentTrack && (
-            <View className="flex-row items-center mt-4 bg-primary/10 px-4 py-2 rounded-full border border-primary/20">
+            <View className="flex-row items-center mt-4 bg-primary/10 px-4 py-2 overflow-hidden  rounded-full border border-primary/20">
               <View className="w-1.5 h-1.5 rounded-full bg-primary mr-2" />
               <Text className="text-white/80 font-body text-[10px] font-bold uppercase tracking-widest mr-2">
                 Now Playing
               </Text>
               <Text
-                className="text-primary font-semibold text-xs"
+                className="text-primary font-semibold text-xs overflow-hidden w-64"
                 numberOfLines={1}
               >
                 {currentTrack.title}

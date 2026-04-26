@@ -4,15 +4,15 @@ import { THEME } from "@/constants/colors";
 import { useLibraryStore } from "@/store/useLibraryStore";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import {
-  ChevronRight,
-  Clock,
-  Heart,
-  RefreshCw,
-  Trash2,
-} from "lucide-react-native";
+import { ChevronRight, Clock, Heart, List, Trash2 } from "lucide-react-native";
 import React, { useEffect, useState } from "react";
-import { FlatList, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import {
+  FlatList,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 export default function LibraryScreen() {
   const params = useLocalSearchParams<{ tab?: string }>();
@@ -21,12 +21,8 @@ export default function LibraryScreen() {
     (params.tab as any) || "saved",
   );
 
-  const {
-    collections,
-    likedTracks,
-    recentlyPlayed,
-    clearRecentlyPlayed,
-  } = useLibraryStore();
+  const { collections, likedTracks, recentlyPlayed, clearRecentlyPlayed } =
+    useLibraryStore();
 
   useEffect(() => {
     if (params.tab) {
@@ -103,7 +99,7 @@ export default function LibraryScreen() {
           </TouchableOpacity>
         ) : (
           <View className="flex-row items-center">
-            <RefreshCw size={14} color={THEME.primary} />
+            <List size={14} color={THEME.primary} />
             <Text className="text-primary/60 font-medium text-xs ml-1">
               {activeTab === "liked"
                 ? "Your Favorites"
@@ -131,9 +127,7 @@ export default function LibraryScreen() {
           }
           renderItem={({ item: collection }) => (
             <TouchableOpacity
-              onPress={() =>
-                router.push(`/collection/${collection.id}` as any)
-              }
+              onPress={() => router.push(`/collection/${collection.id}` as any)}
               className="flex-row items-center p-4 mb-3 bg-surface rounded-2xl"
             >
               <View className="w-16 h-16 rounded-xl bg-surface-light items-center justify-center overflow-hidden mr-4">
