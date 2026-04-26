@@ -6,10 +6,10 @@ import { fetchItemTracks, getItemMetadata } from "@/utils/archive";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ArrowLeft, Play, Plus, Trash2 } from "lucide-react-native";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  ScrollView,
+  FlatList,
   Text,
   TouchableOpacity,
   View,
@@ -36,7 +36,6 @@ export default function CollectionDetailScreen() {
       setIsSaved(true);
       setLoading(false);
     } else {
-      // Fetch from API if not saved
       loadFromAPI();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -64,13 +63,14 @@ export default function CollectionDetailScreen() {
     }
   };
 
-  const handlePlayAll = () => {
-    if (tracks.length > 0) {
+  const handlePlayAll = useCallback(() => {
+    if (tracks.length > 0 && item) {
       loadTrack(tracks[0], tracks, item.title);
     }
-  };
+  }, [tracks, item, loadTrack]);
 
-  const handleSaveToggle = () => {
+  const handleSaveToggle = useCallback(() => {
+    if (!item) return;
     if (isSaved) {
       removeCollection(item.id);
       setIsSaved(false);
@@ -78,7 +78,70 @@ export default function CollectionDetailScreen() {
       addCollection(item, tracks);
       setIsSaved(true);
     }
-  };
+  }, [isSaved, item, removeCollection, addCollection, tracks]);
+
+  const renderTrackItem = useCallback(
+    ({ item: track }: { item: any }) => (
+      <TrackItem
+        track={track}
+        type="collection"
+        onPress={() => loadTrack(track, tracks, item?.title || "")}
+        onRemove={isSaved ? () => removeFromLibrary(track.id) : undefined}
+      />
+    ),
+    [isSaved, item?.title, loadTrack, removeFromLibrary, tracks],
+  );
+
+  const HeaderComponent = useMemo(() => {
+    if (!item) return null;
+    return (
+      <View className="px-6 items-center">
+        <View className="w-48 h-48 rounded-[32px] overflow-hidden shadow-2xl shadow-black mb-6">
+          <Image
+            source={{ uri: item.thumbnail }}
+            className="w-full h-full"
+            contentFit="cover"
+          />
+        </View>
+
+        <Text
+          className="text-white font-display text-2xl text-center mb-1"
+          numberOfLines={2}
+        >
+          {item.title}
+        </Text>
+        <Text className="text-primary font-semibold text-base mb-6">
+          {item.creator}
+        </Text>
+
+        <View className="flex-row space-x-3 mb-8">
+          <TouchableOpacity
+            onPress={handlePlayAll}
+            className="flex-1 flex-row items-center justify-center bg-primary h-14 rounded-2xl"
+          >
+            <Play size={20} color={THEME.white} fill={THEME.white} />
+            <Text className="text-white font-bold ml-2 text-lg">Play All</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={handleSaveToggle}
+            className={`w-14 h-14 items-center justify-center rounded-2xl ${
+              isSaved ? "bg-red-500/10" : "bg-white/5"
+            }`}
+          >
+            {isSaved ? (
+              <Trash2 size={24} color={THEME.error} />
+            ) : (
+              <Plus size={24} color={THEME.primary} />
+            )}
+          </TouchableOpacity>
+        </View>
+        <View className="w-full">
+          <Text className="text-white font-display text-xl mb-4">Tracks</Text>
+        </View>
+      </View>
+    );
+  }, [handlePlayAll, handleSaveToggle, isSaved, item]);
 
   if (loading) {
     return (
@@ -98,78 +161,28 @@ export default function CollectionDetailScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-darker">
-      {/* Header Info */}
-      <ScrollView
-        stickyHeaderIndices={[0]}
+      <View className="flex-row items-center pt-4 px-6 pb-2 bg-darker">
+        <TouchableOpacity
+          onPress={() => router.back()}
+          className="flex-row items-center"
+        >
+          <ArrowLeft size={20} color={THEME.white} />
+          <Text className="text-white/60 font-body ml-2">Back</Text>
+        </TouchableOpacity>
+      </View>
+
+      <FlatList
+        data={tracks}
+        renderItem={renderTrackItem}
+        keyExtractor={(track) => track.id}
+        ListHeaderComponent={HeaderComponent}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 150 }}
-      >
-        <View className="bg-darker pt-4 px-6 pb-2">
-          <TouchableOpacity
-            onPress={() => router.back()}
-            className="flex-row items-center mb-4"
-          >
-            <ArrowLeft size={20} color={THEME.white} />
-            <Text className="text-white/60 font-body ml-2">Back</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View className="px-6 items-center">
-          <View className="w-48 h-48 rounded-[32px] overflow-hidden shadow-2xl shadow-black mb-6">
-            <Image
-              source={{ uri: item.thumbnail }}
-              className="w-full h-full"
-              contentFit="cover"
-            />
-          </View>
-
-          <Text
-            className="text-white font-display text-2xl text-center mb-1"
-            numberOfLines={2}
-          >
-            {item.title}
-          </Text>
-          <Text className="text-primary font-semibold text-base mb-6">
-            {item.creator}
-          </Text>
-
-          <View className="flex-row space-x-3 mb-8">
-            <TouchableOpacity
-              onPress={handlePlayAll}
-              className="flex-1 flex-row items-center justify-center bg-primary h-14 rounded-2xl"
-            >
-              <Play size={20} color={THEME.white} fill={THEME.white} />
-              <Text className="text-white font-bold ml-2 text-lg">
-                Play All
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={handleSaveToggle}
-              className={`w-14 h-14 items-center justify-center rounded-2xl ${isSaved ? "bg-red-500/10" : "bg-white/5"}`}
-            >
-              {isSaved ? (
-                <Trash2 size={24} color={THEME.error} />
-              ) : (
-                <Plus size={24} color={THEME.primary} />
-              )}
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        <View className="px-6">
-          <Text className="text-white font-display text-xl mb-4">Tracks</Text>
-          {tracks.map((track) => (
-            <TrackItem
-              key={track.id}
-              track={track}
-              type="collection"
-              onPress={() => loadTrack(track, tracks, item.title)}
-              onRemove={isSaved ? () => removeFromLibrary(track.id) : undefined}
-            />
-          ))}
-        </View>
-      </ScrollView>
+        removeClippedSubviews={true}
+        initialNumToRender={10}
+        maxToRenderPerBatch={10}
+        windowSize={5}
+      />
     </SafeAreaView>
   );
 }

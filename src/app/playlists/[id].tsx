@@ -8,6 +8,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { ArrowLeft, Play, Plus, Trash2, X } from "lucide-react-native";
 import React, { useState } from "react";
 import { Modal, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function PlaylistDetailScreen() {
   const { id } = useLocalSearchParams();
@@ -41,7 +42,7 @@ export default function PlaylistDetailScreen() {
   const allAvailableTracks = collections.flatMap((c) => c.tracks);
 
   return (
-    <View className="flex-1 bg-darker">
+    <SafeAreaView className="flex-1 bg-darker">
       {/* Header */}
       <View className="px-6 pt-4 pb-4">
         <TouchableOpacity
@@ -164,7 +165,10 @@ export default function PlaylistDetailScreen() {
                         className="w-12 h-12 rounded-lg mr-4"
                       />
                       <View className="flex-1">
-                        <Text className="text-white font-medium" numberOfLines={1}>
+                        <Text
+                          className="text-white font-medium"
+                          numberOfLines={1}
+                        >
                           {track.title}
                         </Text>
                         <Text className="text-white/40 text-xs">
@@ -188,6 +192,6 @@ export default function PlaylistDetailScreen() {
           </View>
         </View>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 }

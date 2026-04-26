@@ -20,32 +20,30 @@ import {
   Zap,
 } from "lucide-react-native";
 import React from "react";
-import { ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { FlatList, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { WaveAnimation } from "./WaveAnimation";
 
 export function AudioPlayer() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const {
-    currentTrack,
-    queue,
-    queueTitle,
-    currentIndex,
-    isPlaying,
-    isBuffering,
-    position,
-    duration,
-    repeatMode,
-    isShuffled,
-    togglePlayPause,
-    skipNext,
-    skipPrevious,
-    seekTo,
-    setRepeatMode,
-    toggleShuffle,
-    playFromQueue,
-  } = usePlayerStore();
+  const currentTrack = usePlayerStore((state) => state.currentTrack);
+  const queue = usePlayerStore((state) => state.queue);
+  const queueTitle = usePlayerStore((state) => state.queueTitle);
+  const currentIndex = usePlayerStore((state) => state.currentIndex);
+  const isPlaying = usePlayerStore((state) => state.isPlaying);
+  const isBuffering = usePlayerStore((state) => state.isBuffering);
+  const position = usePlayerStore((state) => state.position);
+  const duration = usePlayerStore((state) => state.duration);
+  const repeatMode = usePlayerStore((state) => state.repeatMode);
+  const isShuffled = usePlayerStore((state) => state.isShuffled);
+  const togglePlayPause = usePlayerStore((state) => state.togglePlayPause);
+  const skipNext = usePlayerStore((state) => state.skipNext);
+  const skipPrevious = usePlayerStore((state) => state.skipPrevious);
+  const seekTo = usePlayerStore((state) => state.seekTo);
+  const setRepeatMode = usePlayerStore((state) => state.setRepeatMode);
+  const toggleShuffle = usePlayerStore((state) => state.toggleShuffle);
+  const playFromQueue = usePlayerStore((state) => state.playFromQueue);
 
   const liked = useLibraryStore((state) =>
     currentTrack ? state.likedTrackIds.includes(currentTrack.id) : false,
@@ -234,18 +232,24 @@ export function AudioPlayer() {
       ) : (
         <View className="flex-1 px-6">
           <Text className="text-white font-display text-xl mb-4">Up Next</Text>
-          <ScrollView showsVerticalScrollIndicator={false}>
-            {queue.map((track, index) => (
+          <FlatList
+            data={queue}
+            keyExtractor={(item, index) => `${item.id}-${index}`}
+            renderItem={({ item, index }) => (
               <TrackItem
-                key={`${track.id}-${index}`}
-                track={track}
+                track={item}
                 type="playlist"
                 isCurrent={index === currentIndex}
                 onPress={() => playFromQueue(index)}
               />
-            ))}
-            <View className="h-32" />
-          </ScrollView>
+            )}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingBottom: 150 }}
+            removeClippedSubviews={true}
+            initialNumToRender={10}
+            maxToRenderPerBatch={10}
+            windowSize={5}
+          />
         </View>
       )}
 

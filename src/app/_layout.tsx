@@ -1,6 +1,8 @@
 import { BottomNav } from "@/components/BottomNav";
 import { MiniPlayer } from "@/components/MiniPlayer";
+import { PlaylistSelector } from "@/components/PlaylistSelector";
 import { THEME } from "@/constants/colors";
+import { usePlaylistStore } from "@/store/usePlaylistStore";
 import {
   Inter_400Regular,
   Inter_500Medium,
@@ -21,6 +23,9 @@ import "./global.css";
 
 export default function RootLayout() {
   const pathname = usePathname();
+  const selectorVisible = usePlaylistStore((state) => state.selectorVisible);
+  const trackToSelect = usePlaylistStore((state) => state.trackToSelect);
+  const closeSelector = usePlaylistStore((state) => state.closeSelector);
   const [fontsLoaded] = useFonts({
     SpaceGrotesk_700Bold,
     Inter_400Regular,
@@ -94,6 +99,11 @@ export default function RootLayout() {
           </Stack>
           {pathname !== "/player" && <MiniPlayer />}
           {!isDetailScreen && <BottomNav />}
+          <PlaylistSelector
+            visible={selectorVisible}
+            track={trackToSelect}
+            onClose={closeSelector}
+          />
         </View>
         <StatusBar style="light" />
       </GestureHandlerRootView>

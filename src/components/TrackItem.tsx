@@ -1,17 +1,10 @@
 import { THEME } from "@/constants/colors";
+import { usePlaylistStore } from "@/store/usePlaylistStore";
 import { ArchiveTrack } from "@/types";
 import { Image } from "expo-image";
-import {
-  Heart,
-  Music,
-  Plus,
-  Radio,
-  Trash2,
-  Zap,
-} from "lucide-react-native";
-import React, { useState } from "react";
+import { Heart, Music, Plus, Radio, Trash2, Zap } from "lucide-react-native";
+import React, { memo } from "react";
 import { Text, TouchableOpacity, View } from "react-native";
-import { PlaylistSelector } from "./PlaylistSelector";
 
 interface TrackItemProps {
   track: ArchiveTrack;
@@ -24,47 +17,47 @@ interface TrackItemProps {
   showPlaylistAction?: boolean;
 }
 
-export const TrackItem: React.FC<TrackItemProps> = ({
-  track,
-  onPress,
-  onRemove,
-  type = "search",
-  playCount,
-  isCurrent = false,
-  isLiked = false,
-  showPlaylistAction = true,
-}) => {
-  const [showSelector, setShowSelector] = useState(false);
+const TrackItem: React.FC<TrackItemProps> = memo(
+  ({
+    track,
+    onPress,
+    onRemove,
+    type = "search",
+    playCount,
+    isCurrent = false,
+    isLiked = false,
+    showPlaylistAction = true,
+  }) => {
+    const openSelector = usePlaylistStore((state) => state.openSelector);
 
-  const getIcon = () => {
-    if (track.thumbnail || track.identifier) {
-      return (
-        <Image
-          source={{
-            uri:
-              track.thumbnail ||
-              `https://archive.org/services/img/${track.identifier}`,
-          }}
-          className="w-full h-full"
-          contentFit="cover"
-        />
-      );
-    }
+    const getIcon = () => {
+      if (track.thumbnail || track.identifier) {
+        return (
+          <Image
+            source={{
+              uri:
+                track.thumbnail ||
+                `https://archive.org/services/img/${track.identifier}`,
+            }}
+            className="w-full h-full"
+            contentFit="cover"
+          />
+        );
+      }
 
-    switch (type) {
-      case "recent":
-        return <Radio size={20} color={THEME.primary} />;
-      case "mostly":
-        return <Music size={20} color={THEME.primary} />;
-      case "liked":
-        return <Heart size={20} color={THEME.primary} fill={THEME.primary} />;
-      default:
-        return <Music size={20} color={THEME.primary} />;
-    }
-  };
+      switch (type) {
+        case "recent":
+          return <Radio size={20} color={THEME.primary} />;
+        case "mostly":
+          return <Music size={20} color={THEME.primary} />;
+        case "liked":
+          return <Heart size={20} color={THEME.primary} fill={THEME.primary} />;
+        default:
+          return <Music size={20} color={THEME.primary} />;
+      }
+    };
 
-  return (
-    <View>
+    return (
       <TouchableOpacity
         onPress={onPress}
         activeOpacity={0.7}
@@ -106,7 +99,7 @@ export const TrackItem: React.FC<TrackItemProps> = ({
             <TouchableOpacity
               onPress={(e) => {
                 e.stopPropagation();
-                setShowSelector(true);
+                openSelector(track);
               }}
               className="p-2"
             >
@@ -131,12 +124,10 @@ export const TrackItem: React.FC<TrackItemProps> = ({
           )}
         </View>
       </TouchableOpacity>
+    );
+  },
+);
 
-      <PlaylistSelector
-        visible={showSelector}
-        track={track}
-        onClose={() => setShowSelector(false)}
-      />
-    </View>
-  );
-};
+TrackItem.displayName = "TrackItem";
+
+export { TrackItem };

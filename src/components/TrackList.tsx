@@ -2,7 +2,7 @@ import { TrackItem } from "@/components/TrackItem";
 import { useLibraryStore } from "@/store/useLibraryStore";
 import { usePlayerStore } from "@/store/usePlayerStore";
 import { ArchiveTrack } from "@/types";
-import React from "react";
+import React, { useCallback } from "react";
 import { FlatList } from "react-native";
 
 interface TrackListProps {
@@ -18,29 +18,36 @@ export function TrackList({
   onRemove,
   showAddToPlaylist,
 }: TrackListProps) {
-  const { loadTrack, currentTrack } = usePlayerStore();
-  const { isLiked } = useLibraryStore();
+  const loadTrack = usePlayerStore((state) => state.loadTrack);
+  const currentTrackId = usePlayerStore((state) => state.currentTrack?.id);
+  const likedTrackIds = useLibraryStore((state) => state.likedTrackIds);
 
-  const handlePlay = (track: ArchiveTrack) => {
-    loadTrack(track, tracks, title);
-  };
+  const handlePlay = useCallback(
+    (track: ArchiveTrack) => {
+      loadTrack(track, tracks, title);
+    },
+    [loadTrack, tracks, title],
+  );
 
-  const renderItem = ({ item }: { item: ArchiveTrack }) => {
-    const isCurrent = currentTrack?.id === item.id;
-    const liked = isLiked(item.id);
+  const renderItem = useCallback(
+    ({ item }: { item: ArchiveTrack }) => {
+      const isCurrent = currentTrackId === item.id;
+      const liked = likedTrackIds.includes(item.id);
 
-    return (
-      <TrackItem
-        track={item}
-        onPress={() => handlePlay(item)}
-        isCurrent={isCurrent}
-        isLiked={liked}
-        type="playlist"
-        onRemove={onRemove ? () => onRemove(item.id) : undefined}
-        showPlaylistAction={showAddToPlaylist}
-      />
-    );
-  };
+      return (
+        <TrackItem
+          track={item}
+          onPress={() => handlePlay(item)}
+          isCurrent={isCurrent}
+          isLiked={liked}
+          type="playlist"
+          onRemove={onRemove ? () => onRemove(item.id) : undefined}
+          showPlaylistAction={showAddToPlaylist}
+        />
+      );
+    },
+    [currentTrackId, likedTrackIds, handlePlay, onRemove, showAddToPlaylist],
+  );
 
   return (
     <FlatList
@@ -49,6 +56,11 @@ export function TrackList({
       keyExtractor={(item) => item.id}
       showsVerticalScrollIndicator={false}
       contentContainerStyle={{ paddingBottom: 180, paddingHorizontal: 16 }}
+      removeClippedSubviews={true}
+      maxToRenderPerBatch={10}
+      updateCellsBatchingPeriod={50}
+      initialNumToRender={12}
+      windowSize={5}
     />
   );
 }

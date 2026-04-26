@@ -11,7 +11,7 @@ import {
   Trash2,
 } from "lucide-react-native";
 import React, { useEffect, useState } from "react";
-import { ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { FlatList, ScrollView, Text, TouchableOpacity, View } from "react-native";
 
 export default function LibraryScreen() {
   const params = useLocalSearchParams<{ tab?: string }>();
@@ -115,46 +115,50 @@ export default function LibraryScreen() {
 
       {/* Content */}
       {activeTab === "saved" ? (
-        <ScrollView className="flex-1 px-4">
-          {collections.length === 0 ? (
+        <FlatList
+          data={collections}
+          keyExtractor={(item) => item.id}
+          className="flex-1 px-4"
+          ListEmptyComponent={
             <View className="items-center justify-center py-20">
-              <Text className="text-white/30 font-body text-center text-lg">
+              <Text className="text-white/30 font-body text-center text-lg px-10">
                 Your library is empty. Search and add collections to get
                 started!
               </Text>
             </View>
-          ) : (
-            collections.map((collection) => (
-              <TouchableOpacity
-                key={collection.id}
-                onPress={() =>
-                  router.push(`/collection/${collection.id}` as any)
-                }
-                className="flex-row items-center p-4 mb-3 bg-surface rounded-2xl"
-              >
-                <View className="w-16 h-16 rounded-xl bg-surface-light items-center justify-center overflow-hidden mr-4">
-                  <Image
-                    source={{ uri: collection.thumbnail }}
-                    className="w-full h-full"
-                    contentFit="cover"
-                  />
-                </View>
-                <View className="flex-1">
-                  <Text
-                    className="text-white font-semibold text-base"
-                    numberOfLines={1}
-                  >
-                    {collection.title}
-                  </Text>
-                  <Text className="text-white/50 text-xs mt-1">
-                    {collection.creator} • {collection.tracks.length} tracks
-                  </Text>
-                </View>
-                <ChevronRight size={20} color={THEME.white} opacity={0.3} />
-              </TouchableOpacity>
-            ))
+          }
+          renderItem={({ item: collection }) => (
+            <TouchableOpacity
+              onPress={() =>
+                router.push(`/collection/${collection.id}` as any)
+              }
+              className="flex-row items-center p-4 mb-3 bg-surface rounded-2xl"
+            >
+              <View className="w-16 h-16 rounded-xl bg-surface-light items-center justify-center overflow-hidden mr-4">
+                <Image
+                  source={{ uri: collection.thumbnail }}
+                  className="w-full h-full"
+                  contentFit="cover"
+                />
+              </View>
+              <View className="flex-1">
+                <Text
+                  className="text-white font-semibold text-base"
+                  numberOfLines={1}
+                >
+                  {collection.title}
+                </Text>
+                <Text className="text-white/50 text-xs mt-1">
+                  {collection.creator} • {collection.tracks.length} tracks
+                </Text>
+              </View>
+              <ChevronRight size={20} color={THEME.white} opacity={0.3} />
+            </TouchableOpacity>
           )}
-        </ScrollView>
+          showsVerticalScrollIndicator={false}
+          removeClippedSubviews={true}
+          contentContainerStyle={{ paddingBottom: 100 }}
+        />
       ) : tracks.length === 0 ? (
         <View className="flex-1 items-center justify-center p-10">
           <Text className="text-white/30 font-body text-center text-lg">

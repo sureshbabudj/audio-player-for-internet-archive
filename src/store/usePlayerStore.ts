@@ -241,7 +241,7 @@ export const usePlayerStore = create<PlayerState>()(
         },
       },
       // Only persist data, not functions or volatile states
-      partialize: (state) => ({
+      partialize: (state: PlayerState): any => ({
         currentTrack: state.currentTrack,
         queue: state.queue,
         queueTitle: state.queueTitle,

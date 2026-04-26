@@ -10,14 +10,16 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 export function MiniPlayer() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { currentTrack, isPlaying, togglePlayPause, skipNext } =
-    usePlayerStore();
+  const currentTrack = usePlayerStore((state) => state.currentTrack);
+  const isPlaying = usePlayerStore((state) => state.isPlaying);
+  const togglePlayPause = usePlayerStore((state) => state.togglePlayPause);
+  const skipNext = usePlayerStore((state) => state.skipNext);
 
   if (!currentTrack) return null;
 
   return (
     <View
-      className="absolute left-0 right-0 px-6"
+      className="absolute left-0 right-0 px-0"
       style={{ bottom: insets.bottom + 80 }}
     >
       <TouchableOpacity
@@ -44,7 +46,10 @@ export function MiniPlayer() {
           {/* Info */}
           <View className="flex-1 mr-3">
             <View className="flex-row items-center">
-              <Text className="text-white font-semibold text-sm" numberOfLines={1}>
+              <Text
+                className="text-white font-semibold text-sm"
+                numberOfLines={1}
+              >
                 {currentTrack.title}
               </Text>
             </View>

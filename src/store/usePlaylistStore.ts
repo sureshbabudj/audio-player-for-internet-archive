@@ -6,18 +6,24 @@ import { persist } from "zustand/middleware";
 
 interface PlaylistState {
   playlists: Playlist[];
+  selectorVisible: boolean;
+  trackToSelect: ArchiveTrack | null;
   createPlaylist: (name: string, description?: string) => string;
   deletePlaylist: (id: string) => void;
   addTrackToPlaylist: (playlistId: string, track: ArchiveTrack) => void;
   removeTrackFromPlaylist: (playlistId: string, trackId: string) => void;
   updatePlaylist: (id: string, updates: Partial<Playlist>) => void;
   getPlaylist: (id: string) => Playlist | undefined;
+  openSelector: (track: ArchiveTrack) => void;
+  closeSelector: () => void;
 }
 
 export const usePlaylistStore = create<PlaylistState>()(
   persist(
     (set, get) => ({
       playlists: [],
+      selectorVisible: false,
+      trackToSelect: null,
 
       createPlaylist: (name, description) => {
         const id = `playlist_${Date.now()}`;
@@ -81,6 +87,10 @@ export const usePlaylistStore = create<PlaylistState>()(
       getPlaylist: (id) => {
         return get().playlists.find((p) => p.id === id);
       },
+
+      openSelector: (track) =>
+        set({ selectorVisible: true, trackToSelect: track }),
+      closeSelector: () => set({ selectorVisible: false, trackToSelect: null }),
     }),
     {
       name: "playlist-storage",
@@ -96,6 +106,9 @@ export const usePlaylistStore = create<PlaylistState>()(
           await AsyncStorage.removeItem(name);
         },
       },
+      partialize: (state: PlaylistState): any => ({
+        playlists: state.playlists,
+      }),
     },
   ),
 );
