@@ -1,7 +1,11 @@
 import { ArchiveTrack } from "@/types";
 import {
-  createAudioPlaylist,
+  createAudioPlayer,
   setAudioModeAsync,
+  preload,
+  setIsAudioActiveAsync,
+  createAudioPlaylist,
+  type AudioPlayer,
   type AudioPlaylist,
 } from "expo-audio";
 
@@ -13,69 +17,88 @@ setAudioModeAsync({
 }).catch(console.error);
 
 export class AudioService {
+  private static player: AudioPlayer | null = null;
   private static playlist: AudioPlaylist | null = null;
   private static subscriptions: { remove: () => void }[] = [];
 
-  static async initializePlaylist(
-    tracks: ArchiveTrack[],
-    initialIndex: number,
+  static async initializePlayer(
+    track: ArchiveTrack,
     volume: number,
     playbackSpeed: number,
     onStatusUpdate: (status: any) => void,
-    onTrackChange: (index: number) => void
-  ): Promise<AudioPlaylist> {
-    this.cleanup();
+    onFinished: () => void
+  ): Promise<any> {
+    // Master Reset: Kill ALL native audio sessions to prevent double-play
+    try {
+      await setIsAudioActiveAsync(false);
+      this.cleanup();
+      await setIsAudioActiveAsync(true);
+    } catch (e) {
+      console.error("Master reset error:", e);
+    }
 
-    // In expo-audio, metadata for playlists is attached directly to the sources
-    const sources = tracks.map(t => ({
-      uri: t.url,
-      metadata: {
-        title: t.title,
-        artist: t.creator,
-        artworkUrl: `https://archive.org/services/img/${t.identifier}`,
-      }
-    }));
+    // CREATE NATIVE PLAYLIST (Native Queue)
+    // We use a combined name for basic feedback since Playlist doesn't support full metadata
+    const sources = [{
+      uri: track.url,
+      name: `${track.title} - ${track.creator}`
+    }];
 
+    // createAudioPlaylist takes an options object with sources
     const playlist = createAudioPlaylist({
-      sources,
+      sources: sources,
+      loop: "none",
     });
-
+    
     this.playlist = playlist;
     playlist.volume = volume;
     playlist.playbackRate = playbackSpeed;
-    
-    // Set initial track
-    if (initialIndex > 0) {
-      playlist.skipTo(initialIndex);
-    }
 
-    // Listeners
+    // LISTENERS
     this.subscriptions.push(
-      playlist.addListener("playlistStatusUpdate", (status) => {
-        onStatusUpdate(status);
+      playlist.addListener("playlistStatusUpdate", (status: any) => {
+        onStatusUpdate({
+          playing: status.playing,
+          isBuffering: status.isBuffering,
+          isLoaded: status.isLoaded,
+          currentTime: status.currentTime,
+          duration: status.duration,
+        });
+
+        if (status.didJustFinish) {
+          onFinished();
+        }
       })
     );
 
-    this.subscriptions.push(
-      playlist.addListener("trackChanged", (data) => {
-        onTrackChange(data.currentIndex);
-      })
-    );
-
+    playlist.play();
     return playlist;
   }
 
+  static getPlayer() {
+    return this.player || this.playlist;
+  }
+
   static cleanup() {
+    if (this.player) {
+      try { this.player.setActiveForLockScreen(false); } catch(e){}
+      this.player.remove();
+      this.player = null;
+    }
     if (this.playlist) {
-      this.playlist.pause();
-      this.subscriptions.forEach((s) => s.remove());
-      this.subscriptions = [];
       this.playlist.destroy();
       this.playlist = null;
     }
+    this.subscriptions.forEach((sub) => sub.remove());
+    this.subscriptions = [];
   }
 
-  static getPlaylist() {
-    return this.playlist;
+  /**
+   * Preload the next track to ensure background transition works
+   */
+  static preloadNext(track: ArchiveTrack) {
+    if (track?.url) {
+      preload(track.url);
+    }
   }
 }

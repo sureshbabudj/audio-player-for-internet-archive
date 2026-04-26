@@ -79,48 +79,34 @@ export const usePlayerStore = create<PlayerState>()(
             currentIndex: initialIndex,
           });
 
-          const playlist = await AudioService.initializePlaylist(
-            newQueue,
-            initialIndex,
+          await AudioService.initializePlayer(
+            track,
             get().volume,
             get().playbackSpeed,
             (status) => {
-              if (status.error) {
-                console.error("Playlist status error:", status.error);
-                set({ isPlaying: false, isBuffering: false, isLoaded: false });
-              } else {
-                const currentTrackInQueue = newQueue[status.currentIndex ?? initialIndex];
-                
-                // Sync metadata if track changed natively
-                if (status.currentIndex !== get().currentIndex && status.currentIndex !== undefined) {
-                  set({ 
-                    currentIndex: status.currentIndex,
-                    currentTrack: newQueue[status.currentIndex]
-                  });
-                }
-
-                set({
-                  isPlaying: status.playing,
-                  isBuffering: status.isBuffering,
-                  isLoaded: status.isLoaded,
-                  position: Math.floor((status.currentTime || 0) * 1000),
-                  duration: Math.floor((status.duration || 0) * 1000),
-                });
-              }
-            },
-            (newIndex) => {
-              // Track changed natively (next/prev)
-              set({ 
-                currentIndex: newIndex,
-                currentTrack: newQueue[newIndex]
+              set({
+                isPlaying: status.playing,
+                isBuffering: status.isBuffering,
+                isLoaded: status.isLoaded,
+                position: Math.floor((status.currentTime || 0) * 1000),
+                duration: Math.floor((status.duration || 0) * 1000),
               });
+            },
+            () => {
+              // Track Finished
+              get().skipNext();
             }
           );
 
-          playlist.play();
+          // Preload next track for seamless background transition
+          const nextIndex = (initialIndex + 1) % newQueue.length;
+          if (newQueue[nextIndex]) {
+            AudioService.preloadNext(newQueue[nextIndex]);
+          }
+
           useLibraryStore.getState().addToRecentlyPlayed(track);
         } catch (error) {
-          console.error("Error loading playlist:", error);
+          console.error("Error loading track:", error);
           set({ isBuffering: false, isLoaded: false });
         } finally {
           isChangingTrack = false;
@@ -128,21 +114,26 @@ export const usePlayerStore = create<PlayerState>()(
       },
 
       togglePlayPause: async () => {
-        const playlist = AudioService.getPlaylist();
-        if (playlist) {
+        const player = AudioService.getPlayer();
+        if (!player && get().currentTrack) {
+          await get().loadTrack(get().currentTrack!, get().queue, get().queueTitle);
+          return;
+        }
+
+        if (player) {
           if (get().isPlaying) {
-            playlist.pause();
+            player.pause();
           } else {
-            playlist.play();
+            player.play();
           }
         }
       },
 
       seekTo: async (position) => {
-        const playlist = AudioService.getPlaylist();
-        if (playlist && get().isLoaded) {
+        const player = AudioService.getPlayer();
+        if (player && get().isLoaded) {
           try {
-            playlist.seekTo(position / 1000);
+            player.seekTo(position / 1000);
           } catch (e) {
             console.error("Seek error:", e);
           }
@@ -150,45 +141,69 @@ export const usePlayerStore = create<PlayerState>()(
       },
 
       skipNext: async () => {
-        const playlist = AudioService.getPlaylist();
-        if (playlist) {
-          playlist.next();
+        const { queue, currentIndex } = get();
+        if (queue.length === 0) return;
+
+        let nextIndex = currentIndex + 1;
+        if (nextIndex >= queue.length) {
+          if (get().repeatMode === "all") {
+            nextIndex = 0;
+          } else {
+            return;
+          }
         }
+        await get().loadTrack(queue[nextIndex], queue, get().queueTitle);
       },
 
       skipPrevious: async () => {
-        const playlist = AudioService.getPlaylist();
-        if (playlist) {
-          const { position } = get();
-          if (position > 3000) {
-            playlist.seekTo(0);
+        const { queue, currentIndex, position } = get();
+        if (queue.length === 0) return;
+
+        if (position > 3000) {
+          const player = AudioService.getPlayer();
+          player?.seekTo(0);
+          return;
+        }
+
+        let prevIndex = currentIndex - 1;
+        if (prevIndex < 0) {
+          if (get().repeatMode === "all") {
+            prevIndex = queue.length - 1;
           } else {
-            playlist.previous();
+            prevIndex = 0;
           }
         }
+        await get().loadTrack(queue[prevIndex], queue, get().queueTitle);
       },
 
       setRepeatMode: (mode) => set({ repeatMode: mode }),
       toggleShuffle: () => set((state) => ({ isShuffled: !state.isShuffled })),
 
       setVolume: async (vol) => {
-        const playlist = AudioService.getPlaylist();
-        if (playlist) {
-          playlist.volume = vol;
+        const player = AudioService.getPlayer();
+        if (player) {
+          player.volume = vol;
         }
         set({ volume: vol });
       },
 
       setPlaybackSpeed: async (speed) => {
-        const playlist = AudioService.getPlaylist();
-        if (playlist) {
-          playlist.playbackRate = speed;
+        const player = AudioService.getPlayer();
+        if (player) {
+          // Player uses setPlaybackRate, Playlist uses playbackRate property
+          if ("setPlaybackRate" in player) {
+            (player as any).setPlaybackRate(speed);
+          } else {
+            (player as any).playbackRate = speed;
+          }
         }
         set({ playbackSpeed: speed });
       },
 
       addToQueue: (track) => {
-        set((state) => ({ queue: [...state.queue, track] }));
+        set((state) => ({
+          queue: [...state.queue, track],
+        }));
       },
 
       removeFromQueue: (index) => {
@@ -222,7 +237,6 @@ export const usePlayerStore = create<PlayerState>()(
           await AsyncStorage.removeItem(name);
         },
       },
-      // Only persist data, not functions or volatile states
       partialize: (state: PlayerState): any => ({
         currentTrack: state.currentTrack,
         queue: state.queue,
