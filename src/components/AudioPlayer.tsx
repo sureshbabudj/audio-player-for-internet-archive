@@ -13,6 +13,7 @@ import {
   Pause,
   Play,
   Repeat,
+  Repeat1,
   Shuffle,
   SkipBack,
   SkipForward,
@@ -218,11 +219,15 @@ export function AudioPlayer() {
                 )
               }
             >
-              <Repeat
-                size={22}
-                color={repeatMode !== "off" ? THEME.primary : THEME.white}
-                opacity={repeatMode !== "off" ? 1 : 0.6}
-              />
+              {repeatMode === "one" ? (
+                <Repeat1 size={22} color={THEME.primary} opacity={1} />
+              ) : (
+                <Repeat
+                  size={22}
+                  color={repeatMode !== "off" ? THEME.primary : THEME.white}
+                  opacity={repeatMode !== "off" ? 1 : 0.6}
+                />
+              )}
             </TouchableOpacity>
           </View>
         </View>

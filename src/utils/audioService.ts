@@ -76,6 +76,7 @@ export class AudioService {
     if (this.player) {
       try {
         this.player.setActiveForLockScreen(false);
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
       } catch (e) {}
       this.player.remove();
       this.player = null;
