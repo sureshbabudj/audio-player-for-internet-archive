@@ -1,20 +1,11 @@
 import { ArchiveTrack } from "@/types";
 import {
-  createAudioPlayer,
-  setAudioModeAsync,
+  createAudioPlaylist,
   preload,
   setIsAudioActiveAsync,
-  createAudioPlaylist,
   type AudioPlayer,
   type AudioPlaylist,
 } from "expo-audio";
-
-// Configure audio session for background play
-setAudioModeAsync({
-  playsInSilentMode: true,
-  shouldPlayInBackground: true,
-  interruptionMode: "doNotMix",
-}).catch(console.error);
 
 export class AudioService {
   private static player: AudioPlayer | null = null;
@@ -26,7 +17,7 @@ export class AudioService {
     volume: number,
     playbackSpeed: number,
     onStatusUpdate: (status: any) => void,
-    onFinished: () => void
+    onFinished: () => void,
   ): Promise<any> {
     // Master Reset: Kill ALL native audio sessions to prevent double-play
     try {
@@ -39,17 +30,19 @@ export class AudioService {
 
     // CREATE NATIVE PLAYLIST (Native Queue)
     // We use a combined name for basic feedback since Playlist doesn't support full metadata
-    const sources = [{
-      uri: track.url,
-      name: `${track.title} - ${track.creator}`
-    }];
+    const sources = [
+      {
+        uri: track.url,
+        name: `${track.title} - ${track.creator}`,
+      },
+    ];
 
     // createAudioPlaylist takes an options object with sources
     const playlist = createAudioPlaylist({
       sources: sources,
       loop: "none",
     });
-    
+
     this.playlist = playlist;
     playlist.volume = volume;
     playlist.playbackRate = playbackSpeed;
@@ -68,7 +61,7 @@ export class AudioService {
         if (status.didJustFinish) {
           onFinished();
         }
-      })
+      }),
     );
 
     playlist.play();
@@ -81,7 +74,9 @@ export class AudioService {
 
   static cleanup() {
     if (this.player) {
-      try { this.player.setActiveForLockScreen(false); } catch(e){}
+      try {
+        this.player.setActiveForLockScreen(false);
+      } catch (e) {}
       this.player.remove();
       this.player = null;
     }

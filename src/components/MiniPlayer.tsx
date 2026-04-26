@@ -1,5 +1,6 @@
 import { THEME } from "@/constants/colors";
 import { usePlayerStore } from "@/store/usePlayerStore";
+import { useAudioPlaylistStatus } from "expo-audio";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { Pause, Play, SkipForward } from "lucide-react-native";
@@ -10,10 +11,17 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 export function MiniPlayer() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const currentTrack = usePlayerStore((state) => state.currentTrack);
-  const isPlaying = usePlayerStore((state) => state.isPlaying);
+  const playlist = usePlayerStore((state) => state.playlist);
+  const status = useAudioPlaylistStatus(playlist!);
+  
+  const queue = usePlayerStore((state) => state.queue);
+  const currentIndex = status?.currentIndex ?? 0;
+  const currentTrack = queue[currentIndex] || usePlayerStore.getState().currentTrack;
+
   const togglePlayPause = usePlayerStore((state) => state.togglePlayPause);
   const skipNext = usePlayerStore((state) => state.skipNext);
+
+  const isPlaying = status?.playing ?? false;
 
   if (!currentTrack) return null;
 

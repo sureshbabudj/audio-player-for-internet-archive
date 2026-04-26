@@ -19,6 +19,8 @@ import { View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
+import { useAudioPlaylist, setAudioModeAsync } from "expo-audio";
+import { usePlayerStore } from "@/store/usePlayerStore";
 import "./global.css";
 
 export default function RootLayout() {
@@ -26,6 +28,11 @@ export default function RootLayout() {
   const selectorVisible = usePlaylistStore((state) => state.selectorVisible);
   const trackToSelect = usePlaylistStore((state) => state.trackToSelect);
   const closeSelector = usePlaylistStore((state) => state.closeSelector);
+  const setPlaylist = usePlayerStore((state) => state.setPlaylist);
+  
+  // Initialize Global Playlist Hook
+  const playlist = useAudioPlaylist();
+
   const [fontsLoaded] = useFonts({
     SpaceGrotesk_700Bold,
     Inter_400Regular,
@@ -37,6 +44,18 @@ export default function RootLayout() {
   useEffect(() => {
     if (fontsLoaded) SplashScreen.hideAsync();
   }, [fontsLoaded]);
+
+  useEffect(() => {
+    // Sync native playlist object to store
+    setPlaylist(playlist);
+    
+    // Configure audio session for background play
+    setAudioModeAsync({
+      playsInSilentMode: true,
+      shouldPlayInBackground: true,
+      interruptionMode: "doNotMix",
+    }).catch(console.error);
+  }, [playlist]);
 
   if (!fontsLoaded) return null;
 

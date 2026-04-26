@@ -2,225 +2,176 @@ import { useLibraryStore } from "@/store/useLibraryStore";
 import { ArchiveTrack, RepeatMode } from "@/types";
 import { AudioService } from "@/utils/audioService";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { type AudioPlaylist } from "expo-audio";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
 interface PlayerState {
+  // Native Object
+  playlist: AudioPlaylist | null;
+  setPlaylist: (playlist: AudioPlaylist) => void;
+
+  // Track State
   currentTrack: ArchiveTrack | null;
   queue: ArchiveTrack[];
   queueTitle: string;
   currentIndex: number;
+  
+  // UI Sync (for non-hook access)
   isPlaying: boolean;
-  isBuffering: boolean;
-  isLoaded: boolean;
-  position: number;
-  duration: number;
-  repeatMode: RepeatMode;
   isShuffled: boolean;
   volume: number;
   playbackSpeed: number;
+  repeatMode: RepeatMode;
 
+  // Actions
   loadTrack: (
     track: ArchiveTrack,
     queue?: ArchiveTrack[],
     title?: string,
   ) => Promise<void>;
-  togglePlayPause: () => Promise<void>;
-  seekTo: (position: number) => Promise<void>;
-  skipNext: () => Promise<void>;
-  skipPrevious: () => Promise<void>;
-  setRepeatMode: (mode: RepeatMode) => void;
+  togglePlayPause: () => void;
   toggleShuffle: () => void;
-  setVolume: (vol: number) => Promise<void>;
-  setPlaybackSpeed: (speed: number) => Promise<void>;
-  addToQueue: (track: ArchiveTrack) => void;
-  removeFromQueue: (index: number) => void;
-  clearQueue: () => void;
-  playFromQueue: (index: number) => Promise<void>;
+  seekTo: (position: number) => Promise<void>;
+  skipNext: () => void;
+  skipPrevious: () => void;
+  playFromQueue: (index: number) => void;
+  setRepeatMode: (mode: RepeatMode) => void;
+  setVolume: (vol: number) => void;
+  setPlaybackSpeed: (speed: number) => void;
 }
-
-let isChangingTrack = false;
 
 export const usePlayerStore = create<PlayerState>()(
   persist(
     (set, get) => ({
+      playlist: null,
       currentTrack: null,
       queue: [],
       queueTitle: "",
       currentIndex: 0,
       isPlaying: false,
-      isBuffering: false,
-      isLoaded: false,
-      position: 0,
-      duration: 0,
-      repeatMode: "off",
       isShuffled: false,
       volume: 1,
       playbackSpeed: 1,
+      repeatMode: "off",
+
+      setPlaylist: (playlist) => {
+        set({ playlist });
+        // Auto-sync saved state to the new native playlist instance on cold start
+        const state = get();
+        if (state.queue.length > 0 && playlist.sources.length === 0) {
+          playlist.clear();
+          state.queue.forEach((t) => {
+            playlist.add({
+              uri: t.url,
+              name: `${t.title} - ${t.creator}`,
+            });
+          });
+          playlist.volume = state.volume;
+          playlist.playbackRate = state.playbackSpeed;
+          playlist.skipTo(state.currentIndex);
+          playlist.loop = state.repeatMode === "all" ? "all" : state.repeatMode === "one" ? "single" : "none";
+        }
+      },
 
       loadTrack: async (track, queue = [], title = "Now Playing") => {
-        if (isChangingTrack) return;
-        isChangingTrack = true;
+        const { playlist, volume, playbackSpeed, isShuffled } = get();
+        if (!playlist) return;
 
-        const newQueue = queue.length > 0 ? queue : [track];
+        let newQueue = queue.length > 0 ? queue : [track];
+        
+        // Handle Shuffle on load if enabled
+        if (isShuffled) {
+          // Keep current track at index 0 or similar logic?
+          // For now just shuffle the rest.
+        }
+
         const trackIndex = newQueue.findIndex((t) => t.id === track.id);
-        const initialIndex = trackIndex >= 0 ? trackIndex : 0;
+        const targetIndex = trackIndex >= 0 ? trackIndex : 0;
 
-        try {
-          set({
-            currentTrack: track,
-            isPlaying: false,
-            isBuffering: true,
-            isLoaded: false,
-            position: 0,
-            duration: 0,
-            queue: newQueue,
-            queueTitle: title,
-            currentIndex: initialIndex,
+        set({
+          currentTrack: track,
+          queue: newQueue,
+          queueTitle: title,
+          currentIndex: targetIndex,
+        });
+
+        // Sync to native playlist
+        playlist.clear();
+        newQueue.forEach(t => {
+          playlist.add({
+            uri: t.url,
+            name: `${t.title} - ${t.creator}`
           });
+        });
 
-          await AudioService.initializePlayer(
-            track,
-            get().volume,
-            get().playbackSpeed,
-            (status) => {
-              set({
-                isPlaying: status.playing,
-                isBuffering: status.isBuffering,
-                isLoaded: status.isLoaded,
-                position: Math.floor((status.currentTime || 0) * 1000),
-                duration: Math.floor((status.duration || 0) * 1000),
-              });
-            },
-            () => {
-              // Track Finished
-              get().skipNext();
-            }
-          );
+        playlist.volume = volume;
+        playlist.playbackRate = playbackSpeed;
+        playlist.skipTo(targetIndex);
+        playlist.play();
 
-          // Preload next track for seamless background transition
-          const nextIndex = (initialIndex + 1) % newQueue.length;
-          if (newQueue[nextIndex]) {
-            AudioService.preloadNext(newQueue[nextIndex]);
-          }
+        useLibraryStore.getState().addToRecentlyPlayed(track);
+      },
 
-          useLibraryStore.getState().addToRecentlyPlayed(track);
-        } catch (error) {
-          console.error("Error loading track:", error);
-          set({ isBuffering: false, isLoaded: false });
-        } finally {
-          isChangingTrack = false;
+      togglePlayPause: () => {
+        const { playlist } = get();
+        if (!playlist) return;
+        if (playlist.playing) {
+          playlist.pause();
+        } else {
+          playlist.play();
         }
       },
 
-      togglePlayPause: async () => {
-        const player = AudioService.getPlayer();
-        if (!player && get().currentTrack) {
-          await get().loadTrack(get().currentTrack!, get().queue, get().queueTitle);
-          return;
-        }
-
-        if (player) {
-          if (get().isPlaying) {
-            player.pause();
-          } else {
-            player.play();
-          }
-        }
-      },
-
-      seekTo: async (position) => {
-        const player = AudioService.getPlayer();
-        if (player && get().isLoaded) {
-          try {
-            player.seekTo(position / 1000);
-          } catch (e) {
-            console.error("Seek error:", e);
-          }
-        }
-      },
-
-      skipNext: async () => {
-        const { queue, currentIndex } = get();
-        if (queue.length === 0) return;
-
-        let nextIndex = currentIndex + 1;
-        if (nextIndex >= queue.length) {
-          if (get().repeatMode === "all") {
-            nextIndex = 0;
-          } else {
-            return;
-          }
-        }
-        await get().loadTrack(queue[nextIndex], queue, get().queueTitle);
-      },
-
-      skipPrevious: async () => {
-        const { queue, currentIndex, position } = get();
-        if (queue.length === 0) return;
-
-        if (position > 3000) {
-          const player = AudioService.getPlayer();
-          player?.seekTo(0);
-          return;
-        }
-
-        let prevIndex = currentIndex - 1;
-        if (prevIndex < 0) {
-          if (get().repeatMode === "all") {
-            prevIndex = queue.length - 1;
-          } else {
-            prevIndex = 0;
-          }
-        }
-        await get().loadTrack(queue[prevIndex], queue, get().queueTitle);
-      },
-
-      setRepeatMode: (mode) => set({ repeatMode: mode }),
       toggleShuffle: () => set((state) => ({ isShuffled: !state.isShuffled })),
 
-      setVolume: async (vol) => {
-        const player = AudioService.getPlayer();
-        if (player) {
-          player.volume = vol;
+      seekTo: async (position) => {
+        const { playlist } = get();
+        if (playlist) {
+          await playlist.seekTo(position / 1000);
         }
+      },
+
+      skipNext: () => {
+        const { playlist } = get();
+        playlist?.next();
+      },
+
+      skipPrevious: () => {
+        const { playlist } = get();
+        playlist?.previous();
+      },
+
+      playFromQueue: (index) => {
+        const { playlist, queue } = get();
+        if (!playlist || !queue[index]) return;
+        
+        set({ 
+          currentIndex: index,
+          currentTrack: queue[index]
+        });
+        playlist.skipTo(index);
+        playlist.play();
+      },
+
+      setRepeatMode: (mode) => {
+        const { playlist } = get();
+        if (playlist) {
+          playlist.loop = mode === "all" ? "all" : mode === "one" ? "single" : "none";
+        }
+        set({ repeatMode: mode });
+      },
+
+      setVolume: (vol) => {
+        const { playlist } = get();
+        if (playlist) playlist.volume = vol;
         set({ volume: vol });
       },
 
-      setPlaybackSpeed: async (speed) => {
-        const player = AudioService.getPlayer();
-        if (player) {
-          // Player uses setPlaybackRate, Playlist uses playbackRate property
-          if ("setPlaybackRate" in player) {
-            (player as any).setPlaybackRate(speed);
-          } else {
-            (player as any).playbackRate = speed;
-          }
-        }
+      setPlaybackSpeed: (speed) => {
+        const { playlist } = get();
+        if (playlist) playlist.playbackRate = speed;
         set({ playbackSpeed: speed });
-      },
-
-      addToQueue: (track) => {
-        set((state) => ({
-          queue: [...state.queue, track],
-        }));
-      },
-
-      removeFromQueue: (index) => {
-        set((state) => {
-          const newQueue = [...state.queue];
-          newQueue.splice(index, 1);
-          return { queue: newQueue };
-        });
-      },
-
-      clearQueue: () => set({ queue: [], currentIndex: 0 }),
-
-      playFromQueue: async (index) => {
-        const { queue } = get();
-        if (index >= 0 && index < queue.length) {
-          await get().loadTrack(queue[index], queue, get().queueTitle);
-        }
       },
     }),
     {

@@ -18,22 +18,31 @@ import {
   SkipForward,
   Zap,
 } from "lucide-react-native";
+import { useAudioPlaylistStatus } from "expo-audio";
 import React from "react";
 import { FlatList, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+
 import { WaveAnimation } from "./WaveAnimation";
 
 export function AudioPlayer() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const currentTrack = usePlayerStore((state) => state.currentTrack);
+  const playlist = usePlayerStore((state) => state.playlist);
+  const status = useAudioPlaylistStatus(playlist!);
+
   const queue = usePlayerStore((state) => state.queue);
   const queueTitle = usePlayerStore((state) => state.queueTitle);
-  const currentIndex = usePlayerStore((state) => state.currentIndex);
-  const isPlaying = usePlayerStore((state) => state.isPlaying);
-  const isBuffering = usePlayerStore((state) => state.isBuffering);
-  const position = usePlayerStore((state) => state.position);
-  const duration = usePlayerStore((state) => state.duration);
+  const currentIndex = status?.currentIndex ?? 0;
+  
+  // Deriving the track from the native index to keep it in sync
+  const currentTrack = queue[currentIndex] || usePlayerStore.getState().currentTrack;
+
+  const isPlaying = status?.playing ?? false;
+  const isBuffering = status?.isBuffering ?? false;
+  const position = Math.floor((status?.currentTime || 0) * 1000);
+  const duration = Math.floor((status?.duration || 0) * 1000);
+
   const repeatMode = usePlayerStore((state) => state.repeatMode);
   const isShuffled = usePlayerStore((state) => state.isShuffled);
   const togglePlayPause = usePlayerStore((state) => state.togglePlayPause);

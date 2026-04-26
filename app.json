@@ -11,9 +11,7 @@
       "icon": "./assets/expo.icon",
       "bundleIdentifier": "com.sureshbabudj.app",
       "infoPlist": {
-        "UIBackgroundModes": [
-          "audio"
-        ]
+        "UIBackgroundModes": ["audio"]
       },
       "appleTeamId": "FP96G88XFR"
     },
@@ -50,7 +48,14 @@
           "resizeMode": "contain"
         }
       ],
-      "expo-audio",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Allow $(PRODUCT_NAME) to access your microphone.",
+          "enableBackgroundPlayback": true,
+          "enableBackgroundRecording": false
+        }
+      ],
       "expo-asset"
     ],
     "experiments": {
