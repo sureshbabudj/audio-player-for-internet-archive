@@ -1,15 +1,13 @@
 import { ArchiveTrack } from "@/types";
 import {
-  createAudioPlaylist,
+  createAudioPlayer,
   preload,
   setIsAudioActiveAsync,
   type AudioPlayer,
-  type AudioPlaylist,
 } from "expo-audio";
 
 export class AudioService {
   private static player: AudioPlayer | null = null;
-  private static playlist: AudioPlaylist | null = null;
   private static subscriptions: { remove: () => void }[] = [];
 
   static async initializePlayer(
@@ -28,28 +26,19 @@ export class AudioService {
       console.error("Master reset error:", e);
     }
 
-    // CREATE NATIVE PLAYLIST (Native Queue)
-    // We use a combined name for basic feedback since Playlist doesn't support full metadata
-    const sources = [
-      {
-        uri: track.url,
-        name: `${track.title} - ${track.creator}`,
-      },
-    ];
-
-    // createAudioPlaylist takes an options object with sources
-    const playlist = createAudioPlaylist({
-      sources: sources,
-      loop: "none",
+    // CREATE NATIVE PLAYER (Single track)
+    const player = createAudioPlayer(track.url, {
+      updateInterval: 500,
+      keepAudioSessionActive: true,
     });
 
-    this.playlist = playlist;
-    playlist.volume = volume;
-    playlist.playbackRate = playbackSpeed;
+    this.player = player;
+    player.volume = volume;
+    player.setPlaybackRate(playbackSpeed);
 
     // LISTENERS
     this.subscriptions.push(
-      playlist.addListener("playlistStatusUpdate", (status: any) => {
+      player.addListener("playbackStatusUpdate", (status: any) => {
         onStatusUpdate({
           playing: status.playing,
           isBuffering: status.isBuffering,
@@ -64,12 +53,12 @@ export class AudioService {
       }),
     );
 
-    playlist.play();
-    return playlist;
+    player.play();
+    return player;
   }
 
   static getPlayer() {
-    return this.player || this.playlist;
+    return this.player;
   }
 
   static cleanup() {
@@ -80,10 +69,6 @@ export class AudioService {
       } catch (e) {}
       this.player.remove();
       this.player = null;
-    }
-    if (this.playlist) {
-      this.playlist.destroy();
-      this.playlist = null;
     }
     this.subscriptions.forEach((sub) => sub.remove());
     this.subscriptions = [];

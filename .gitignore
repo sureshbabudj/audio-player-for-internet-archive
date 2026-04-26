@@ -41,3 +41,11 @@ app-example
 # generated native folders
 /ios
 /android
+
+# local modules
+modules/*/android/build/
+modules/*/android/.gradle/
+modules/*/ios/build/
+modules/*/ios/*.xcodeproj/
+modules/*/bin/
+modules/*/node_modules/
