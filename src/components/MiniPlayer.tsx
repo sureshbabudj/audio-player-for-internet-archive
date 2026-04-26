@@ -25,7 +25,7 @@ export function MiniPlayer() {
       <TouchableOpacity
         activeOpacity={0.9}
         onPress={() => router.push("/player" as any)}
-        className="bg-primary/40 border-t border-surface-light overflow-hidden"
+        className="bg-darker border-t border-surface overflow-hidden"
       >
         <View className="flex-row items-center px-4 py-3">
           {/* Thumbnail */}

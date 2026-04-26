@@ -8,7 +8,6 @@ import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import {
   ChevronDown,
-  Globe,
   Heart,
   ListMusic,
   Pause,
@@ -259,7 +258,10 @@ export function AudioPlayer() {
         style={{ paddingBottom: Math.max(insets.bottom, 20) }}
       >
         <TouchableOpacity className="flex-row items-center bg-surface px-4 py-2 rounded-full">
-          <Globe size={14} color={THEME.primary} />
+          <Image
+            source={require("../../assets/images/icon.svg")}
+            style={{ width: 14, height: 14 }}
+          />
           <Text className="text-white/60 text-xs font-medium ml-2">
             ArchiPlay
           </Text>

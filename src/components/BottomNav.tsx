@@ -20,7 +20,7 @@ export function BottomNav() {
 
   return (
     <View
-      className="absolute bottom-0 left-0 right-0 bg-dark/80 border-t border-white/20 px-6 flex-row items-center justify-between"
+      className="absolute bottom-0 left-0 right-0 bg-dark border-t border-white/20 px-6 flex-row items-center justify-between"
       style={{ paddingBottom: Math.max(insets.bottom, 20), paddingTop: 12 }}
     >
       {navItems.map((item, index) => {
