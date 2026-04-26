@@ -23,39 +23,76 @@ export default function SearchScreen() {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<ArchiveItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
   const [addingId, setAddingId] = useState<string | null>(null);
   const [searched, setSearched] = useState(false);
   const [timedOut, setTimedOut] = useState(false);
 
   const { addCollection } = useLibraryStore();
 
-  const handleSearch = useCallback(async (searchQuery: string) => {
-    if (!searchQuery.trim()) return;
+  const handleSearch = useCallback(
+    async (searchQuery: string, isNextPage: boolean = false) => {
+      if (!searchQuery.trim()) return;
 
-    setLoading(true);
-    setSearched(true);
-    setTimedOut(false);
+      const currentPage = isNextPage ? page + 1 : 1;
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 25000);
-
-    try {
-      const items = await searchArchive(searchQuery, controller.signal);
-      setResults(items);
-    } catch (error: any) {
-      if (
-        error.name === "AbortError" ||
-        error.message?.toLowerCase().includes("timed out")
-      ) {
-        setTimedOut(true);
+      if (!isNextPage) {
+        setLoading(true);
+        setResults([]);
+        setHasMore(true);
       } else {
-        console.error("Search error:", error);
+        setLoadingMore(true);
       }
-    } finally {
-      setLoading(false);
-      clearTimeout(timeoutId);
+
+      setSearched(true);
+      setTimedOut(false);
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 25000);
+
+      try {
+        const items = await searchArchive(
+          searchQuery,
+          currentPage,
+          controller.signal,
+        );
+
+        if (items.length < 20) {
+          setHasMore(false);
+        }
+
+        if (isNextPage) {
+          setResults((prev) => [...prev, ...items]);
+          setPage(currentPage);
+        } else {
+          setResults(items);
+          setPage(1);
+        }
+      } catch (error: any) {
+        if (
+          error.name === "AbortError" ||
+          error.message?.toLowerCase().includes("timed out")
+        ) {
+          if (!isNextPage) setTimedOut(true);
+        } else {
+          console.error("Search error:", error);
+        }
+      } finally {
+        setLoading(false);
+        setLoadingMore(false);
+        clearTimeout(timeoutId);
+      }
+    },
+    [page],
+  );
+
+  const loadMore = () => {
+    if (!loading && !loadingMore && hasMore && results.length > 0) {
+      handleSearch(query, true);
     }
-  }, []);
+  };
 
   const handleItemPress = (item: ArchiveItem) => {
     router.push(`/collection/${item.identifier}` as any);
@@ -152,7 +189,16 @@ export default function SearchScreen() {
               />
             </TouchableOpacity>
           )}
-          keyExtractor={(item) => item.identifier}
+          keyExtractor={(item, index) => `${item.identifier}_${index}`}
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.5}
+          ListFooterComponent={() =>
+            loadingMore ? (
+              <View className="py-8">
+                <ActivityIndicator color={THEME.primary} />
+              </View>
+            ) : null
+          }
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 180 }}
         />

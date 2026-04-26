@@ -2,12 +2,13 @@ import { ArchiveItem, ArchiveTrack } from "@/types";
 
 const AUDIO_FORMATS = ["mp3", "ogg", "flac", "wav", "m4a", "aac"];
 
-function getCreator(doc: any): string {
+function getCreator(doc: any): string | null {
   const creator = doc.artist || doc.creator;
   if (Array.isArray(creator)) {
-    return creator[0] || "Internet Archive";
+    return creator[0] || null;
   }
   if (typeof creator === "string") {
+    if (creator === "Internet Archive") return null;
     return creator;
   }
 
@@ -15,22 +16,26 @@ function getCreator(doc: any): string {
   if (doc.uploader) {
     // Sanitize email if uploader is an email
     return (
-      doc.uploader.split("@")[0].replace(/[._-]/g, " ") || "Internet Archive"
+      doc.uploader.split("@")[0].replace(/[._-]/g, " ") || null
     );
   }
 
-  return "Internet Archive";
+  return null;
 }
 
 export async function searchArchive(
   query: string,
+  page: number = 1,
   signal?: AbortSignal,
 ): Promise<ArchiveItem[]> {
   if (!query.trim()) return [];
 
+  const rows = 20;
+  const start = (page - 1) * rows;
+
   const url = `https://archive.org/advancedsearch.php?q=${encodeURIComponent(
     query,
-  )}+AND+mediatype:audio&fl[]=identifier&fl[]=title&fl[]=creator&fl[]=year&sort[]=downloads+desc&rows=15&output=json`;
+  )}+AND+mediatype:audio&fl[]=identifier&fl[]=title&fl[]=creator&fl[]=year&sort[]=downloads+desc&rows=${rows}&start=${start}&output=json`;
 
   const response = await fetch(url, { signal });
   const data = await response.json();

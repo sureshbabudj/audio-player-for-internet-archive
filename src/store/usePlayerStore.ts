@@ -41,6 +41,7 @@ interface PlayerState {
   toggleShuffle: () => void;
   setVolume: (vol: number) => void;
   setPlaybackSpeed: (speed: number) => void;
+  resetPlayer: () => void;
 
   // Internal Sync
   setPlaybackStatus: (status: any) => void;
@@ -159,6 +160,23 @@ export const usePlayerStore = create<PlayerState>()(
         const { player } = get();
         if (player) player.playbackRate = speed;
         set({ playbackSpeed: speed });
+      },
+
+      resetPlayer: () => {
+        const { player } = get();
+        if (player) {
+          player.pause();
+          player.clear();
+        }
+        set({
+          currentTrack: null,
+          queue: [],
+          queueTitle: "",
+          currentIndex: 0,
+          isPlaying: false,
+          position: 0,
+          duration: 0,
+        });
       },
     }),
     {

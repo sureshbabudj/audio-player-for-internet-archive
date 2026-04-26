@@ -6,7 +6,7 @@ import { persist } from "zustand/middleware";
 interface Collection {
   id: string;
   title: string;
-  creator: string;
+  creator: string | null;
   thumbnail: string;
   tracks: ArchiveTrack[];
   addedAt: number;
@@ -28,6 +28,7 @@ interface LibraryState {
   addToRecentlyPlayed: (track: ArchiveTrack) => void;
   clearRecentlyPlayed: () => void;
   clearLibrary: () => void;
+  importLibrary: (data: any) => void;
 }
 
 export const useLibraryStore = create<LibraryState>()(
@@ -119,9 +120,7 @@ export const useLibraryStore = create<LibraryState>()(
               likedTrackIds: state.likedTrackIds.filter(
                 (id) => id !== track.id,
               ),
-              likedTracks: state.likedTracks.filter(
-                (t) => t.id !== track.id,
-              ),
+              likedTracks: state.likedTracks.filter((t) => t.id !== track.id),
             };
           } else {
             return {
@@ -161,6 +160,19 @@ export const useLibraryStore = create<LibraryState>()(
           recentlyPlayed: [],
           playCounts: {},
         }),
+
+      importLibrary: (data) => {
+        if (!data || typeof data !== "object") return;
+        set({
+          collections: data.collections || [],
+          likedTracks: data.likedTracks || [],
+          likedTrackIds:
+            data.likedTrackIds ||
+            (data.likedTracks || []).map((t: any) => t.id),
+          recentlyPlayed: data.recentlyPlayed || [],
+          playCounts: data.playCounts || {},
+        });
+      },
     }),
     {
       name: "library-storage",

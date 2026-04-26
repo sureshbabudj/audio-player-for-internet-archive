@@ -1,7 +1,10 @@
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { THEME } from "@/constants/colors";
 import { useLibraryStore } from "@/store/useLibraryStore";
-import * as Clipboard from "expo-clipboard";
+import { usePlayerStore } from "@/store/usePlayerStore";
+import * as DocumentPicker from "expo-document-picker";
+import * as FileSystem from "expo-file-system/legacy";
+import * as Sharing from "expo-sharing";
 import {
   Database,
   ExternalLink,
@@ -18,7 +21,6 @@ import {
   Alert,
   Linking,
   ScrollView,
-  Share,
   Text,
   TouchableOpacity,
   View,
@@ -44,7 +46,7 @@ const GithubIcon = (
 );
 
 export default function SettingsScreen() {
-  const { collections, playCounts, recentlyPlayed, likedTracks, clearLibrary } =
+  const { collections, playCounts, recentlyPlayed, likedTracks, clearLibrary, importLibrary } =
     useLibraryStore();
 
   return (
@@ -89,38 +91,72 @@ export default function SettingsScreen() {
             icon={Share2}
             label="Export Data"
             onPress={async () => {
-              const data = {
-                collections,
-                playCounts,
-                recentlyPlayed,
-                likedTracks,
-                version: "1.0",
-              };
-              const json = JSON.stringify(data);
-              await Share.share({
-                message: json,
-                title: "ArchiPlay Backup",
-              });
+              try {
+                const data = {
+                  collections,
+                  playCounts,
+                  recentlyPlayed,
+                  likedTracks,
+                  version: "1.0",
+                };
+                const json = JSON.stringify(data, null, 2);
+                const filename = `archiplay_backup_${Date.now()}.json`;
+                const fileUri = `${FileSystem.cacheDirectory}${filename}`;
+                
+                await FileSystem.writeAsStringAsync(fileUri, json);
+                
+                if (await Sharing.isAvailableAsync()) {
+                  await Sharing.shareAsync(fileUri, {
+                    mimeType: "application/json",
+                    dialogTitle: "Export ArchiPlay Data",
+                    UTI: "public.json",
+                  });
+                } else {
+                  Alert.alert("Error", "Sharing is not available on this device.");
+                }
+              } catch (e) {
+                console.error("Export error:", e);
+                Alert.alert("Error", "Failed to export data.");
+              }
             }}
           />
           <SettingsItem
             icon={Database}
             label="Import Data"
             onPress={async () => {
-              const json = await Clipboard.getStringAsync();
-              if (!json) {
-                Alert.alert("Error", "Clipboard is empty.");
-                return;
-              }
               try {
+                const result = await DocumentPicker.getDocumentAsync({
+                  type: "application/json",
+                  copyToCacheDirectory: true,
+                });
+
+                if (result.canceled) return;
+
+                const fileUri = result.assets[0].uri;
+                const json = await FileSystem.readAsStringAsync(fileUri);
                 const data = JSON.parse(json);
-                if (!data.collections) throw new Error();
+
+                if (!data.collections && !data.likedTracks) {
+                  throw new Error("Invalid backup file format");
+                }
+
                 Alert.alert(
-                  "Import Data",
-                  "This feature is coming soon in the next update!",
+                  "Import Library",
+                  `This will replace your current library with ${data.collections?.length || 0} collections and ${data.likedTracks?.length || 0} liked tracks. Continue?`,
+                  [
+                    { text: "Cancel", style: "cancel" },
+                    {
+                      text: "Import",
+                      onPress: () => {
+                        importLibrary(data);
+                        Alert.alert("Success", "Library imported successfully!");
+                      },
+                    },
+                  ],
                 );
-              } catch {
-                Alert.alert("Error", "Invalid backup data in clipboard.");
+              } catch (e) {
+                console.error("Import error:", e);
+                Alert.alert("Error", "Failed to import backup file. Make sure it's a valid ArchiPlay JSON backup.");
               }
             }}
           />
@@ -160,7 +196,10 @@ export default function SettingsScreen() {
                   {
                     text: "Reset Everything",
                     style: "destructive",
-                    onPress: clearLibrary,
+                    onPress: () => {
+                      clearLibrary();
+                      usePlayerStore.getState().resetPlayer();
+                    },
                   },
                 ],
               );

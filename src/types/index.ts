@@ -2,7 +2,7 @@ export interface ArchiveTrack {
   id: string;
   identifier: string;
   title: string;
-  creator: string;
+  creator: string | null;
   description?: string;
   duration?: number;
   url: string;
@@ -15,7 +15,7 @@ export interface ArchiveTrack {
 export interface ArchiveItem {
   identifier: string;
   title: string;
-  creator: string;
+  creator: string | null;
   description?: string;
   thumbnail?: string;
   date?: string;
