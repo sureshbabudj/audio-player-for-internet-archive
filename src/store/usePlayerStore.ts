@@ -64,111 +64,85 @@ export const usePlayerStore = create<PlayerState>()(
 
         const newQueue = queue.length > 0 ? queue : [track];
         const trackIndex = newQueue.findIndex((t) => t.id === track.id);
+        const initialIndex = trackIndex >= 0 ? trackIndex : 0;
 
-        let attempts = 0;
-        const maxAttempts = 2;
+        try {
+          set({
+            currentTrack: track,
+            isPlaying: false,
+            isBuffering: true,
+            isLoaded: false,
+            position: 0,
+            duration: 0,
+            queue: newQueue,
+            queueTitle: title,
+            currentIndex: initialIndex,
+          });
 
-        while (attempts < maxAttempts) {
-          try {
-            set({
-              currentTrack: track,
-              isPlaying: false,
-              isBuffering: true,
-              isLoaded: false,
-              position: 0,
-              duration: 0,
-              queue: newQueue,
-              queueTitle: title,
-              currentIndex: trackIndex >= 0 ? trackIndex : 0,
-            });
-
-            // Fail-safe: Verify URL connectivity before loading into native player
-            if (attempts === 0) {
-              try {
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 5000);
-                const check = await fetch(track.url, { 
-                  method: "HEAD", 
-                  signal: controller.signal 
-                });
-                clearTimeout(timeoutId);
+          const playlist = await AudioService.initializePlaylist(
+            newQueue,
+            initialIndex,
+            get().volume,
+            get().playbackSpeed,
+            (status) => {
+              if (status.error) {
+                console.error("Playlist status error:", status.error);
+                set({ isPlaying: false, isBuffering: false, isLoaded: false });
+              } else {
+                const currentTrackInQueue = newQueue[status.currentIndex ?? initialIndex];
                 
-                if (!check.ok && check.status !== 405) { // 405 Method Not Allowed is fine for HEAD
-                  throw new Error(`URL not reachable: ${check.status}`);
-                }
-              } catch (e) {
-                console.warn("Pre-fetch check failed, but proceeding to native player:", e);
-              }
-            }
-
-            const player = await AudioService.initializePlayer(
-              track,
-              get().volume,
-              get().playbackSpeed,
-              (status) => {
-                if (status.error) {
-                  console.error("Playback status error:", status.error);
-                  set({ isPlaying: false, isBuffering: false, isLoaded: false });
-                } else {
-                  set({
-                    isPlaying: status.playing,
-                    isBuffering: status.isBuffering,
-                    isLoaded: status.isLoaded,
-                    position: Math.floor((status.currentTime || 0) * 1000),
-                    duration: Math.floor((status.duration || 0) * 1000),
+                // Sync metadata if track changed natively
+                if (status.currentIndex !== get().currentIndex && status.currentIndex !== undefined) {
+                  set({ 
+                    currentIndex: status.currentIndex,
+                    currentTrack: newQueue[status.currentIndex]
                   });
                 }
-              },
-              () => get().skipNext(),
-            );
 
-            // Small delay to ensure native buffer is ready
-            await new Promise(resolve => setTimeout(resolve, 200));
-            player.play();
-            
-            useLibraryStore.getState().addToRecentlyPlayed(track);
-            break; // Success!
-          } catch (error) {
-            attempts++;
-            console.error(`Attempt ${attempts} failed for ${track.title}:`, error);
-            
-            if (attempts >= maxAttempts) {
-              set({ isBuffering: false, isLoaded: false });
-            } else {
-              // Wait before retry
-              await new Promise(resolve => setTimeout(resolve, 1000));
+                set({
+                  isPlaying: status.playing,
+                  isBuffering: status.isBuffering,
+                  isLoaded: status.isLoaded,
+                  position: Math.floor((status.currentTime || 0) * 1000),
+                  duration: Math.floor((status.duration || 0) * 1000),
+                });
+              }
+            },
+            (newIndex) => {
+              // Track changed natively (next/prev)
+              set({ 
+                currentIndex: newIndex,
+                currentTrack: newQueue[newIndex]
+              });
             }
-          }
+          );
+
+          playlist.play();
+          useLibraryStore.getState().addToRecentlyPlayed(track);
+        } catch (error) {
+          console.error("Error loading playlist:", error);
+          set({ isBuffering: false, isLoaded: false });
+        } finally {
+          isChangingTrack = false;
         }
-        
-        isChangingTrack = false;
       },
 
       togglePlayPause: async () => {
-        const player = AudioService.getPlayer();
-        if (!player) {
-          // If app restarted and we have a currentTrack, load it but don't auto-play immediately?
-          // Or just load and play.
-          const { currentTrack, queue, queueTitle } = get();
-          if (currentTrack) {
-            await get().loadTrack(currentTrack, queue, queueTitle);
-            return;
+        const playlist = AudioService.getPlaylist();
+        if (playlist) {
+          if (get().isPlaying) {
+            playlist.pause();
+          } else {
+            playlist.play();
           }
-          return;
-        }
-
-        if (get().isPlaying) {
-          player.pause();
-        } else {
-          player.play();
         }
       },
 
       seekTo: async (position) => {
-        const player = AudioService.getPlayer();
-        if (player && get().isLoaded) {
+        const playlist = AudioService.getPlaylist();
+        if (playlist && get().isLoaded) {
           try {
-            await player.seekTo(position / 1000);
+            playlist.seekTo(position / 1000);
           } catch (e) {
             console.error("Seek error:", e);
           }
@@ -176,68 +150,39 @@ export const usePlayerStore = create<PlayerState>()(
       },
 
       skipNext: async () => {
-        const { queue, currentIndex, repeatMode, isShuffled } = get();
-        if (queue.length === 0) return;
-
-        if (repeatMode === "one") {
-          await get().seekTo(0);
-          return;
+        const playlist = AudioService.getPlaylist();
+        if (playlist) {
+          playlist.next();
         }
-
-        let nextIndex: number;
-        if (isShuffled) {
-          nextIndex = Math.floor(Math.random() * queue.length);
-        } else {
-          nextIndex = currentIndex + 1;
-          if (nextIndex >= queue.length) {
-            if (repeatMode === "all") {
-              nextIndex = 0;
-            } else {
-              return;
-            }
-          }
-        }
-
-        await get().loadTrack(queue[nextIndex], queue, get().queueTitle);
       },
 
       skipPrevious: async () => {
-        const { queue, currentIndex, position, repeatMode } = get();
-
-        if (position > 3000) {
-          await get().seekTo(0);
-          return;
-        }
-
-        if (queue.length === 0) return;
-
-        let prevIndex = currentIndex - 1;
-        if (prevIndex < 0) {
-          if (repeatMode === "all") {
-            prevIndex = queue.length - 1;
+        const playlist = AudioService.getPlaylist();
+        if (playlist) {
+          const { position } = get();
+          if (position > 3000) {
+            playlist.seekTo(0);
           } else {
-            return;
+            playlist.previous();
           }
         }
-
-        await get().loadTrack(queue[prevIndex], queue, get().queueTitle);
       },
 
       setRepeatMode: (mode) => set({ repeatMode: mode }),
       toggleShuffle: () => set((state) => ({ isShuffled: !state.isShuffled })),
 
       setVolume: async (vol) => {
-        const player = AudioService.getPlayer();
-        if (player) {
-          player.volume = vol;
+        const playlist = AudioService.getPlaylist();
+        if (playlist) {
+          playlist.volume = vol;
         }
         set({ volume: vol });
       },
 
       setPlaybackSpeed: async (speed) => {
-        const player = AudioService.getPlayer();
-        if (player) {
-          player.setPlaybackRate(speed);
+        const playlist = AudioService.getPlaylist();
+        if (playlist) {
+          playlist.playbackRate = speed;
         }
         set({ playbackSpeed: speed });
       },

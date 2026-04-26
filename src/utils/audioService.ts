@@ -1,8 +1,8 @@
 import { ArchiveTrack } from "@/types";
 import {
-  createAudioPlayer,
+  createAudioPlaylist,
   setAudioModeAsync,
-  type AudioPlayer,
+  type AudioPlaylist,
 } from "expo-audio";
 
 // Configure audio session for background play
@@ -13,62 +13,69 @@ setAudioModeAsync({
 }).catch(console.error);
 
 export class AudioService {
-  private static player: AudioPlayer | null = null;
-  private static statusSubscription: { remove: () => void } | null = null;
+  private static playlist: AudioPlaylist | null = null;
+  private static subscriptions: { remove: () => void }[] = [];
 
-  static async initializePlayer(
-    track: ArchiveTrack,
+  static async initializePlaylist(
+    tracks: ArchiveTrack[],
+    initialIndex: number,
     volume: number,
     playbackSpeed: number,
     onStatusUpdate: (status: any) => void,
-    onFinished: () => void
-  ): Promise<AudioPlayer> {
-    // Clean up existing player
+    onTrackChange: (index: number) => void
+  ): Promise<AudioPlaylist> {
     this.cleanup();
 
-    const player = createAudioPlayer(
-      { uri: track.url },
-      {
-        updateInterval: 250,
-        preferredForwardBufferDuration: 60, // Increased from 30 to 60 for better buffering
-        keepAudioSessionActive: true,
+    // In expo-audio, metadata for playlists is attached directly to the sources
+    const sources = tracks.map(t => ({
+      uri: t.url,
+      metadata: {
+        title: t.title,
+        artist: t.creator,
+        artworkUrl: `https://archive.org/services/img/${t.identifier}`,
       }
+    }));
+
+    const playlist = createAudioPlaylist({
+      sources,
+    });
+
+    this.playlist = playlist;
+    playlist.volume = volume;
+    playlist.playbackRate = playbackSpeed;
+    
+    // Set initial track
+    if (initialIndex > 0) {
+      playlist.skipTo(initialIndex);
+    }
+
+    // Listeners
+    this.subscriptions.push(
+      playlist.addListener("playlistStatusUpdate", (status) => {
+        onStatusUpdate(status);
+      })
     );
 
-    // Set lockscreen/Control Center metadata
-    player.setActiveForLockScreen(true, {
-      title: track.title,
-      artist: track.creator,
-      artworkUrl: `https://archive.org/services/img/${track.identifier}`,
-    });
+    this.subscriptions.push(
+      playlist.addListener("trackChanged", (data) => {
+        onTrackChange(data.currentIndex);
+      })
+    );
 
-    player.volume = volume;
-    player.setPlaybackRate(playbackSpeed);
-
-    this.statusSubscription = player.addListener("playbackStatusUpdate", (status) => {
-      onStatusUpdate(status);
-      if (status.didJustFinish) {
-        onFinished();
-      }
-    });
-
-    this.player = player;
-    return player;
+    return playlist;
   }
 
   static cleanup() {
-    if (this.player) {
-      this.player.pause();
-      if (this.statusSubscription) {
-        this.statusSubscription.remove();
-        this.statusSubscription = null;
-      }
-      this.player.remove();
-      this.player = null;
+    if (this.playlist) {
+      this.playlist.pause();
+      this.subscriptions.forEach((s) => s.remove());
+      this.subscriptions = [];
+      this.playlist.destroy();
+      this.playlist = null;
     }
   }
 
-  static getPlayer() {
-    return this.player;
+  static getPlaylist() {
+    return this.playlist;
   }
 }
