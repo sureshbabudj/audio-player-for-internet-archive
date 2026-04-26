@@ -1,19 +1,15 @@
 import { registerWebModule, NativeModule } from 'expo';
 
-import { ChangeEventPayload } from './ExpoAudioControls.types';
-
-type ExpoAudioControlsModuleEvents = {
-  onChange: (params: ChangeEventPayload) => void;
-}
+import { ExpoAudioControlsModuleEvents } from './ExpoAudioControls.types';
 
 class ExpoAudioControlsModule extends NativeModule<ExpoAudioControlsModuleEvents> {
-  PI = Math.PI;
-  async setValueAsync(value: string): Promise<void> {
-    this.emit('onChange', { value });
+  async setupRemoteControls(): Promise<void> {
+    // Web implementation of remote controls (Media Session API) can be added here
+    if ('mediaSession' in navigator) {
+      // Basic setup to avoid errors
+    }
+    console.log('Remote controls setup requested on web');
   }
-  hello() {
-    return 'Hello world! 👋';
-  }
-};
+}
 
-export default registerWebModule(ExpoAudioControlsModule, 'ExpoAudioControlsModule');
+export default registerWebModule(ExpoAudioControlsModule, 'ExpoAudioControls');
