@@ -15,7 +15,7 @@ import ExpoAudioControls from "../../modules/expo-audio-controls";
 
 interface PlayerState {
   // Native Object
-  player: AudioPlayer;
+  player: AudioPlayer | null;
 
   // Track State
   currentTrack: ArchiveTrack | null;
@@ -62,16 +62,13 @@ interface PlayerState {
   setPlaybackStatus: (status: any) => void;
 }
 
-// Global Player Singleton for stability
-const globalPlayer = createAudioPlayer(null, {
-  updateInterval: 500,
-  keepAudioSessionActive: true,
-});
-
 export const usePlayerStore = create<PlayerState>()(
   persist(
     (set, get) => ({
-      player: globalPlayer,
+      player: createAudioPlayer(null, {
+        updateInterval: 500,
+        keepAudioSessionActive: true,
+      }),
       currentTrack: null,
       queue: [],
       originalQueue: [],
@@ -102,7 +99,6 @@ export const usePlayerStore = create<PlayerState>()(
       },
 
       loadQueue: async (tracks, startIndex = 0, title = "Playlist") => {
-        const { player, volume, playbackSpeed } = get();
         const track = tracks[startIndex];
         if (!track) return;
 
@@ -115,18 +111,7 @@ export const usePlayerStore = create<PlayerState>()(
           isShuffled: false,
         });
 
-        if (player) {
-          try {
-            player.replace(track.url);
-          } catch (e) {
-            console.error("Replace error", e);
-          }
-          player.play();
-          player.volume = volume;
-          player.setPlaybackRate(playbackSpeed);
-          get().preloadNext();
-        }
-
+        get().playFromQueue(startIndex);
         useLibraryStore.getState().addToRecentlyPlayed(track);
       },
 
@@ -191,20 +176,54 @@ export const usePlayerStore = create<PlayerState>()(
         const track = queue[index];
         if (!track) return;
 
-        set({ currentIndex: index, currentTrack: track });
-
+        // Clean up previous player properly
         if (player) {
           try {
-            player.replace(track.url);
+            player.pause();
+            player.remove();
           } catch (e) {
-            console.error("Replace error", e);
+            console.error("Player cleanup error:", e);
           }
-          player.play();
-          player.volume = volume;
-          player.setPlaybackRate(playbackSpeed);
-          get().preloadNext();
         }
 
+        // Create fresh player to avoid native SDK 55 'replace' bug
+        const newPlayer = createAudioPlayer(
+          { uri: track.url },
+          {
+            updateInterval: 500,
+            keepAudioSessionActive: true,
+          },
+        );
+
+        newPlayer.volume = volume;
+        newPlayer.setPlaybackRate(playbackSpeed);
+
+        // Initial Lock Screen setup for the new player instance
+        newPlayer.setActiveForLockScreen(
+          true,
+          {
+            title: track.title,
+            artist: track.creator || "Unknown Artist",
+            albumTitle: track.title || "Unknown Album",
+            artworkUrl:
+              track.thumbnail ||
+              `https://archive.org/services/img/${track.identifier}`,
+          },
+          {
+            showSeekBackward: false,
+            showSeekForward: false,
+          },
+        );
+
+        newPlayer.play();
+
+        set({
+          currentIndex: index,
+          currentTrack: track,
+          player: newPlayer,
+        });
+
+        get().preloadNext();
         useLibraryStore.getState().addToRecentlyPlayed(track);
       },
 
@@ -274,8 +293,10 @@ export const usePlayerStore = create<PlayerState>()(
         const { player } = get();
         if (player) {
           player.pause();
+          player.remove();
         }
         set({
+          player: null,
           currentTrack: null,
           queue: [],
           queueTitle: "",
@@ -285,6 +306,7 @@ export const usePlayerStore = create<PlayerState>()(
           duration: 0,
         });
       },
+
       preloadNext: () => {
         const { currentIndex, queue } = get();
         const nextIndex = currentIndex + 1;
@@ -331,92 +353,67 @@ export const useInitializePlayer = () => {
     usePlayerStore();
   const isHydrated = useRef(false);
 
-  // Use the singleton status
-  const status = useAudioPlayerStatus(player);
+  // useAudioPlayerStatus will automatically re-subscribe when 'player' object changes
+  const status = useAudioPlayerStatus(player!);
 
-  // Sync player object and handle hydration
+  // Audio Mode configuration
   useEffect(() => {
-    // Configure audio mode for lock screen
     setAudioModeAsync({
       interruptionMode: "doNotMix",
       playsInSilentMode: true,
       shouldRouteThroughEarpiece: false,
     }).catch(console.error);
+  }, []);
 
-    if (!isHydrated.current && currentTrack?.url) {
-      // Small delay to ensure native player is ready
+  // Hydration handling
+  useEffect(() => {
+    if (!isHydrated.current && currentTrack?.url && player) {
       setTimeout(() => {
-        player.replace(currentTrack.url);
-        player.volume = volume;
-        player.setPlaybackRate(playbackSpeed);
+        try {
+          // Note: Since hydration is first track, we try replace but if it fails we are okay
+          // because subsequent track changes will use the 'recreate' logic.
+          player.replace({ uri: currentTrack.url });
+          player.volume = volume;
+          player.setPlaybackRate(playbackSpeed);
+        } catch (e) {
+          console.error("Initial hydration replace error:", e);
+        }
         isHydrated.current = true;
       }, 500);
     } else {
       isHydrated.current = true;
     }
+  }, [currentTrack, player, volume, playbackSpeed]);
 
-    // Initialize native listeners
-    let nextSub: any;
-    let prevSub: any;
-
-    try {
-      if (ExpoAudioControls) {
-        ExpoAudioControls.setupRemoteControls();
-        nextSub = ExpoAudioControls.addListener("onNextTrack", () => {
-          usePlayerStore.getState().skipNext();
-        });
-        prevSub = ExpoAudioControls.addListener("onPreviousTrack", () => {
-          usePlayerStore.getState().skipPrevious();
-        });
-      }
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    } catch (e) {
-      console.warn("Custom AudioControls module not found, skipping setup.");
-    }
-
-    return () => {
-      nextSub?.remove();
-      prevSub?.remove();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Sync status and handle finish/lockscreen
+  // Sync status and handle track finish
   useEffect(() => {
-    if (!isHydrated.current) return;
-    setPlaybackStatus(status);
+    if (!isHydrated.current || !player) return;
 
-    // Update Lock Screen
-    if (player && currentTrack && status.isLoaded) {
-      player.setActiveForLockScreen(
-        true,
-        {
-          title: currentTrack.title,
-          artist: currentTrack.creator || "Unknown Artist",
-          artworkUrl:
-            currentTrack.thumbnail ||
-            `https://archive.org/services/img/${currentTrack.identifier}`,
-        },
-        {
-          showSeekBackward: false,
-          showSeekForward: false,
-        },
-      );
-    }
+    setPlaybackStatus(status);
 
     if (status.didJustFinish) {
       usePlayerStore.getState().skipNext();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status, setPlaybackStatus, currentTrack]);
+  }, [status, setPlaybackStatus, player]);
 
-  // Setup Remote Media Controls (Next/Previous)
+  // Remote Media Controls (Next/Previous) Setup
   useEffect(() => {
     let isMounted = true;
+    let nextSub: any;
+    let prevSub: any;
 
     async function initRemoteControls() {
       try {
         await ExpoAudioControls.setupRemoteControls();
+        if (!isMounted) return;
+
+        nextSub = ExpoAudioControls.addListener("onNextTrack", () => {
+          if (isMounted) usePlayerStore.getState().skipNext();
+        });
+
+        prevSub = ExpoAudioControls.addListener("onPreviousTrack", () => {
+          if (isMounted) usePlayerStore.getState().skipPrevious();
+        });
       } catch (e) {
         console.error("Failed to setup remote controls:", e);
       }
@@ -424,22 +421,10 @@ export const useInitializePlayer = () => {
 
     initRemoteControls();
 
-    const nextSub = ExpoAudioControls.addListener("onNextTrack", () => {
-      if (isMounted) {
-        usePlayerStore.getState().skipNext();
-      }
-    });
-
-    const prevSub = ExpoAudioControls.addListener("onPreviousTrack", () => {
-      if (isMounted) {
-        usePlayerStore.getState().skipPrevious();
-      }
-    });
-
     return () => {
       isMounted = false;
-      nextSub.remove();
-      prevSub.remove();
+      nextSub?.remove();
+      prevSub?.remove();
     };
   }, []);
 
