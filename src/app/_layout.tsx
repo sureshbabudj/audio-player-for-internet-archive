@@ -19,8 +19,12 @@ import { View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
-import { useAudioPlaylist, setAudioModeAsync } from "expo-audio";
 import { usePlayerStore } from "@/store/usePlayerStore";
+import {
+  setAudioModeAsync,
+  useAudioPlayer,
+  useAudioPlayerStatus,
+} from "expo-audio";
 import "./global.css";
 
 export default function RootLayout() {
@@ -28,10 +32,14 @@ export default function RootLayout() {
   const selectorVisible = usePlaylistStore((state) => state.selectorVisible);
   const trackToSelect = usePlaylistStore((state) => state.trackToSelect);
   const closeSelector = usePlaylistStore((state) => state.closeSelector);
-  const setPlaylist = usePlayerStore((state) => state.setPlaylist);
-  
-  // Initialize Global Playlist Hook
-  const playlist = useAudioPlaylist();
+  const setPlayer = usePlayerStore((state) => state.setPlayer);
+  const setPlaybackStatus = usePlayerStore((state) => state.setPlaybackStatus);
+  const skipNext = usePlayerStore((state) => state.skipNext);
+  const currentTrack = usePlayerStore((state) => state.currentTrack);
+
+  // Initialize Global Player Hook
+  const player = useAudioPlayer(currentTrack?.url);
+  const status = useAudioPlayerStatus(player);
 
   const [fontsLoaded] = useFonts({
     SpaceGrotesk_700Bold,
@@ -46,16 +54,44 @@ export default function RootLayout() {
   }, [fontsLoaded]);
 
   useEffect(() => {
-    // Sync native playlist object to store
-    setPlaylist(playlist);
-    
-    // Configure audio session for background play
+    // Sync native player object to store
+    setPlayer(player);
+
+    if (player && currentTrack) {
+      // Enable lock screen controls with metadata BEFORE starting playback
+      // This is crucial for Android background stability
+      player.setActiveForLockScreen(true, {
+        title: currentTrack.title,
+        artist: currentTrack.creator,
+        albumTitle: currentTrack.collection?.[0] || "Internet Archive",
+        artworkUrl: `https://archive.org/services/img/${currentTrack.identifier}`,
+      });
+
+      player.volume = usePlayerStore.getState().volume;
+      player.setPlaybackRate(usePlayerStore.getState().playbackSpeed);
+      player.play();
+    }
+
+    // Configure audio session for background playback
     setAudioModeAsync({
       playsInSilentMode: true,
       shouldPlayInBackground: true,
       interruptionMode: "doNotMix",
     }).catch(console.error);
-  }, [playlist]);
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [player]);
+
+  // Sync Status to store for non-hook components
+  useEffect(() => {
+    setPlaybackStatus(status);
+
+    // Auto-skip logic
+    if (status.didJustFinish) {
+      skipNext();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status]);
 
   if (!fontsLoaded) return null;
 

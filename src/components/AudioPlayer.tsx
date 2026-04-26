@@ -4,6 +4,7 @@ import { useLibraryStore } from "@/store/useLibraryStore";
 import { usePlayerStore } from "@/store/usePlayerStore";
 import { formatTime } from "@/utils/time";
 import Slider from "@react-native-community/slider";
+import { useAudioPlayerStatus } from "expo-audio";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import {
@@ -18,31 +19,21 @@ import {
   SkipForward,
   Zap,
 } from "lucide-react-native";
-import { useAudioPlaylistStatus } from "expo-audio";
 import React from "react";
 import { FlatList, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-
 import { WaveAnimation } from "./WaveAnimation";
 
 export function AudioPlayer() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const playlist = usePlayerStore((state) => state.playlist);
-  const status = useAudioPlaylistStatus(playlist!);
+  const player = usePlayerStore((state) => state.player);
+  const status = useAudioPlayerStatus(player!);
 
+  const currentTrack = usePlayerStore((state) => state.currentTrack);
   const queue = usePlayerStore((state) => state.queue);
   const queueTitle = usePlayerStore((state) => state.queueTitle);
-  const currentIndex = status?.currentIndex ?? 0;
-  
-  // Deriving the track from the native index to keep it in sync
-  const currentTrack = queue[currentIndex] || usePlayerStore.getState().currentTrack;
-
-  const isPlaying = status?.playing ?? false;
-  const isBuffering = status?.isBuffering ?? false;
-  const position = Math.floor((status?.currentTime || 0) * 1000);
-  const duration = Math.floor((status?.duration || 0) * 1000);
-
+  const currentIndex = usePlayerStore((state) => state.currentIndex);
   const repeatMode = usePlayerStore((state) => state.repeatMode);
   const isShuffled = usePlayerStore((state) => state.isShuffled);
   const togglePlayPause = usePlayerStore((state) => state.togglePlayPause);
@@ -52,6 +43,11 @@ export function AudioPlayer() {
   const setRepeatMode = usePlayerStore((state) => state.setRepeatMode);
   const toggleShuffle = usePlayerStore((state) => state.toggleShuffle);
   const playFromQueue = usePlayerStore((state) => state.playFromQueue);
+
+  const isPlaying = status?.playing ?? false;
+  const isBuffering = status?.isBuffering ?? false;
+  const position = Math.floor((status?.currentTime || 0) * 1000);
+  const duration = Math.floor((status?.duration || 0) * 1000);
 
   const liked = useLibraryStore((state) =>
     currentTrack ? state.likedTrackIds.includes(currentTrack.id) : false,
@@ -128,7 +124,7 @@ export function AudioPlayer() {
 
             {/* Visualizer */}
             <View className="h-[72px] items-center justify-center">
-              <WaveAnimation size="large" height={72} />
+              {isPlaying && <WaveAnimation size="large" height={72} />}
             </View>
           </View>
 
