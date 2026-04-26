@@ -4,7 +4,7 @@ import { useLibraryStore } from "@/store/useLibraryStore";
 import { usePlayerStore } from "@/store/usePlayerStore";
 import { formatTime } from "@/utils/time";
 import Slider from "@react-native-community/slider";
-
+import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import {
   ChevronDown,
@@ -19,7 +19,7 @@ import {
   Zap,
 } from "lucide-react-native";
 import React from "react";
-import { FlatList, Image, Text, TouchableOpacity, View } from "react-native";
+import { FlatList, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { WaveAnimation } from "./WaveAnimation";
 

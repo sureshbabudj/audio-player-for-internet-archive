@@ -2,6 +2,26 @@ import { ArchiveItem, ArchiveTrack } from "@/types";
 
 const AUDIO_FORMATS = ["mp3", "ogg", "flac", "wav", "m4a", "aac"];
 
+function getCreator(doc: any): string {
+  const creator = doc.artist || doc.creator;
+  if (Array.isArray(creator)) {
+    return creator[0] || "Internet Archive";
+  }
+  if (typeof creator === "string") {
+    return creator;
+  }
+
+  // Fallback to uploader if creator is missing
+  if (doc.uploader) {
+    // Sanitize email if uploader is an email
+    return (
+      doc.uploader.split("@")[0].replace(/[._-]/g, " ") || "Internet Archive"
+    );
+  }
+
+  return "Internet Archive";
+}
+
 export async function searchArchive(
   query: string,
   signal?: AbortSignal,
@@ -19,9 +39,9 @@ export async function searchArchive(
 
   return data.response.docs.map((doc: any) => ({
     identifier: doc.identifier,
-    title: doc.title || "Untitled",
-    creator: doc.creator?.[0] || doc.creator || "Unknown Artist",
-    thumbnail: `https://archive.org/services/img/${doc.identifier}`,
+    title: doc.title || doc.identifier,
+    creator: getCreator(doc),
+    thumbnail: `https://archive.org/services/img/${doc.identifier}/__ia_thumb.jpg`,
     date: doc.year,
   }));
 }
@@ -50,7 +70,6 @@ export async function fetchItemTracks(
   const audioFiles = meta.files.filter((f: any) =>
     AUDIO_FORMATS.some((ext) => f.name.toLowerCase().endsWith(ext)),
   );
-
   return audioFiles.map((file: any) => ({
     id: `${item.identifier}_${file.name}`,
     identifier: item.identifier,
@@ -88,7 +107,7 @@ export async function getItemMetadata(
   return {
     identifier: identifier,
     title: meta.metadata?.title || "Untitled",
-    creator: meta.metadata?.creator || "Unknown Artist",
+    creator: getCreator(meta.metadata || {}),
     thumbnail: thumbnail,
     date: meta.metadata?.date,
   };

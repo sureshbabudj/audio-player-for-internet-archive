@@ -52,7 +52,7 @@ export default function CollectionDetailScreen() {
         identifier: metadata.identifier,
         title: metadata.title,
         creator: metadata.creator,
-        thumbnail: `https://archive.org/services/img/${metadata.identifier}`,
+        thumbnail: metadata.thumbnail,
       });
       setTracks(itemTracks);
     } catch (e) {
