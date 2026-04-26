@@ -65,11 +65,21 @@ export async function getItemMetadata(identifier: string): Promise<ArchiveItem> 
   const response = await fetch(metaUrl);
   const meta = await response.json();
 
+  const imageFile = meta.files?.find(
+    (f: any) =>
+      f.format === "Item Image" ||
+      (f.name.toLowerCase().endsWith(".jpg") && !f.name.toLowerCase().includes("thumb"))
+  );
+
+  const thumbnail = imageFile
+    ? `https://archive.org/download/${identifier}/${imageFile.name}`
+    : `https://archive.org/services/img/${identifier}`;
+
   return {
     identifier: identifier,
     title: meta.metadata?.title || "Untitled",
     creator: meta.metadata?.creator || "Unknown Artist",
-    thumbnail: `https://archive.org/services/img/${identifier}`,
+    thumbnail: thumbnail,
     date: meta.metadata?.date,
   };
 }

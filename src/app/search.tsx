@@ -1,3 +1,4 @@
+import { ScreenHeader } from "@/components/ScreenHeader";
 import { SearchResultItemCard } from "@/components/SearchResultItemCard";
 import { THEME } from "@/constants/colors";
 import { useLibraryStore } from "@/store/useLibraryStore";
@@ -16,10 +17,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function SearchScreen() {
-  const insets = useSafeAreaInsets();
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<ArchiveItem[]>([]);
@@ -74,10 +73,11 @@ export default function SearchScreen() {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
       className="flex-1 bg-darker"
-      style={{ paddingTop: Math.max(insets.top, 10) }}
     >
+      <ScreenHeader type="detail" title="Search" showSearch={false} />
+
       {/* Search Bar */}
-      <View className="px-4 pt-4 pb-2">
+      <View className="px-4 pb-2">
         <View className="flex-row items-center bg-surface rounded-2xl px-4 py-3">
           <Search size={20} color={THEME.primary} />
           <TextInput

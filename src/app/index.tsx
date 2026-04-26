@@ -1,3 +1,4 @@
+import { ScreenHeader } from "@/components/ScreenHeader";
 import { TrackItem } from "@/components/TrackItem";
 import { WaveAnimation } from "@/components/WaveAnimation";
 import { THEME } from "@/constants/colors";
@@ -8,11 +9,9 @@ import { useRouter } from "expo-router";
 import { ListMusic } from "lucide-react-native";
 import React, { useMemo } from "react";
 import { ScrollView, Text, TouchableOpacity, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function HomeScreen() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const { collections, recentlyPlayed, playCounts, likedTracks } =
     useLibraryStore();
   const { playlists } = usePlaylistStore();
@@ -34,22 +33,14 @@ export default function HomeScreen() {
 
   return (
     <View className="flex-1 bg-darker">
+      <ScreenHeader type="main" />
       <ScrollView
         className="flex-1"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
-          paddingTop: Math.max(insets.top, 20),
           paddingBottom: 150,
         }}
       >
-        {/* Header */}
-        <View className="px-6 pb-6">
-          <Text className="text-white/60 font-medium text-xs uppercase tracking-widest mb-1">
-            Audio player for Internet Archive
-          </Text>
-          <Text className="text-white font-display text-4xl">ArchiPlay</Text>
-        </View>
-
         {/* Wave Animation */}
         <View className="items-center mb-4">
           <WaveAnimation size="large" />

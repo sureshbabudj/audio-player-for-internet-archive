@@ -1,3 +1,4 @@
+import { ScreenHeader } from "@/components/ScreenHeader";
 import { TrackItem } from "@/components/TrackItem";
 import { TrackList } from "@/components/TrackList";
 import { THEME } from "@/constants/colors";
@@ -12,10 +13,8 @@ import {
 } from "lucide-react-native";
 import React, { useMemo, useState } from "react";
 import { ScrollView, Text, TouchableOpacity, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function StatsScreen() {
-  const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<"stats" | "liked">("stats");
   const { collections, playCounts, recentlyPlayed, likedTracks } =
     useLibraryStore();
@@ -47,7 +46,8 @@ export default function StatsScreen() {
   }, [allTracks, playCounts, recentlyPlayed]);
 
   return (
-    <View className="flex-1 bg-darker" style={{ paddingTop: insets.top }}>
+    <View className="flex-1 bg-darker">
+      <ScreenHeader type="main" />
       {/* Header Tabs */}
       <View className="flex-row px-6 py-4 border-b border-white/5">
         <TouchableOpacity

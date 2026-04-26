@@ -1,11 +1,12 @@
+import { ScreenHeader } from "@/components/ScreenHeader";
 import { TrackItem } from "@/components/TrackItem";
 import { THEME } from "@/constants/colors";
 import { useLibraryStore } from "@/store/useLibraryStore";
 import { usePlayerStore } from "@/store/usePlayerStore";
 import { fetchItemTracks, getItemMetadata } from "@/utils/archive";
 import { Image } from "expo-image";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import { ArrowLeft, Play, Plus, Trash2 } from "lucide-react-native";
+import { useLocalSearchParams } from "expo-router";
+import { Play, Plus, Trash2 } from "lucide-react-native";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -14,11 +15,9 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function CollectionDetailScreen() {
   const { id } = useLocalSearchParams();
-  const router = useRouter();
   const { collections, removeCollection, removeFromLibrary, addCollection } =
     useLibraryStore();
   const { loadTrack } = usePlayerStore();
@@ -96,11 +95,17 @@ export default function CollectionDetailScreen() {
     if (!item) return null;
     return (
       <View className="px-6 items-center">
-        <View className="w-48 h-48 rounded-[32px] overflow-hidden shadow-2xl shadow-black mb-6">
+        <View className="w-48 h-48 rounded-[32px] overflow-hidden shadow-2xl shadow-black mb-6 border border-white/10">
           <Image
-            source={{ uri: item.thumbnail }}
+            key={item.thumbnail}
+            source={{
+              uri: item.thumbnail,
+            }}
             className="w-full h-full"
             contentFit="cover"
+            onError={(e) =>
+              console.error("Image load error:", e.error, item.thumbnail)
+            }
           />
         </View>
 
@@ -114,7 +119,7 @@ export default function CollectionDetailScreen() {
           {item.creator}
         </Text>
 
-        <View className="flex-row space-x-3 mb-8">
+        <View className="flex-row gap-x-3 mb-8">
           <TouchableOpacity
             onPress={handlePlayAll}
             className="flex-1 flex-row items-center justify-center bg-primary h-14 rounded-2xl"
@@ -160,16 +165,8 @@ export default function CollectionDetailScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-darker">
-      <View className="flex-row items-center pt-4 px-6 pb-2 bg-darker">
-        <TouchableOpacity
-          onPress={() => router.back()}
-          className="flex-row items-center"
-        >
-          <ArrowLeft size={20} color={THEME.white} />
-          <Text className="text-white/60 font-body ml-2">Back</Text>
-        </TouchableOpacity>
-      </View>
+    <View className="flex-1 bg-darker">
+      <ScreenHeader type="detail" title={item?.title} />
 
       <FlatList
         data={tracks}
@@ -183,6 +180,6 @@ export default function CollectionDetailScreen() {
         maxToRenderPerBatch={10}
         windowSize={5}
       />
-    </SafeAreaView>
+    </View>
   );
 }

@@ -1,3 +1,4 @@
+import { ScreenHeader } from "@/components/ScreenHeader";
 import { TrackList } from "@/components/TrackList";
 import { THEME } from "@/constants/colors";
 import { useLibraryStore } from "@/store/useLibraryStore";
@@ -5,10 +6,9 @@ import { usePlayerStore } from "@/store/usePlayerStore";
 import { usePlaylistStore } from "@/store/usePlaylistStore";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { ArrowLeft, Play, Plus, Trash2, X } from "lucide-react-native";
+import { Play, Plus, Trash2, X } from "lucide-react-native";
 import React, { useState } from "react";
 import { Modal, ScrollView, Text, TouchableOpacity, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function PlaylistDetailScreen() {
   const { id } = useLocalSearchParams();
@@ -42,17 +42,10 @@ export default function PlaylistDetailScreen() {
   const allAvailableTracks = collections.flatMap((c) => c.tracks);
 
   return (
-    <SafeAreaView className="flex-1 bg-darker">
-      {/* Header */}
-      <View className="px-6 pt-4 pb-4">
-        <TouchableOpacity
-          onPress={() => router.back()}
-          className="flex-row items-center mb-4"
-        >
-          <ArrowLeft size={20} color={THEME.white} />
-          <Text className="text-white/60 font-body ml-2">Back</Text>
-        </TouchableOpacity>
-
+    <View className="flex-1 bg-darker">
+      <ScreenHeader type="detail" title={playlist.name} />
+      {/* Header Info */}
+      <View className="px-6 pb-4">
         <View className="flex-row items-center justify-between">
           <View
             className="w-24 h-24 rounded-3xl items-center justify-center mb-4"
@@ -78,7 +71,7 @@ export default function PlaylistDetailScreen() {
           {playlist.tracks.length} tracks
         </Text>
 
-        <View className="flex-row space-x-3">
+        <View className="flex-row gap-x-3">
           <TouchableOpacity
             onPress={handlePlayAll}
             className="flex-1 flex-row items-center justify-center bg-primary py-3 rounded-xl"
@@ -192,6 +185,6 @@ export default function PlaylistDetailScreen() {
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 }

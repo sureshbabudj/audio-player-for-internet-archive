@@ -1,3 +1,4 @@
+import { ScreenHeader } from "@/components/ScreenHeader";
 import { PlaylistCard } from "@/components/PlaylistCard";
 import { THEME } from "@/constants/colors";
 import { usePlaylistStore } from "@/store/usePlaylistStore";
@@ -31,14 +32,17 @@ export default function PlaylistsScreen() {
 
   return (
     <View className="flex-1 bg-darker">
-      {/* Header */}
-      <View className="flex-row items-center justify-between px-6 pt-4 pb-2">
-        <Text className="text-white font-display text-2xl">Playlists</Text>
+      <ScreenHeader type="main" />
+
+      {/* Toolbar */}
+      <View className="flex-row items-center justify-between px-6 py-2">
+        <Text className="text-white/60 font-medium text-sm">Your Collections</Text>
         <TouchableOpacity
           onPress={() => setModalVisible(true)}
-          className="w-10 h-10 rounded-full bg-primary items-center justify-center"
+          className="flex-row items-center bg-primary/10 px-4 py-2 rounded-full border border-primary/20"
         >
-          <Plus size={20} color={THEME.white} />
+          <Plus size={16} color={THEME.primary} />
+          <Text className="text-primary font-bold text-xs ml-2 uppercase tracking-wider">New Playlist</Text>
         </TouchableOpacity>
       </View>
 

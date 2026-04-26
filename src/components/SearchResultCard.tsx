@@ -63,7 +63,7 @@ export function SearchResultCard({
         )}
       </View>
 
-      <View className="flex-row items-center space-x-3">
+      <View className="flex-row items-center gap-x-3">
         <TouchableOpacity
           onPress={(e) => {
             e.stopPropagation();

@@ -86,7 +86,7 @@ const TrackItem: React.FC<TrackItemProps> = memo(
           </Text>
         </View>
 
-        <View className="flex-row items-center space-x-2">
+        <View className="flex-row items-center gap-x-2">
           {playCount !== undefined && (
             <View className="bg-primary/10 px-2 py-1 rounded-lg mr-1">
               <Text className="text-primary text-[10px] font-bold">

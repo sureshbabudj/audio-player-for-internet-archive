@@ -1,3 +1,4 @@
+import { ScreenHeader } from "@/components/ScreenHeader";
 import { TrackList } from "@/components/TrackList";
 import { THEME } from "@/constants/colors";
 import { useLibraryStore } from "@/store/useLibraryStore";
@@ -59,8 +60,9 @@ export default function LibraryScreen() {
 
   return (
     <View className="flex-1 bg-darker">
+      <ScreenHeader type="main" />
       {/* Tabs */}
-      <View className="flex-row px-4 pt-4 pb-2">
+      <View className="flex-row px-4 pb-2">
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           {tabs.map((tab) => (
             <TouchableOpacity

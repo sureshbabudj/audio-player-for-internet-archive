@@ -71,14 +71,17 @@ export default function RootLayout() {
                 animation: "slide_from_bottom",
               }}
             />
-            <Stack.Screen name="library" options={{ title: "My Library" }} />
+            <Stack.Screen
+              name="library"
+              options={{ title: "My Library", headerShown: false }}
+            />
             <Stack.Screen
               name="stats"
               options={{ title: "Insights", headerShown: false }}
             />
             <Stack.Screen
               name="playlists/index"
-              options={{ title: "Playlists" }}
+              options={{ title: "Playlists", headerShown: false }}
             />
             <Stack.Screen
               name="playlists/[id]"
@@ -97,7 +100,7 @@ export default function RootLayout() {
               }}
             />
           </Stack>
-          {pathname !== "/player" && <MiniPlayer />}
+          {!isDetailScreen && <MiniPlayer />}
           {!isDetailScreen && <BottomNav />}
           <PlaylistSelector
             visible={selectorVisible}

@@ -20,12 +20,12 @@ export function MiniPlayer() {
   return (
     <View
       className="absolute left-0 right-0 px-0"
-      style={{ bottom: insets.bottom + 80 }}
+      style={{ bottom: insets.bottom + 70 }}
     >
       <TouchableOpacity
         activeOpacity={0.9}
         onPress={() => router.push("/player" as any)}
-        className="bg-surface/90 border border-white/10 rounded-[28px] overflow-hidden"
+        className="bg-surface/90 border-t border-surface-light overflow-hidden"
       >
         <View className="flex-row items-center px-4 py-3">
           {/* Thumbnail */}
@@ -59,18 +59,20 @@ export function MiniPlayer() {
           </View>
 
           {/* Controls */}
-          <View className="flex-row items-center space-x-4">
+          <View className="flex-row items-center gap-x-2">
             <TouchableOpacity
               onPress={(e) => {
                 e.stopPropagation();
                 togglePlayPause();
               }}
             >
-              {isPlaying ? (
-                <Pause size={24} color={THEME.white} fill={THEME.white} />
-              ) : (
-                <Play size={24} color={THEME.white} fill={THEME.white} />
-              )}
+              <View className="rounded-full bg-primary/10 p-3">
+                {isPlaying ? (
+                  <Pause size={18} color={THEME.white} fill={THEME.white} />
+                ) : (
+                  <Play size={18} color={THEME.white} fill={THEME.white} />
+                )}
+              </View>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -79,7 +81,9 @@ export function MiniPlayer() {
                 skipNext();
               }}
             >
-              <SkipForward size={24} color={THEME.white} fill={THEME.white} />
+              <View className="rounded-full bg-primary/10 p-3">
+                <SkipForward size={18} color={THEME.white} fill={THEME.white} />
+              </View>
             </TouchableOpacity>
           </View>
         </View>
