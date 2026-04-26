@@ -22,7 +22,7 @@ export function SearchResultCard({
   const { loadTrack } = usePlayerStore();
   const isLiked = useLibraryStore((state) => state.isLiked);
   const liked = isLiked(track.id);
-  const { addToLibrary, toggleLike } = useLibraryStore();
+  const { toggleLike } = useLibraryStore();
 
   return (
     <TouchableOpacity

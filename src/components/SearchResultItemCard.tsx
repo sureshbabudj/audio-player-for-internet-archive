@@ -1,3 +1,4 @@
+import { THEME } from "@/constants/colors";
 import { ArchiveItem } from "@/types";
 import { Image } from "expo-image";
 import { Plus, Users } from "lucide-react-native";
@@ -22,10 +23,10 @@ export function SearchResultItemCard({
           <Image
             source={{ uri: item.thumbnail }}
             className="w-full h-full"
-            resizeMode="cover"
+            contentFit="cover"
           />
         ) : (
-          <Users size={24} color="#FF6B35" />
+          <Users size={24} color={THEME.primary} />
         )}
       </View>
 
@@ -52,9 +53,9 @@ export function SearchResultItemCard({
         className="w-10 h-10 rounded-full bg-primary items-center justify-center"
       >
         {isAdding ? (
-          <ActivityIndicator size="small" color="#fff" />
+          <ActivityIndicator size="small" color={THEME.white} />
         ) : (
-          <Plus size={20} color="#fff" />
+          <Plus size={20} color={THEME.white} />
         )}
       </TouchableOpacity>
     </View>

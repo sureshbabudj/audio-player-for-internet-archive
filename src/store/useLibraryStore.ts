@@ -14,6 +14,7 @@ interface Collection {
 
 interface LibraryState {
   collections: Collection[];
+  likedTracks: ArchiveTrack[];
   likedTrackIds: string[];
   recentlyPlayed: ArchiveTrack[];
   playCounts: Record<string, number>;
@@ -32,6 +33,7 @@ export const useLibraryStore = create<LibraryState>()(
   persist(
     (set, get) => ({
       collections: [],
+      likedTracks: [],
       likedTrackIds: [],
       recentlyPlayed: [],
       playCounts: {},
@@ -104,6 +106,7 @@ export const useLibraryStore = create<LibraryState>()(
             }))
             .filter((c) => c.tracks.length > 0),
           likedTrackIds: state.likedTrackIds.filter((id) => id !== trackId),
+          likedTracks: state.likedTracks.filter((t) => t.id !== trackId),
         }));
       },
 
@@ -115,10 +118,14 @@ export const useLibraryStore = create<LibraryState>()(
               likedTrackIds: state.likedTrackIds.filter(
                 (id) => id !== track.id,
               ),
+              likedTracks: state.likedTracks.filter(
+                (t) => t.id !== track.id,
+              ),
             };
           } else {
             return {
               likedTrackIds: [...state.likedTrackIds, track.id],
+              likedTracks: [track, ...state.likedTracks],
             };
           }
         });

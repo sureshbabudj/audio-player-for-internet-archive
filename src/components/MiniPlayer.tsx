@@ -1,3 +1,4 @@
+import { THEME } from "@/constants/colors";
 import { usePlayerStore } from "@/store/usePlayerStore";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
@@ -23,13 +24,6 @@ export function MiniPlayer() {
         activeOpacity={0.9}
         onPress={() => router.push("/player" as any)}
         className="bg-surface/90 border border-white/10 rounded-[28px] overflow-hidden"
-        style={{
-          shadowColor: "#000",
-          shadowOffset: { width: 0, height: 10 },
-          shadowOpacity: 0.3,
-          shadowRadius: 20,
-          elevation: 10,
-        }}
       >
         <View className="flex-row items-center px-4 py-3">
           {/* Thumbnail */}
@@ -53,9 +47,6 @@ export function MiniPlayer() {
               <Text className="text-white font-semibold text-sm" numberOfLines={1}>
                 {currentTrack.title}
               </Text>
-              <View className="bg-white/20 px-1 py-0.5 rounded ml-1.5">
-                <Text className="text-white/80 text-[8px] font-bold">E</Text>
-              </View>
             </View>
             <Text className="text-white/50 font-body text-xs" numberOfLines={1}>
               {currentTrack.creator || "Unknown Artist"}
@@ -71,9 +62,9 @@ export function MiniPlayer() {
               }}
             >
               {isPlaying ? (
-                <Pause size={24} color="#fff" fill="#fff" />
+                <Pause size={24} color={THEME.white} fill={THEME.white} />
               ) : (
-                <Play size={24} color="#fff" fill="#fff" />
+                <Play size={24} color={THEME.white} fill={THEME.white} />
               )}
             </TouchableOpacity>
 
@@ -83,7 +74,7 @@ export function MiniPlayer() {
                 skipNext();
               }}
             >
-              <SkipForward size={24} color="#fff" fill="#fff" />
+              <SkipForward size={24} color={THEME.white} fill={THEME.white} />
             </TouchableOpacity>
           </View>
         </View>

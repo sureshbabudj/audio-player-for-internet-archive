@@ -1,8 +1,8 @@
 import { TrackList } from "@/components/TrackList";
+import { THEME } from "@/constants/colors";
 import { useLibraryStore } from "@/store/useLibraryStore";
 import { usePlayerStore } from "@/store/usePlayerStore";
 import { usePlaylistStore } from "@/store/usePlaylistStore";
-import { ArchiveTrack } from "@/types";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ArrowLeft, Play, Plus, Trash2, X } from "lucide-react-native";
@@ -12,8 +12,12 @@ import { Modal, ScrollView, Text, TouchableOpacity, View } from "react-native";
 export default function PlaylistDetailScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
-  const { getPlaylist, deletePlaylist, addTrackToPlaylist, removeTrackFromPlaylist } =
-    usePlaylistStore();
+  const {
+    getPlaylist,
+    deletePlaylist,
+    addTrackToPlaylist,
+    removeTrackFromPlaylist,
+  } = usePlaylistStore();
   const { loadTrack } = usePlayerStore();
   const { collections } = useLibraryStore();
   const [showAddModal, setShowAddModal] = useState(false);
@@ -34,7 +38,7 @@ export default function PlaylistDetailScreen() {
     }
   };
 
-  const allAvailableTracks = collections.flatMap(c => c.tracks);
+  const allAvailableTracks = collections.flatMap((c) => c.tracks);
 
   return (
     <View className="flex-1 bg-darker">
@@ -44,7 +48,7 @@ export default function PlaylistDetailScreen() {
           onPress={() => router.back()}
           className="flex-row items-center mb-4"
         >
-          <ArrowLeft size={20} color="#fff" />
+          <ArrowLeft size={20} color={THEME.white} />
           <Text className="text-white/60 font-body ml-2">Back</Text>
         </TouchableOpacity>
 
@@ -62,7 +66,7 @@ export default function PlaylistDetailScreen() {
             onPress={() => setShowAddModal(true)}
             className="w-12 h-12 rounded-2xl bg-white/5 items-center justify-center"
           >
-            <Plus size={24} color="#FF6B35" />
+            <Plus size={24} color={THEME.primary} />
           </TouchableOpacity>
         </View>
 
@@ -78,7 +82,7 @@ export default function PlaylistDetailScreen() {
             onPress={handlePlayAll}
             className="flex-1 flex-row items-center justify-center bg-primary py-3 rounded-xl"
           >
-            <Play size={18} color="#fff" fill="#fff" />
+            <Play size={18} color={THEME.white} fill={THEME.white} />
             <Text className="text-white font-bold ml-2">Play All</Text>
           </TouchableOpacity>
 
@@ -89,7 +93,7 @@ export default function PlaylistDetailScreen() {
             }}
             className="w-12 h-12 bg-red-500/20 rounded-xl items-center justify-center"
           >
-            <Trash2 size={18} color="#ef4444" />
+            <Trash2 size={18} color={THEME.error} />
           </TouchableOpacity>
         </View>
       </View>
@@ -125,37 +129,55 @@ export default function PlaylistDetailScreen() {
         <View className="flex-1 bg-black/90 justify-end">
           <View className="bg-surface rounded-t-[32px] p-6 h-[80%]">
             <View className="flex-row items-center justify-between mb-6">
-              <Text className="text-white font-display text-xl">Add from Library</Text>
+              <Text className="text-white font-display text-xl">
+                Add from Library
+              </Text>
               <TouchableOpacity onPress={() => setShowAddModal(false)}>
-                <X size={24} color="#fff" opacity={0.5} />
+                <X size={24} color={THEME.white} opacity={0.5} />
               </TouchableOpacity>
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false}>
               {allAvailableTracks.length === 0 ? (
-                <Text className="text-white/30 text-center py-20">Your library is empty</Text>
+                <Text className="text-white/30 text-center py-20">
+                  Your library is empty
+                </Text>
               ) : (
                 allAvailableTracks.map((track) => {
-                  const isInPlaylist = playlist.tracks.some(t => t.id === track.id);
+                  const isInPlaylist = playlist.tracks.some(
+                    (t) => t.id === track.id,
+                  );
                   return (
                     <TouchableOpacity
                       key={track.id}
-                      onPress={() => !isInPlaylist && addTrackToPlaylist(playlist.id, track)}
+                      onPress={() =>
+                        !isInPlaylist && addTrackToPlaylist(playlist.id, track)
+                      }
                       className="flex-row items-center p-3 mb-2 bg-white/5 rounded-2xl"
                     >
-                      <Image 
-                        source={{ uri: track.thumbnail || `https://archive.org/services/img/${track.identifier}` }}
+                      <Image
+                        source={{
+                          uri:
+                            track.thumbnail ||
+                            `https://archive.org/services/img/${track.identifier}`,
+                        }}
                         className="w-12 h-12 rounded-lg mr-4"
                       />
                       <View className="flex-1">
-                        <Text className="text-white font-medium" numberOfLines={1}>{track.title}</Text>
-                        <Text className="text-white/40 text-xs">{track.creator}</Text>
+                        <Text className="text-white font-medium" numberOfLines={1}>
+                          {track.title}
+                        </Text>
+                        <Text className="text-white/40 text-xs">
+                          {track.creator}
+                        </Text>
                       </View>
-                      <View className={`w-8 h-8 rounded-full items-center justify-center ${isInPlaylist ? 'bg-primary/20' : 'bg-primary'}`}>
+                      <View
+                        className={`w-8 h-8 rounded-full items-center justify-center ${isInPlaylist ? "bg-primary/20" : "bg-primary"}`}
+                      >
                         {isInPlaylist ? (
-                          <X size={16} color="#FF6B35" />
+                          <X size={16} color={THEME.primary} />
                         ) : (
-                          <Plus size={16} color="#fff" />
+                          <Plus size={16} color={THEME.white} />
                         )}
                       </View>
                     </TouchableOpacity>

@@ -1,6 +1,6 @@
 import { PlaylistCard } from "@/components/PlaylistCard";
+import { THEME } from "@/constants/colors";
 import { usePlaylistStore } from "@/store/usePlaylistStore";
-import { useRouter } from "expo-router";
 import { Music, Plus, X } from "lucide-react-native";
 import React, { useState } from "react";
 import {
@@ -15,7 +15,6 @@ import {
 } from "react-native";
 
 export default function PlaylistsScreen() {
-  const router = useRouter();
   const { playlists, createPlaylist } = usePlaylistStore();
   const [modalVisible, setModalVisible] = useState(false);
   const [newName, setNewName] = useState("");
@@ -39,14 +38,14 @@ export default function PlaylistsScreen() {
           onPress={() => setModalVisible(true)}
           className="w-10 h-10 rounded-full bg-primary items-center justify-center"
         >
-          <Plus size={20} color="#fff" />
+          <Plus size={20} color={THEME.white} />
         </TouchableOpacity>
       </View>
 
       {/* Playlists Grid */}
       {playlists.length === 0 ? (
         <View className="flex-1 items-center justify-center px-8">
-          <Music size={48} color="#FF6B35" opacity={0.3} />
+          <Music size={48} color={THEME.primary} opacity={0.3} />
           <Text className="text-white/30 font-body text-lg mt-4 text-center">
             No playlists yet. Create your first one!
           </Text>
@@ -80,14 +79,14 @@ export default function PlaylistsScreen() {
                   New Playlist
                 </Text>
                 <TouchableOpacity onPress={() => setModalVisible(false)}>
-                  <X size={24} color="#fff" />
+                  <X size={24} color={THEME.white} />
                 </TouchableOpacity>
               </View>
 
               <TextInput
                 className="bg-darker text-white font-body text-base p-4 rounded-xl mb-4"
                 placeholder="Playlist name"
-                placeholderTextColor="#666"
+                placeholderTextColor={THEME.white + "40"}
                 value={newName}
                 onChangeText={setNewName}
                 autoFocus
@@ -96,7 +95,7 @@ export default function PlaylistsScreen() {
               <TextInput
                 className="bg-darker text-white font-body text-base p-4 rounded-xl mb-6"
                 placeholder="Description (optional)"
-                placeholderTextColor="#666"
+                placeholderTextColor={THEME.white + "40"}
                 value={newDesc}
                 onChangeText={setNewDesc}
                 multiline

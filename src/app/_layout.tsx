@@ -1,5 +1,6 @@
 import { BottomNav } from "@/components/BottomNav";
 import { MiniPlayer } from "@/components/MiniPlayer";
+import { THEME } from "@/constants/colors";
 import {
   Inter_400Regular,
   Inter_500Medium,
@@ -34,7 +35,11 @@ export default function RootLayout() {
 
   if (!fontsLoaded) return null;
 
-  const showNav = pathname !== "/player";
+  const isDetailScreen =
+    pathname === "/player" ||
+    pathname === "/search" ||
+    pathname.startsWith("/collection/") ||
+    pathname.startsWith("/playlists/");
 
   return (
     <SafeAreaProvider>
@@ -42,10 +47,11 @@ export default function RootLayout() {
         <View className="flex-1 bg-darker">
           <Stack
             screenOptions={{
-              headerStyle: { backgroundColor: "#080814" },
-              headerTintColor: "#fff",
+              headerStyle: { backgroundColor: THEME.darker },
+              headerTintColor: THEME.white,
               headerTitleStyle: { fontFamily: "SpaceGrotesk_700Bold" },
-              contentStyle: { backgroundColor: "#080814" },
+              contentStyle: { backgroundColor: THEME.darker },
+              animation: "slide_from_right",
             }}
           >
             <Stack.Screen
@@ -56,7 +62,7 @@ export default function RootLayout() {
               name="search"
               options={{
                 headerShown: false,
-                presentation: "modal",
+                presentation: "fullScreenModal",
                 animation: "slide_from_bottom",
               }}
             />
@@ -71,7 +77,11 @@ export default function RootLayout() {
             />
             <Stack.Screen
               name="playlists/[id]"
-              options={{ title: "Playlist" }}
+              options={{ title: "Playlist", headerShown: false }}
+            />
+            <Stack.Screen
+              name="collection/[id]"
+              options={{ title: "Collection", headerShown: false }}
             />
             <Stack.Screen
               name="player"
@@ -82,8 +92,8 @@ export default function RootLayout() {
               }}
             />
           </Stack>
-          <MiniPlayer />
-          <BottomNav />
+          {pathname !== "/player" && <MiniPlayer />}
+          {!isDetailScreen && <BottomNav />}
         </View>
         <StatusBar style="light" />
       </GestureHandlerRootView>

@@ -1,25 +1,30 @@
 import { TrackList } from "@/components/TrackList";
+import { THEME } from "@/constants/colors";
 import { useLibraryStore } from "@/store/useLibraryStore";
-import { usePlayerStore } from "@/store/usePlayerStore";
 import { Image } from "expo-image";
-import { useLocalSearchParams } from "expo-router";
-import { Clock, Heart, RefreshCw, Trash2 } from "lucide-react-native";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import {
+  ChevronRight,
+  Clock,
+  Heart,
+  RefreshCw,
+  Trash2,
+} from "lucide-react-native";
 import React, { useEffect, useState } from "react";
 import { ScrollView, Text, TouchableOpacity, View } from "react-native";
 
 export default function LibraryScreen() {
   const params = useLocalSearchParams<{ tab?: string }>();
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<"saved" | "liked" | "recent">(
     (params.tab as any) || "saved",
   );
 
   const {
     collections,
-    likedTrackIds,
+    likedTracks,
     recentlyPlayed,
     clearRecentlyPlayed,
-    removeCollection,
-    isLiked,
   } = useLibraryStore();
 
   useEffect(() => {
@@ -27,10 +32,6 @@ export default function LibraryScreen() {
       setActiveTab(params.tab as any);
     }
   }, [params.tab]);
-
-  // Aggregate all tracks from all collections that are liked
-  const allSavedTracks = collections.flatMap(c => c.tracks);
-  const likedTracks = allSavedTracks.filter((t) => isLiked(t.id));
 
   const tabs = [
     {
@@ -54,10 +55,7 @@ export default function LibraryScreen() {
     },
   ];
 
-  const tracks =
-    activeTab === "liked"
-      ? likedTracks
-      : recentlyPlayed;
+  const tracks = activeTab === "liked" ? likedTracks : recentlyPlayed;
 
   return (
     <View className="flex-1 bg-darker">
@@ -67,15 +65,17 @@ export default function LibraryScreen() {
           {tabs.map((tab) => (
             <TouchableOpacity
               key={tab.key}
-              onPress={() => setActiveTab(tab.key)}
+              onPress={() => {
+                setActiveTab(tab.key);
+              }}
               className={`flex-row items-center justify-center py-3 px-6 mx-1 rounded-xl ${
                 activeTab === tab.key ? "bg-primary" : "bg-surface"
               }`}
             >
               <tab.icon
                 size={16}
-                color={activeTab === tab.key ? "#fff" : "#FF6B35"}
-                fill={tab.fill && activeTab === tab.key ? "#fff" : "none"}
+                color={activeTab === tab.key ? THEME.white : THEME.primary}
+                fill={tab.fill && activeTab === tab.key ? THEME.white : "none"}
               />
               <Text
                 className={`font-semibold ml-2 ${
@@ -96,14 +96,18 @@ export default function LibraryScreen() {
             onPress={clearRecentlyPlayed}
             className="flex-row items-center"
           >
-            <Trash2 size={14} color="#ef4444" />
+            <Trash2 size={14} color={THEME.error} />
             <Text className="text-red-400 font-medium text-sm ml-1">Clear</Text>
           </TouchableOpacity>
         ) : (
           <View className="flex-row items-center">
-            <RefreshCw size={14} color="#FF6B35" />
+            <RefreshCw size={14} color={THEME.primary} />
             <Text className="text-primary/60 font-medium text-xs ml-1">
-              {activeTab === "liked" ? "Your Favorites" : activeTab === "saved" ? "Your Collections" : "Recent Plays"}
+              {activeTab === "liked"
+                ? "Your Favorites"
+                : activeTab === "saved"
+                  ? "Your Collections"
+                  : "Recent Plays"}
             </Text>
           </View>
         )}
@@ -115,18 +119,17 @@ export default function LibraryScreen() {
           {collections.length === 0 ? (
             <View className="items-center justify-center py-20">
               <Text className="text-white/30 font-body text-center text-lg">
-                Your library is empty. Search and add collections to get started!
+                Your library is empty. Search and add collections to get
+                started!
               </Text>
             </View>
           ) : (
             collections.map((collection) => (
               <TouchableOpacity
                 key={collection.id}
-                onPress={() => {
-                  // Load the whole collection as a queue
-                  const { loadTrack } = usePlayerStore.getState();
-                  loadTrack(collection.tracks[0], collection.tracks, collection.title);
-                }}
+                onPress={() =>
+                  router.push(`/collection/${collection.id}` as any)
+                }
                 className="flex-row items-center p-4 mb-3 bg-surface rounded-2xl"
               >
                 <View className="w-16 h-16 rounded-xl bg-surface-light items-center justify-center overflow-hidden mr-4">
@@ -137,22 +140,17 @@ export default function LibraryScreen() {
                   />
                 </View>
                 <View className="flex-1">
-                  <Text className="text-white font-semibold text-base" numberOfLines={1}>
+                  <Text
+                    className="text-white font-semibold text-base"
+                    numberOfLines={1}
+                  >
                     {collection.title}
                   </Text>
                   <Text className="text-white/50 text-xs mt-1">
                     {collection.creator} • {collection.tracks.length} tracks
                   </Text>
                 </View>
-                <TouchableOpacity
-                  onPress={(e) => {
-                    e.stopPropagation();
-                    removeCollection(collection.id);
-                  }}
-                  className="p-2"
-                >
-                  <Trash2 size={18} color="#ef4444" opacity={0.6} />
-                </TouchableOpacity>
+                <ChevronRight size={20} color={THEME.white} opacity={0.3} />
               </TouchableOpacity>
             ))
           )}
@@ -168,11 +166,7 @@ export default function LibraryScreen() {
       ) : (
         <TrackList
           tracks={tracks}
-          title={
-            activeTab === "liked"
-              ? "Favorites"
-              : "Recent Plays"
-          }
+          title={activeTab === "liked" ? "Favorites" : "Recent Plays"}
           showAddToPlaylist={activeTab !== "recent"}
         />
       )}

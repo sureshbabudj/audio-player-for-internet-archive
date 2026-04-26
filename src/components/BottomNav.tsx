@@ -1,3 +1,4 @@
+import { THEME } from "@/constants/colors";
 import { usePathname, useRouter } from "expo-router";
 import { Heart, Home, Library, ListMusic, Search } from "lucide-react-native";
 import React from "react";
@@ -32,9 +33,9 @@ export function BottomNav() {
             <TouchableOpacity
               key={index}
               onPress={() => router.push(item.route as any)}
-              className="w-16 h-16 rounded-full bg-primary items-center justify-center shadow-2xl shadow-primary/60 border-4 border-[#080814]"
+              className="w-16 h-16 rounded-full bg-primary items-center justify-center shadow-2xl shadow-primary/60 border-4 border-darker"
             >
-              <Search size={30} color="#fff" strokeWidth={3} />
+              <Search size={30} color={THEME.white} strokeWidth={3} />
             </TouchableOpacity>
           );
         }
@@ -47,7 +48,7 @@ export function BottomNav() {
           >
             <item.icon
               size={24}
-              color={isActive ? "#FF6B35" : "#fff"}
+              color={isActive ? THEME.primary : THEME.white}
               opacity={isActive ? 1 : 0.9}
               strokeWidth={isActive ? 2.5 : 2}
             />

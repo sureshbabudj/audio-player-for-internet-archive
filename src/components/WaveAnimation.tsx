@@ -5,6 +5,7 @@ import Animated, {
   Easing,
   useAnimatedStyle,
   useSharedValue,
+  withDelay,
   withRepeat,
   withSpring,
   withTiming,
@@ -26,8 +27,7 @@ export function WaveAnimation({
     const baseHeight = customHeight || (size === "large" ? 60 : 20);
     const amplitude = size === "large" ? baseHeight * 0.4 : 10;
     return (
-      baseHeight * 0.6 +
-      Math.sin((index / BAR_COUNT) * Math.PI * 2) * amplitude
+      baseHeight * 0.6 + Math.sin((index / BAR_COUNT) * Math.PI * 2) * amplitude
     );
   };
 
@@ -69,20 +69,26 @@ function WaveBar({
   useEffect(() => {
     if (isPlaying) {
       const delay = index * 50;
-      height.value = withRepeat(
-        withTiming(maxHeight, {
-          duration: 600 + Math.random() * 400,
-          easing: Easing.inOut(Easing.sin),
-        }),
-        -1,
-        true,
+      height.value = withDelay(
+        delay,
+        withRepeat(
+          withTiming(maxHeight, {
+            duration: 600 + Math.random() * 400,
+            easing: Easing.inOut(Easing.sin),
+          }),
+          -1,
+          true,
+        ),
       );
-      opacity.value = withRepeat(withTiming(1, { duration: 500 }), -1, true);
+      opacity.value = withDelay(
+        delay,
+        withRepeat(withTiming(1, { duration: 500 }), -1, true),
+      );
     } else {
       height.value = withSpring(4);
       opacity.value = withTiming(0.6);
     }
-  }, [isPlaying]);
+  }, [height, index, isPlaying, maxHeight, opacity]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     height: height.value,
