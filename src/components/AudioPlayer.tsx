@@ -4,6 +4,7 @@ import { useLibraryStore } from "@/store/useLibraryStore";
 import { usePlayerStore } from "@/store/usePlayerStore";
 import { formatTime } from "@/utils/time";
 import Slider from "@react-native-community/slider";
+import { Image as ExpoImage } from "expo-image";
 import { useRouter } from "expo-router";
 import {
   ChevronDown,
@@ -255,7 +256,7 @@ export function AudioPlayer() {
         style={{ paddingBottom: Math.max(insets.bottom, 20) }}
       >
         <TouchableOpacity className="flex-row items-center bg-surface px-4 py-2 rounded-full">
-          <Image
+          <ExpoImage
             source={require("../../assets/images/icon.svg")}
             style={{ width: 14, height: 14 }}
           />

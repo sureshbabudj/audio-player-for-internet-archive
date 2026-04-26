@@ -14,17 +14,13 @@ import { useFonts } from "expo-font";
 import { Stack, usePathname } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
-import { usePlayerStore } from "@/store/usePlayerStore";
-import {
-  setAudioModeAsync,
-  useAudioPlaylist,
-  useAudioPlaylistStatus,
-} from "expo-audio";
+import { useInitializePlayer } from "@/store/usePlayerStore";
+import { setAudioModeAsync } from "expo-audio";
 import "./global.css";
 
 export default function RootLayout() {
@@ -33,16 +29,8 @@ export default function RootLayout() {
   const trackToSelect = usePlaylistStore((state) => state.trackToSelect);
   const closeSelector = usePlaylistStore((state) => state.closeSelector);
 
-  const setPlayer = usePlayerStore((state) => state.setPlayer);
-  const setPlaybackStatus = usePlayerStore((state) => state.setPlaybackStatus);
-  const skipNext = usePlayerStore((state) => state.skipNext);
-  const currentTrack = usePlayerStore((state) => state.currentTrack);
-  const isHydrated = useRef(false);
-
-  // Initialize a PERSISTENT player object
-  // We don't pass currentTrack.url here to prevent the hook from re-creating the player
-  const player = useAudioPlaylist();
-  const status = useAudioPlaylistStatus(player);
+  // Initialize and sync the global audio player
+  useInitializePlayer();
 
   const [fontsLoaded] = useFonts({
     SpaceGrotesk_700Bold,
@@ -56,54 +44,14 @@ export default function RootLayout() {
     if (fontsLoaded) SplashScreen.hideAsync();
   }, [fontsLoaded]);
 
-  // One-time Setup
+  // Configure audio session for background playback
   useEffect(() => {
-    setPlayer(player);
-
-    // Configure audio session for background playback
     setAudioModeAsync({
       playsInSilentMode: true,
       shouldPlayInBackground: true,
       interruptionMode: "doNotMix",
     }).catch(console.error);
-
-    // Initial hydration if we have a saved track
-    if (!isHydrated.current && currentTrack?.url) {
-      const queue = usePlayerStore.getState().queue;
-      player.clear();
-      queue.forEach((t) => {
-        player.add({
-          uri: t.url,
-          name: t.title,
-        });
-      });
-
-      const targetIndex = usePlayerStore.getState().currentIndex;
-      player.skipTo(targetIndex);
-
-      isHydrated.current = true;
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [player]);
-
-  // Sync Status and Handle Track Changes
-  useEffect(() => {
-    setPlaybackStatus(status);
-
-    // Sync current track from native index
-    const queue = usePlayerStore.getState().queue;
-    const currentTrackFromQueue = queue[status.currentIndex];
-    if (
-      currentTrackFromQueue &&
-      currentTrackFromQueue.id !== currentTrack?.id
-    ) {
-      usePlayerStore.setState({
-        currentTrack: currentTrackFromQueue,
-        currentIndex: status.currentIndex,
-      });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status]);
+  }, []);
 
   if (!fontsLoaded) return null;
 
