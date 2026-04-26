@@ -116,7 +116,11 @@ export const usePlayerStore = create<PlayerState>()(
         });
 
         if (player) {
-          player.replace(track.url);
+          try {
+            player.replace(track.url);
+          } catch (e) {
+            console.error("Replace error", e);
+          }
           player.play();
           player.volume = volume;
           player.setPlaybackRate(playbackSpeed);
@@ -190,7 +194,11 @@ export const usePlayerStore = create<PlayerState>()(
         set({ currentIndex: index, currentTrack: track });
 
         if (player) {
-          player.replace(track.url);
+          try {
+            player.replace(track.url);
+          } catch (e) {
+            console.error("Replace error", e);
+          }
           player.play();
           player.volume = volume;
           player.setPlaybackRate(playbackSpeed);
