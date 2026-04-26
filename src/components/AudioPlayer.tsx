@@ -4,8 +4,7 @@ import { useLibraryStore } from "@/store/useLibraryStore";
 import { usePlayerStore } from "@/store/usePlayerStore";
 import { formatTime } from "@/utils/time";
 import Slider from "@react-native-community/slider";
-import { useAudioPlayerStatus } from "expo-audio";
-import { Image } from "expo-image";
+
 import { useRouter } from "expo-router";
 import {
   ChevronDown,
@@ -20,22 +19,25 @@ import {
   Zap,
 } from "lucide-react-native";
 import React from "react";
-import { FlatList, Text, TouchableOpacity, View } from "react-native";
+import { FlatList, Image, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { WaveAnimation } from "./WaveAnimation";
 
 export function AudioPlayer() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const player = usePlayerStore((state) => state.player);
-  const status = useAudioPlayerStatus(player!);
 
   const currentTrack = usePlayerStore((state) => state.currentTrack);
   const queue = usePlayerStore((state) => state.queue);
   const queueTitle = usePlayerStore((state) => state.queueTitle);
   const currentIndex = usePlayerStore((state) => state.currentIndex);
+  const isPlaying = usePlayerStore((state) => state.isPlaying);
+  const isBuffering = usePlayerStore((state) => state.isBuffering);
+  const position = usePlayerStore((state) => state.position);
+  const duration = usePlayerStore((state) => state.duration);
   const repeatMode = usePlayerStore((state) => state.repeatMode);
   const isShuffled = usePlayerStore((state) => state.isShuffled);
+
   const togglePlayPause = usePlayerStore((state) => state.togglePlayPause);
   const skipNext = usePlayerStore((state) => state.skipNext);
   const skipPrevious = usePlayerStore((state) => state.skipPrevious);
@@ -43,11 +45,6 @@ export function AudioPlayer() {
   const setRepeatMode = usePlayerStore((state) => state.setRepeatMode);
   const toggleShuffle = usePlayerStore((state) => state.toggleShuffle);
   const playFromQueue = usePlayerStore((state) => state.playFromQueue);
-
-  const isPlaying = status?.playing ?? false;
-  const isBuffering = status?.isBuffering ?? false;
-  const position = Math.floor((status?.currentTime || 0) * 1000);
-  const duration = Math.floor((status?.duration || 0) * 1000);
 
   const liked = useLibraryStore((state) =>
     currentTrack ? state.likedTrackIds.includes(currentTrack.id) : false,
@@ -109,11 +106,7 @@ export function AudioPlayer() {
                     currentTrack.thumbnail ||
                     `https://archive.org/services/img/${currentTrack.identifier}`,
                 }}
-                placeholder={require("../../assets/images/splash-icon-dark.png")}
-                className="w-full h-full"
-                contentFit="cover"
-                transition={500}
-                cachePolicy="memory-disk"
+                className="w-full h-full object-cover"
               />
               {isBuffering && (
                 <View className="absolute inset-0 items-center justify-center bg-black/40">

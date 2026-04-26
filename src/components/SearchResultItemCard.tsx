@@ -1,9 +1,14 @@
 import { THEME } from "@/constants/colors";
 import { ArchiveItem } from "@/types";
-import { Image } from "expo-image";
 import { Plus, Users } from "lucide-react-native";
 import React, { memo } from "react";
-import { ActivityIndicator, Text, TouchableOpacity, View } from "react-native";
+import {
+  ActivityIndicator,
+  Image,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 interface SearchResultItemCardProps {
   item: ArchiveItem;
@@ -17,11 +22,7 @@ export const SearchResultItemCard = memo(
       <View className="flex-row items-center p-4 mx-4 mb-3 bg-surface rounded-2xl">
         <View className="w-16 h-16 rounded-xl bg-surface-light items-center justify-center overflow-hidden mr-4">
           {item.thumbnail ? (
-            <Image
-              source={{ uri: item.thumbnail }}
-              className="w-full h-full"
-              contentFit="cover"
-            />
+            <Image source={{ uri: item.thumbnail }} className="w-full h-full" />
           ) : (
             <Users size={24} color={THEME.primary} />
           )}

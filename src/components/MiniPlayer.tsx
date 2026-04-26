@@ -1,24 +1,20 @@
 import { THEME } from "@/constants/colors";
 import { usePlayerStore } from "@/store/usePlayerStore";
-import { useAudioPlayerStatus } from "expo-audio";
-import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { Pause, Play, SkipForward } from "lucide-react-native";
 import React from "react";
-import { Text, TouchableOpacity, View } from "react-native";
+import { Image, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export function MiniPlayer() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const player = usePlayerStore((state) => state.player);
-  const status = useAudioPlayerStatus(player!);
-  
+
   const currentTrack = usePlayerStore((state) => state.currentTrack);
+  const isPlaying = usePlayerStore((state) => state.isPlaying);
+
   const togglePlayPause = usePlayerStore((state) => state.togglePlayPause);
   const skipNext = usePlayerStore((state) => state.skipNext);
-
-  const isPlaying = status?.playing ?? false;
 
   if (!currentTrack) return null;
 
@@ -41,10 +37,7 @@ export function MiniPlayer() {
                   currentTrack.thumbnail ||
                   `https://archive.org/services/img/${currentTrack.identifier}`,
               }}
-              placeholder={require("../../assets/images/splash-icon-dark.png")}
-              className="w-full h-full"
-              contentFit="cover"
-              transition={200}
+              className="w-full h-full object-cover"
             />
           </View>
 

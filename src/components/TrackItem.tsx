@@ -1,10 +1,9 @@
 import { THEME } from "@/constants/colors";
 import { usePlaylistStore } from "@/store/usePlaylistStore";
 import { ArchiveTrack } from "@/types";
-import { Image } from "expo-image";
 import { Heart, Music, Plus, Radio, Trash2, Zap } from "lucide-react-native";
 import React, { memo } from "react";
-import { Text, TouchableOpacity, View } from "react-native";
+import { Image, Text, TouchableOpacity, View } from "react-native";
 
 interface TrackItemProps {
   track: ArchiveTrack;
@@ -39,8 +38,7 @@ const TrackItem: React.FC<TrackItemProps> = memo(
                 track.thumbnail ||
                 `https://archive.org/services/img/${track.identifier}`,
             }}
-            className="w-full h-full"
-            contentFit="cover"
+            className="w-full h-full object-cover"
           />
         );
       }

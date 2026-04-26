@@ -1,14 +1,14 @@
 import { useLibraryStore } from "@/store/useLibraryStore";
 import { ArchiveTrack, RepeatMode } from "@/types";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { type AudioPlayer } from "expo-audio";
+import { type AudioPlaylist } from "expo-audio";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
 interface PlayerState {
   // Native Object
-  player: AudioPlayer | null;
-  setPlayer: (player: AudioPlayer) => void;
+  player: AudioPlaylist | null;
+  setPlayer: (player: AudioPlaylist) => void;
 
   // Track State
   currentTrack: ArchiveTrack | null;
@@ -75,6 +75,8 @@ export const usePlayerStore = create<PlayerState>()(
       },
 
       loadTrack: async (track, queue = [], title = "Now Playing") => {
+        const { player, volume, playbackSpeed } = get();
+
         const newQueue = queue.length > 0 ? queue : [track];
         const trackIndex = newQueue.findIndex((t) => t.id === track.id);
         const targetIndex = trackIndex >= 0 ? trackIndex : 0;
@@ -85,6 +87,22 @@ export const usePlayerStore = create<PlayerState>()(
           queueTitle: title,
           currentIndex: targetIndex,
         });
+
+        if (player) {
+          // Rebuild Native Playlist
+          player.clear();
+          newQueue.forEach((t) => {
+            player.add({
+              uri: t.url,
+              name: t.title,
+            });
+          });
+
+          player.volume = volume;
+          player.playbackRate = playbackSpeed;
+          player.skipTo(targetIndex);
+          player.play();
+        }
 
         useLibraryStore.getState().addToRecentlyPlayed(track);
       },
@@ -107,29 +125,24 @@ export const usePlayerStore = create<PlayerState>()(
       },
 
       skipNext: () => {
-        const { queue, currentIndex, loadTrack, queueTitle } = get();
-        if (queue.length === 0) return;
-        const nextIndex = (currentIndex + 1) % queue.length;
-        loadTrack(queue[nextIndex], queue, queueTitle);
+        const { player } = get();
+        player?.next();
       },
 
       skipPrevious: () => {
-        const { queue, currentIndex, loadTrack, queueTitle, position } = get();
-        if (queue.length === 0) return;
-
+        const { player, position } = get();
         if (position > 3000) {
-          get().player?.seekTo(0);
+          player?.seekTo(0);
           return;
         }
-
-        const prevIndex = (currentIndex - 1 + queue.length) % queue.length;
-        loadTrack(queue[prevIndex], queue, queueTitle);
+        player?.previous();
       },
 
       playFromQueue: (index) => {
-        const { queue, loadTrack, queueTitle } = get();
-        if (queue[index]) {
-          loadTrack(queue[index], queue, queueTitle);
+        const { player } = get();
+        if (player) {
+          player.skipTo(index);
+          player.play();
         }
       },
 
@@ -144,7 +157,7 @@ export const usePlayerStore = create<PlayerState>()(
 
       setPlaybackSpeed: (speed) => {
         const { player } = get();
-        if (player) player.setPlaybackRate(speed);
+        if (player) player.playbackRate = speed;
         set({ playbackSpeed: speed });
       },
     }),

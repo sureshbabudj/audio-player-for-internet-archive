@@ -4,13 +4,13 @@ import { THEME } from "@/constants/colors";
 import { useLibraryStore } from "@/store/useLibraryStore";
 import { usePlayerStore } from "@/store/usePlayerStore";
 import { fetchItemTracks, getItemMetadata } from "@/utils/archive";
-import { Image } from "expo-image";
 import { useLocalSearchParams } from "expo-router";
 import { Play, Plus, Trash2 } from "lucide-react-native";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
+  Image,
   Text,
   TouchableOpacity,
   View,
@@ -101,11 +101,7 @@ export default function CollectionDetailScreen() {
             source={{
               uri: item.thumbnail,
             }}
-            className="w-full h-full"
-            contentFit="cover"
-            onError={(e) =>
-              console.error("Image load error:", e.error, item.thumbnail)
-            }
+            className="w-full h-full object-cover"
           />
         </View>
 

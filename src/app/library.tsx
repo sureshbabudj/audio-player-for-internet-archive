@@ -2,12 +2,13 @@ import { ScreenHeader } from "@/components/ScreenHeader";
 import { TrackList } from "@/components/TrackList";
 import { THEME } from "@/constants/colors";
 import { useLibraryStore } from "@/store/useLibraryStore";
-import { Image } from "expo-image";
+
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ChevronRight, Clock, Heart, List, Trash2 } from "lucide-react-native";
 import React, { useEffect, useState } from "react";
 import {
   FlatList,
+  Image,
   ScrollView,
   Text,
   TouchableOpacity,
@@ -133,8 +134,7 @@ export default function LibraryScreen() {
               <View className="w-16 h-16 rounded-xl bg-surface-light items-center justify-center overflow-hidden mr-4">
                 <Image
                   source={{ uri: collection.thumbnail }}
-                  className="w-full h-full"
-                  contentFit="cover"
+                  className="w-full h-full object-cover"
                 />
               </View>
               <View className="flex-1">

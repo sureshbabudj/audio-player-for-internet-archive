@@ -14,7 +14,7 @@ import { useFonts } from "expo-font";
 import { Stack, usePathname } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -22,8 +22,8 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { usePlayerStore } from "@/store/usePlayerStore";
 import {
   setAudioModeAsync,
-  useAudioPlayer,
-  useAudioPlayerStatus,
+  useAudioPlaylist,
+  useAudioPlaylistStatus,
 } from "expo-audio";
 import "./global.css";
 
@@ -32,14 +32,17 @@ export default function RootLayout() {
   const selectorVisible = usePlaylistStore((state) => state.selectorVisible);
   const trackToSelect = usePlaylistStore((state) => state.trackToSelect);
   const closeSelector = usePlaylistStore((state) => state.closeSelector);
+
   const setPlayer = usePlayerStore((state) => state.setPlayer);
   const setPlaybackStatus = usePlayerStore((state) => state.setPlaybackStatus);
   const skipNext = usePlayerStore((state) => state.skipNext);
   const currentTrack = usePlayerStore((state) => state.currentTrack);
+  const isHydrated = useRef(false);
 
-  // Initialize Global Player Hook
-  const player = useAudioPlayer(currentTrack?.url);
-  const status = useAudioPlayerStatus(player);
+  // Initialize a PERSISTENT player object
+  // We don't pass currentTrack.url here to prevent the hook from re-creating the player
+  const player = useAudioPlaylist();
+  const status = useAudioPlaylistStatus(player);
 
   const [fontsLoaded] = useFonts({
     SpaceGrotesk_700Bold,
@@ -53,24 +56,9 @@ export default function RootLayout() {
     if (fontsLoaded) SplashScreen.hideAsync();
   }, [fontsLoaded]);
 
+  // One-time Setup
   useEffect(() => {
-    // Sync native player object to store
     setPlayer(player);
-
-    if (player && currentTrack) {
-      // Enable lock screen controls with metadata BEFORE starting playback
-      // This is crucial for Android background stability
-      player.setActiveForLockScreen(true, {
-        title: currentTrack.title,
-        artist: currentTrack.creator,
-        albumTitle: currentTrack.collection?.[0] || "Internet Archive",
-        artworkUrl: `https://archive.org/services/img/${currentTrack.identifier}`,
-      });
-
-      player.volume = usePlayerStore.getState().volume;
-      player.setPlaybackRate(usePlayerStore.getState().playbackSpeed);
-      player.play();
-    }
 
     // Configure audio session for background playback
     setAudioModeAsync({
@@ -79,16 +67,40 @@ export default function RootLayout() {
       interruptionMode: "doNotMix",
     }).catch(console.error);
 
+    // Initial hydration if we have a saved track
+    if (!isHydrated.current && currentTrack?.url) {
+      const queue = usePlayerStore.getState().queue;
+      player.clear();
+      queue.forEach((t) => {
+        player.add({
+          uri: t.url,
+          name: t.title,
+        });
+      });
+
+      const targetIndex = usePlayerStore.getState().currentIndex;
+      player.skipTo(targetIndex);
+
+      isHydrated.current = true;
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [player]);
 
-  // Sync Status to store for non-hook components
+  // Sync Status and Handle Track Changes
   useEffect(() => {
     setPlaybackStatus(status);
 
-    // Auto-skip logic
-    if (status.didJustFinish) {
-      skipNext();
+    // Sync current track from native index
+    const queue = usePlayerStore.getState().queue;
+    const currentTrackFromQueue = queue[status.currentIndex];
+    if (
+      currentTrackFromQueue &&
+      currentTrackFromQueue.id !== currentTrack?.id
+    ) {
+      usePlayerStore.setState({
+        currentTrack: currentTrackFromQueue,
+        currentIndex: status.currentIndex,
+      });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status]);

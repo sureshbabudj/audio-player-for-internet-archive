@@ -1,10 +1,9 @@
 import { useLibraryStore } from "@/store/useLibraryStore";
 import { usePlayerStore } from "@/store/usePlayerStore";
 import { ArchiveTrack } from "@/types";
-import { Image } from "expo-image";
 import { Clock, Heart, Plus } from "lucide-react-native";
 import React from "react";
-import { Text, TouchableOpacity, View } from "react-native";
+import { Image, Text, TouchableOpacity, View } from "react-native";
 
 interface SearchResultCardProps {
   track: ArchiveTrack;
@@ -36,9 +35,7 @@ export function SearchResultCard({
               track.thumbnail ||
               `https://archive.org/services/img/${track.identifier}`,
           }}
-          placeholder={require("../../assets/images/splash-icon-dark.png")}
-          className="w-full h-full"
-          contentFit="cover"
+          className="w-full h-full object-cover"
         />
       </View>
 
