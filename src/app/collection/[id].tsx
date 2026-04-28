@@ -4,7 +4,7 @@ import { THEME } from "@/constants/colors";
 import { useLibraryStore } from "@/store/useLibraryStore";
 import { usePlayerStore } from "@/store/usePlayerStore";
 import { fetchItemTracks, getItemMetadata } from "@/utils/archive";
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { Play, Plus, Trash2 } from "lucide-react-native";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -18,6 +18,7 @@ import {
 
 export default function CollectionDetailScreen() {
   const { id } = useLocalSearchParams();
+  const router = useRouter();
   const { collections, removeCollection, removeFromLibrary, addCollection } =
     useLibraryStore();
   const { loadTrack } = usePlayerStore();
@@ -65,8 +66,9 @@ export default function CollectionDetailScreen() {
   const handlePlayAll = useCallback(() => {
     if (tracks.length > 0 && item) {
       loadTrack(tracks[0], tracks, item.title);
+      router.push("/player" as any);
     }
-  }, [tracks, item, loadTrack]);
+  }, [tracks, item, loadTrack, router]);
 
   const handleSaveToggle = useCallback(() => {
     if (!item) return;
@@ -84,10 +86,14 @@ export default function CollectionDetailScreen() {
       <TrackItem
         track={track}
         type="collection"
-        onPress={() => loadTrack(track, tracks, item?.title || "")}
+        onPress={() => {
+          loadTrack(track, tracks, item?.title || "");
+          router.push("/player" as any);
+        }}
         onRemove={isSaved ? () => removeFromLibrary(track.id) : undefined}
       />
     ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [isSaved, item?.title, loadTrack, removeFromLibrary, tracks],
   );
 

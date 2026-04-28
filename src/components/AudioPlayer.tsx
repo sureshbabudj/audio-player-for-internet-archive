@@ -20,7 +20,14 @@ import {
   Zap,
 } from "lucide-react-native";
 import React from "react";
-import { FlatList, Image, Text, TouchableOpacity, View } from "react-native";
+import {
+  ActivityIndicator,
+  FlatList,
+  Image,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { WaveAnimation } from "./WaveAnimation";
 
@@ -56,6 +63,24 @@ export function AudioPlayer() {
     null,
   );
   const [showQueue, setShowQueue] = React.useState(false);
+  const flatListRef = React.useRef<FlatList>(null);
+
+  React.useEffect(() => {
+    if (showQueue && flatListRef.current && queue.length > currentIndex) {
+      setTimeout(() => {
+        try {
+          flatListRef.current?.scrollToIndex({
+            index: currentIndex,
+            animated: true,
+            viewPosition: 0.5,
+          });
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        } catch (e) {
+          // Ignore scroll errors if item is not yet rendered
+        }
+      }, 100);
+    }
+  }, [showQueue, currentIndex, queue.length]);
 
   if (!currentTrack) return null;
 
@@ -159,8 +184,9 @@ export function AudioPlayer() {
               thumbTintColor={THEME.white}
               onValueChange={(value) => setSlidingPosition(value)}
               onSlidingComplete={async (value) => {
-                setSlidingPosition(null);
                 await seekTo(value);
+                // Slight delay before clearing sliding position to mask native seek latency
+                setTimeout(() => setSlidingPosition(null), 100);
               }}
               style={{ height: 40, marginHorizontal: -10 }}
             />
@@ -192,7 +218,9 @@ export function AudioPlayer() {
               onPress={togglePlayPause}
               className="w-20 h-20 rounded-full bg-white items-center justify-center shadow-lg shadow-white/20"
             >
-              {isPlaying ? (
+              {isBuffering ? (
+                <ActivityIndicator size="large" color={THEME.darker} />
+              ) : isPlaying ? (
                 <Pause size={36} color={THEME.darker} fill={THEME.darker} />
               ) : (
                 <Play
@@ -235,8 +263,25 @@ export function AudioPlayer() {
         <View className="flex-1 px-6">
           <Text className="text-white font-display text-xl mb-4">Up Next</Text>
           <FlatList
+            ref={flatListRef}
             data={queue}
             keyExtractor={(item, index) => `${item.id}-${index}`}
+            getItemLayout={(data, index) => ({
+              length: 80, // 72px item + 8px margin
+              offset: 80 * index,
+              index,
+            })}
+            initialScrollIndex={queue.length > currentIndex ? currentIndex : 0}
+            onScrollToIndexFailed={(info) => {
+              const wait = new Promise((resolve) => setTimeout(resolve, 100));
+              wait.then(() => {
+                flatListRef.current?.scrollToIndex({
+                  index: info.index,
+                  animated: true,
+                  viewPosition: 0.5,
+                });
+              });
+            }}
             renderItem={({ item, index }) => (
               <TrackItem
                 track={item}

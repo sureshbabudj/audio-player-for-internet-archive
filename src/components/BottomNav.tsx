@@ -37,7 +37,7 @@ export function BottomNav() {
         return (
           <TouchableOpacity
             key={index}
-            onPress={() => router.push(item.route as any)}
+            onPress={() => router.replace(item.route as any)}
             className="items-center justify-center p-2"
           >
             <item.icon

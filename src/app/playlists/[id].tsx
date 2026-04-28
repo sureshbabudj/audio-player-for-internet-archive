@@ -42,6 +42,7 @@ export default function PlaylistDetailScreen() {
   const handlePlayAll = () => {
     if (playlist.tracks.length > 0) {
       loadTrack(playlist.tracks[0], playlist.tracks, playlist.name);
+      router.push("/player" as any);
     }
   };
 

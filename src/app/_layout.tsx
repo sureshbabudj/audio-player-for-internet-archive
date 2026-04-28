@@ -76,31 +76,30 @@ export default function RootLayout() {
           >
             <Stack.Screen
               name="index"
-              options={{ title: "Archive Audio", headerShown: false }}
+              options={{ title: "Archive Audio", headerShown: false, animation: "fade" }}
             />
             <Stack.Screen
               name="search"
               options={{
                 headerShown: false,
-                presentation: "fullScreenModal",
                 animation: "slide_from_bottom",
               }}
             />
             <Stack.Screen
               name="library"
-              options={{ title: "My Library", headerShown: false }}
+              options={{ title: "My Library", headerShown: false, animation: "fade" }}
             />
             <Stack.Screen
               name="stats"
-              options={{ title: "Insights", headerShown: false }}
+              options={{ title: "Insights", headerShown: false, animation: "fade" }}
             />
             <Stack.Screen
               name="settings"
-              options={{ title: "Settings", headerShown: false }}
+              options={{ title: "Settings", headerShown: false, animation: "fade" }}
             />
             <Stack.Screen
               name="playlists/index"
-              options={{ title: "Playlists", headerShown: false }}
+              options={{ title: "Playlists", headerShown: false, animation: "fade" }}
             />
             <Stack.Screen
               name="playlists/[id]"
@@ -108,7 +107,6 @@ export default function RootLayout() {
                 title: "Playlist",
                 headerShown: false,
                 animation: "slide_from_bottom",
-                presentation: "fullScreenModal",
               }}
             />
             <Stack.Screen
@@ -117,7 +115,6 @@ export default function RootLayout() {
                 title: "Collection",
                 headerShown: false,
                 animation: "slide_from_bottom",
-                presentation: "fullScreenModal",
               }}
             />
             <Stack.Screen
@@ -125,12 +122,13 @@ export default function RootLayout() {
               options={{
                 headerShown: false,
                 animation: "slide_from_bottom",
-                presentation: "fullScreenModal",
               }}
             />
           </Stack>
-          {!isDetailScreen && <MiniPlayer />}
-          {!isDetailScreen && <BottomNav />}
+          <View style={{ zIndex: isDetailScreen ? -1 : 1, position: "absolute", bottom: 0, left: 0, right: 0 }}>
+            <MiniPlayer />
+            <BottomNav />
+          </View>
           <PlaylistSelector
             visible={selectorVisible}
             track={trackToSelect}

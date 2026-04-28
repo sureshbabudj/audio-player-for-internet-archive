@@ -4,6 +4,7 @@ import { usePlayerStore } from "@/store/usePlayerStore";
 import { ArchiveTrack } from "@/types";
 import React, { useCallback } from "react";
 import { FlatList } from "react-native";
+import { useRouter } from "expo-router";
 
 interface TrackListProps {
   tracks: ArchiveTrack[];
@@ -18,6 +19,7 @@ export function TrackList({
   onRemove,
   showAddToPlaylist,
 }: TrackListProps) {
+  const router = useRouter();
   const loadTrack = usePlayerStore((state) => state.loadTrack);
   const currentTrackId = usePlayerStore((state) => state.currentTrack?.id);
   const likedTrackIds = useLibraryStore((state) => state.likedTrackIds);
@@ -25,8 +27,9 @@ export function TrackList({
   const handlePlay = useCallback(
     (track: ArchiveTrack) => {
       loadTrack(track, tracks, title);
+      router.push("/player" as any);
     },
-    [loadTrack, tracks, title],
+    [loadTrack, tracks, title, router],
   );
 
   const renderItem = useCallback(

@@ -31,11 +31,10 @@ export async function searchArchive(
   if (!query.trim()) return [];
 
   const rows = 20;
-  const start = (page - 1) * rows;
 
   const url = `https://archive.org/advancedsearch.php?q=${encodeURIComponent(
     query,
-  )}+AND+mediatype:audio&fl[]=identifier&fl[]=title&fl[]=creator&fl[]=year&sort[]=downloads+desc&rows=${rows}&start=${start}&output=json`;
+  )}+AND+mediatype:audio&fl[]=identifier&fl[]=title&fl[]=creator&fl[]=year&sort[]=downloads+desc&rows=${rows}&page=${page}&output=json`;
 
   const response = await fetch(url, { signal });
   const data = await response.json();

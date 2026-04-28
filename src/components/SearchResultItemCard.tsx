@@ -32,17 +32,17 @@ export const SearchResultItemCard = memo(
           <Text className="text-white font-semibold text-sm" numberOfLines={2}>
             {item.title}
           </Text>
-          {item.creator && (
+          {item.creator ? (
             <Text
               className="text-white/50 font-body text-xs mt-1"
               numberOfLines={1}
             >
               {item.creator}
             </Text>
-          )}
-          {item.date && (
+          ) : null}
+          {item.date ? (
             <Text className="text-primary/70 text-xs mt-1">{item.date}</Text>
-          )}
+          ) : null}
         </View>
 
         <TouchableOpacity

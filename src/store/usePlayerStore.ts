@@ -22,7 +22,7 @@ interface PlayerState {
   queue: ArchiveTrack[];
   queueTitle: string;
   currentIndex: number;
-  originalQueue: ArchiveTrack[]; // Store original order for un-shuffling
+  shuffledIndices: number[]; // Store shuffled order of indices
 
   // UI Sync
   isPlaying: boolean;
@@ -71,7 +71,7 @@ export const usePlayerStore = create<PlayerState>()(
       }),
       currentTrack: null,
       queue: [],
-      originalQueue: [],
+      shuffledIndices: [],
       queueTitle: "",
       currentIndex: 0,
       isPlaying: false,
@@ -88,11 +88,41 @@ export const usePlayerStore = create<PlayerState>()(
         const state = get();
         if (!state.player || state.isInternalStateChange) return;
 
+        let newPosition = Math.floor((status.currentTime || 0) * 1000);
+        const newDuration = Math.floor((status.duration || 0) * 1000);
+
+        if ((status as any).error) {
+          console.error(
+            "❌ Player status reported error:",
+            (status as any).error,
+          );
+        }
+        if ((status as any).status === "error") {
+          console.error(
+            "❌ Player status is error. Check connection or track format.",
+          );
+        }
+
+        // Clamp the position to the duration to prevent the progress bar from overflowing
+        // This handles cases where the native player miscalculates time after seeking on VBR files.
+        if (newDuration > 0 && newPosition > newDuration) {
+          newPosition = newDuration;
+        }
+
+        if (
+          state.isPlaying === status.playing &&
+          state.isBuffering === status.isBuffering &&
+          state.position === newPosition &&
+          state.duration === newDuration
+        ) {
+          return;
+        }
+
         const updates: Partial<PlayerState> = {
           isPlaying: status.playing,
           isBuffering: status.isBuffering,
-          position: Math.floor((status.currentTime || 0) * 1000),
-          duration: Math.floor((status.duration || 0) * 1000),
+          position: newPosition,
+          duration: newDuration,
         };
 
         set(updates);
@@ -104,7 +134,7 @@ export const usePlayerStore = create<PlayerState>()(
 
         set({
           queue: tracks,
-          originalQueue: [...tracks],
+          shuffledIndices: [],
           currentIndex: startIndex,
           currentTrack: track,
           queueTitle: title,
@@ -136,38 +166,78 @@ export const usePlayerStore = create<PlayerState>()(
         const { player } = get();
         if (player) {
           player.seekTo(position / 1000);
+          set({ position });
         }
       },
 
       skipNext: () => {
-        const { currentIndex, queue, repeatMode } = get();
+        const { currentIndex, queue, repeatMode, isShuffled, shuffledIndices } =
+          get();
         let nextIndex = currentIndex + 1;
 
-        if (nextIndex >= queue.length) {
-          if (repeatMode === "all") {
-            nextIndex = 0;
+        if (isShuffled && shuffledIndices.length > 0) {
+          const currentShufflePos = shuffledIndices.indexOf(currentIndex);
+          if (
+            currentShufflePos !== -1 &&
+            currentShufflePos + 1 < shuffledIndices.length
+          ) {
+            nextIndex = shuffledIndices[currentShufflePos + 1];
           } else {
-            return;
+            if (repeatMode === "all") {
+              nextIndex = shuffledIndices[0];
+            } else {
+              return;
+            }
+          }
+        } else {
+          if (nextIndex >= queue.length) {
+            if (repeatMode === "all") {
+              nextIndex = 0;
+            } else {
+              return;
+            }
           }
         }
         get().playFromQueue(nextIndex);
       },
 
       skipPrevious: () => {
-        const { currentIndex, queue, position, repeatMode } = get();
+        const {
+          currentIndex,
+          queue,
+          position,
+          repeatMode,
+          isShuffled,
+          shuffledIndices,
+        } = get();
         if (position > 3000) {
           get().seekTo(0);
           return;
         }
 
         let prevIndex = currentIndex - 1;
-        if (prevIndex < 0) {
-          if (repeatMode === "all") {
-            prevIndex = queue.length - 1;
+
+        if (isShuffled && shuffledIndices.length > 0) {
+          const currentShufflePos = shuffledIndices.indexOf(currentIndex);
+          if (currentShufflePos > 0) {
+            prevIndex = shuffledIndices[currentShufflePos - 1];
           } else {
-            return;
+            if (repeatMode === "all") {
+              prevIndex = shuffledIndices[shuffledIndices.length - 1];
+            } else {
+              prevIndex = currentIndex;
+            }
+          }
+        } else {
+          if (prevIndex < 0) {
+            if (repeatMode === "all") {
+              prevIndex = queue.length - 1;
+            } else {
+              return;
+            }
           }
         }
+
         get().playFromQueue(prevIndex);
       },
 
@@ -215,7 +285,11 @@ export const usePlayerStore = create<PlayerState>()(
           },
         );
 
-        newPlayer.play();
+        try {
+          newPlayer.play();
+        } catch (error) {
+          console.error(`❌ Failed to play track: ${track.title}`, error);
+        }
 
         set({
           currentIndex: index,
@@ -236,43 +310,19 @@ export const usePlayerStore = create<PlayerState>()(
       },
 
       toggleShuffle: () => {
-        const { isShuffled, queue, originalQueue, currentTrack } = get();
-        const newShuffleState = !isShuffled;
+        const { isShuffled, queue } = get();
 
-        if (newShuffleState) {
-          // Enabling Shuffle
-          const currentOrder = [...queue];
-          const trackToKeep = currentTrack;
-
-          const otherTracks = currentOrder.filter(
-            (t) => t.id !== trackToKeep?.id,
-          );
-          const shuffledOthers = [...otherTracks].sort(
-            () => Math.random() - 0.5,
-          );
-
-          const newQueue = trackToKeep
-            ? [trackToKeep, ...shuffledOthers]
-            : shuffledOthers;
-
+        if (!isShuffled) {
+          const indices = Array.from({ length: queue.length }, (_, i) => i);
+          const shuffled = indices.sort(() => Math.random() - 0.5);
           set({
             isShuffled: true,
-            originalQueue: currentOrder,
-            queue: newQueue,
-            currentIndex: 0,
+            shuffledIndices: shuffled,
           });
         } else {
-          // Disabling Shuffle - Revert to original order
-          const trackToKeep = currentTrack;
-          const newIndex = originalQueue.findIndex(
-            (t) => t.id === trackToKeep?.id,
-          );
-          const targetIndex = newIndex >= 0 ? newIndex : 0;
-
           set({
             isShuffled: false,
-            queue: [...originalQueue],
-            currentIndex: targetIndex,
+            shuffledIndices: [],
           });
         }
       },
@@ -308,9 +358,35 @@ export const usePlayerStore = create<PlayerState>()(
       },
 
       preloadNext: () => {
-        const { currentIndex, queue } = get();
-        const nextIndex = currentIndex + 1;
-        if (nextIndex < queue.length) {
+        const { currentIndex, queue, isShuffled, shuffledIndices, repeatMode } =
+          get();
+        let nextIndex = currentIndex + 1;
+
+        if (isShuffled && shuffledIndices.length > 0) {
+          const currentShufflePos = shuffledIndices.indexOf(currentIndex);
+          if (
+            currentShufflePos !== -1 &&
+            currentShufflePos + 1 < shuffledIndices.length
+          ) {
+            nextIndex = shuffledIndices[currentShufflePos + 1];
+          } else {
+            if (repeatMode === "all") {
+              nextIndex = shuffledIndices[0];
+            } else {
+              return;
+            }
+          }
+        } else {
+          if (nextIndex >= queue.length) {
+            if (repeatMode === "all") {
+              nextIndex = 0;
+            } else {
+              return;
+            }
+          }
+        }
+
+        if (nextIndex >= 0 && nextIndex < queue.length) {
           const nextTrack = queue[nextIndex];
           preload(nextTrack.url);
         }
@@ -333,6 +409,7 @@ export const usePlayerStore = create<PlayerState>()(
       partialize: (state: PlayerState): any => ({
         currentTrack: state.currentTrack,
         queue: state.queue,
+        shuffledIndices: state.shuffledIndices,
         queueTitle: state.queueTitle,
         currentIndex: state.currentIndex,
         repeatMode: state.repeatMode,
@@ -349,9 +426,13 @@ export const usePlayerStore = create<PlayerState>()(
  * Call this once in the root layout.
  */
 export const useInitializePlayer = () => {
-  const { currentTrack, player, setPlaybackStatus, volume, playbackSpeed } =
-    usePlayerStore();
+  const currentTrack = usePlayerStore((state) => state.currentTrack);
+  const player = usePlayerStore((state) => state.player);
+  const setPlaybackStatus = usePlayerStore((state) => state.setPlaybackStatus);
+  const volume = usePlayerStore((state) => state.volume);
+  const playbackSpeed = usePlayerStore((state) => state.playbackSpeed);
   const isHydrated = useRef(false);
+  const lastFinishedPlayerId = useRef<string | null>(null);
 
   // useAudioPlayerStatus will automatically re-subscribe when 'player' object changes
   const status = useAudioPlayerStatus(player!);
@@ -367,14 +448,20 @@ export const useInitializePlayer = () => {
 
   // Hydration handling
   useEffect(() => {
-    if (!isHydrated.current && currentTrack?.url && player) {
+    if (!isHydrated.current && currentTrack?.url) {
       setTimeout(() => {
         try {
-          // Note: Since hydration is first track, we try replace but if it fails we are okay
-          // because subsequent track changes will use the 'recreate' logic.
-          player.replace({ uri: currentTrack.url });
-          player.volume = volume;
-          player.setPlaybackRate(playbackSpeed);
+          const newPlayer = createAudioPlayer(
+            { uri: currentTrack.url },
+            {
+              updateInterval: 500,
+              keepAudioSessionActive: true,
+            },
+          );
+          newPlayer.volume = volume;
+          newPlayer.setPlaybackRate(playbackSpeed);
+
+          usePlayerStore.setState({ player: newPlayer });
         } catch (e) {
           console.error("Initial hydration replace error:", e);
         }
@@ -383,7 +470,8 @@ export const useInitializePlayer = () => {
     } else {
       isHydrated.current = true;
     }
-  }, [currentTrack, player, volume, playbackSpeed]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Sync status and handle track finish
   useEffect(() => {
@@ -391,7 +479,8 @@ export const useInitializePlayer = () => {
 
     setPlaybackStatus(status);
 
-    if (status.didJustFinish) {
+    if (status.didJustFinish && status.id !== lastFinishedPlayerId.current) {
+      lastFinishedPlayerId.current = status.id;
       usePlayerStore.getState().skipNext();
     }
   }, [status, setPlaybackStatus, player]);

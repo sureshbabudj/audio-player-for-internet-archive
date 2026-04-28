@@ -46,8 +46,14 @@ const GithubIcon = (
 );
 
 export default function SettingsScreen() {
-  const { collections, playCounts, recentlyPlayed, likedTracks, clearLibrary, importLibrary } =
-    useLibraryStore();
+  const {
+    collections,
+    playCounts,
+    recentlyPlayed,
+    likedTracks,
+    clearLibrary,
+    importLibrary,
+  } = useLibraryStore();
 
   return (
     <View className="flex-1 bg-darker">
@@ -65,7 +71,7 @@ export default function SettingsScreen() {
           <SettingsItem
             icon={Mail}
             label="Send Feedback"
-            onPress={() => Linking.openURL("mailto:feedback@archiplay.app")}
+            onPress={() => Linking.openURL("mailto:archiplay@genaul.com")}
           />
 
           <SectionHeader title="Open Source" />
@@ -73,7 +79,9 @@ export default function SettingsScreen() {
             icon={GithubIcon}
             label="GitHub Repository"
             onPress={() =>
-              Linking.openURL("https://github.com/sureshbabudj/archiplay")
+              Linking.openURL(
+                "https://github.com/sureshbabudj/audio-player-for-internet-archive",
+              )
             }
           />
           <SettingsItem
@@ -81,7 +89,7 @@ export default function SettingsScreen() {
             label="Report an Issue"
             onPress={() =>
               Linking.openURL(
-                "https://github.com/sureshbabudj/archiplay/issues",
+                "https://github.com/sureshbabudj/audio-player-for-internet-archive/issues",
               )
             }
           />
@@ -102,9 +110,9 @@ export default function SettingsScreen() {
                 const json = JSON.stringify(data, null, 2);
                 const filename = `archiplay_backup_${Date.now()}.json`;
                 const fileUri = `${FileSystem.cacheDirectory}${filename}`;
-                
+
                 await FileSystem.writeAsStringAsync(fileUri, json);
-                
+
                 if (await Sharing.isAvailableAsync()) {
                   await Sharing.shareAsync(fileUri, {
                     mimeType: "application/json",
@@ -112,7 +120,10 @@ export default function SettingsScreen() {
                     UTI: "public.json",
                   });
                 } else {
-                  Alert.alert("Error", "Sharing is not available on this device.");
+                  Alert.alert(
+                    "Error",
+                    "Sharing is not available on this device.",
+                  );
                 }
               } catch (e) {
                 console.error("Export error:", e);
@@ -149,14 +160,20 @@ export default function SettingsScreen() {
                       text: "Import",
                       onPress: () => {
                         importLibrary(data);
-                        Alert.alert("Success", "Library imported successfully!");
+                        Alert.alert(
+                          "Success",
+                          "Library imported successfully!",
+                        );
                       },
                     },
                   ],
                 );
               } catch (e) {
                 console.error("Import error:", e);
-                Alert.alert("Error", "Failed to import backup file. Make sure it's a valid ArchiPlay JSON backup.");
+                Alert.alert(
+                  "Error",
+                  "Failed to import backup file. Make sure it's a valid ArchiPlay JSON backup.",
+                );
               }
             }}
           />
