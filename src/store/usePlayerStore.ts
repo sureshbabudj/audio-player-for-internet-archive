@@ -97,9 +97,10 @@ export const usePlayerStore = create<PlayerState>()(
         }
 
         // Map native index back to queue index if shuffled
-        const mappedIndex = state.isShuffled && state.shuffledIndices.length > 0
-          ? state.shuffledIndices[newIndex]
-          : newIndex;
+        const mappedIndex =
+          state.isShuffled && state.shuffledIndices.length > 0
+            ? state.shuffledIndices[newIndex]
+            : newIndex;
 
         const currentTrack = state.queue[mappedIndex] || null;
         const prevIndex = state.currentIndex;
@@ -124,7 +125,8 @@ export const usePlayerStore = create<PlayerState>()(
         // 3. A significant seek occurred (> 2s difference from expected position)
         const trackChanged = newIndex !== prevIndex;
         const playingChanged = status.playing !== prevPlaying;
-        const seekOccurred = Math.abs(newPosition - (prevPosition + 500)) > 2000;
+        const seekOccurred =
+          Math.abs(newPosition - (prevPosition + 500)) > 2000;
 
         if (currentTrack && (trackChanged || playingChanged || seekOccurred)) {
           try {
@@ -164,7 +166,11 @@ export const usePlayerStore = create<PlayerState>()(
         playlist.volume = volume;
         playlist.playbackRate = playbackSpeed;
         playlist.loop =
-          repeatMode === "all" ? "all" : repeatMode === "one" ? "single" : "none";
+          repeatMode === "all"
+            ? "all"
+            : repeatMode === "one"
+              ? "single"
+              : "none";
 
         set({
           queue: tracks,
@@ -243,7 +249,8 @@ export const usePlayerStore = create<PlayerState>()(
       setRepeatMode: (mode) => {
         const { playlist } = get();
         if (playlist) {
-          playlist.loop = mode === "all" ? "all" : mode === "one" ? "single" : "none";
+          playlist.loop =
+            mode === "all" ? "all" : mode === "one" ? "single" : "none";
         }
         set({ repeatMode: mode });
       },
@@ -256,15 +263,18 @@ export const usePlayerStore = create<PlayerState>()(
           // Shuffle logic: reorder native playlist but keep store queue intact
           const indices = Array.from({ length: queue.length }, (_, i) => i);
           const otherIndices = indices.filter((i) => i !== currentIndex);
-          
+
           for (let i = otherIndices.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
-            [otherIndices[i], otherIndices[j]] = [otherIndices[j], otherIndices[i]];
+            [otherIndices[i], otherIndices[j]] = [
+              otherIndices[j],
+              otherIndices[i],
+            ];
           }
 
           const shuffledIndices = [currentIndex, ...otherIndices];
           const shuffledQueue = shuffledIndices.map((i) => queue[i]);
-          
+
           const sources = shuffledQueue.map((t) => ({
             uri: t.url,
             name: t.title,
@@ -358,7 +368,6 @@ export const usePlayerStore = create<PlayerState>()(
         currentIndex: state.currentIndex,
         repeatMode: state.repeatMode,
         isShuffled: state.isShuffled,
-        shuffledIndices: state.shuffledIndices,
         volume: state.volume,
         playbackSpeed: state.playbackSpeed,
       }),
@@ -370,7 +379,6 @@ export const usePlayerStore = create<PlayerState>()(
  * Hook to initialize and sync the native player with the store.
  */
 export const useInitializePlayer = () => {
-  const currentTrack = usePlayerStore((state) => state.currentTrack);
   const queue = usePlayerStore((state) => state.queue);
   const playlist = usePlayerStore((state) => state.playlist);
   const setPlaylistStatus = usePlayerStore((state) => state.setPlaylistStatus);
@@ -397,15 +405,16 @@ export const useInitializePlayer = () => {
         queue.forEach((t) => playlist.add({ uri: t.url, name: t.title }));
         playlist.volume = volume;
         playlist.playbackRate = playbackSpeed;
-        
+
         const index = usePlayerStore.getState().currentIndex;
         playlist.skipTo(index);
-        
+
         isHydrated.current = true;
       }, 500);
     } else {
       isHydrated.current = true;
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {

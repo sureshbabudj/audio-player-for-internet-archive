@@ -16,7 +16,7 @@ import { useFonts } from "expo-font";
 import { Stack, usePathname } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -30,6 +30,11 @@ export default function RootLayout() {
   const selectorVisible = usePlaylistStore((state) => state.selectorVisible);
   const trackToSelect = usePlaylistStore((state) => state.trackToSelect);
   const closeSelector = usePlaylistStore((state) => state.closeSelector);
+  const [hasHydrated, setHasHydrated] = useState(false);
+
+  useEffect(() => {
+    setHasHydrated(true);
+  }, []);
 
   // Initialize and sync the global audio player
   useInitializePlayer();
@@ -55,7 +60,7 @@ export default function RootLayout() {
     }).catch(console.error);
   }, []);
 
-  if (!fontsLoaded) return null;
+  if (!fontsLoaded || !hasHydrated) return null;
 
   const isDetailScreen =
     pathname === "/player" ||

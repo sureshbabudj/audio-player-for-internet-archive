@@ -8,6 +8,8 @@ node_modules/
 dist/
 web-build/
 expo-env.d.ts
+*.ipa
+*.apk
 
 # Native
 .kotlin/
@@ -49,3 +51,11 @@ modules/*/ios/build/
 modules/*/ios/*.xcodeproj/
 modules/*/bin/
 modules/*/node_modules/
+
+# firsbase
+.firebaserc
+.firebase/
+*.log
+
+# local
+OPEN_ISSUES.md
