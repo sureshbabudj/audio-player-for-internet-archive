@@ -9,6 +9,7 @@ import {
   ChevronDown,
   Heart,
   ListMusic,
+  Moon,
   Pause,
   Play,
   Repeat,
@@ -21,6 +22,7 @@ import {
 import React from "react";
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Image,
   Platform,
@@ -45,6 +47,7 @@ export function AudioPlayer() {
   const duration = usePlayerStore((state) => state.duration);
   const repeatMode = usePlayerStore((state) => state.repeatMode);
   const isShuffled = usePlayerStore((state) => state.isShuffled);
+  const sleepTimer = usePlayerStore((state) => state.sleepTimer);
 
   const togglePlayPause = usePlayerStore((state) => state.togglePlayPause);
   const skipNext = usePlayerStore((state) => state.skipNext);
@@ -53,6 +56,7 @@ export function AudioPlayer() {
   const setRepeatMode = usePlayerStore((state) => state.setRepeatMode);
   const toggleShuffle = usePlayerStore((state) => state.toggleShuffle);
   const playFromQueue = usePlayerStore((state) => state.playFromQueue);
+  const setSleepTimer = usePlayerStore((state) => state.setSleepTimer);
 
   const liked = useLibraryStore((state) =>
     currentTrack ? state.likedTrackIds.includes(currentTrack.id) : false,
@@ -88,6 +92,28 @@ export function AudioPlayer() {
     toggleLike(currentTrack);
   };
 
+  const handleSleepTimerPress = () => {
+    Alert.alert(
+      "Sleep Timer",
+      sleepTimer
+        ? `Timer active: ${sleepTimer} minutes remaining.`
+        : "Select duration:",
+      [
+        {
+          text: "Off",
+          onPress: () => setSleepTimer(null),
+          style: "destructive",
+        },
+        { text: "1 Minutes", onPress: () => setSleepTimer(1) },
+        { text: "15 Minutes", onPress: () => setSleepTimer(15) },
+        { text: "30 Minutes", onPress: () => setSleepTimer(30) },
+        { text: "45 Minutes", onPress: () => setSleepTimer(45) },
+        { text: "60 Minutes", onPress: () => setSleepTimer(60) },
+        { text: "Cancel", style: "cancel" },
+      ],
+    );
+  };
+
   const displayPosition = slidingPosition !== null ? slidingPosition : position;
 
   const content = (
@@ -113,12 +139,30 @@ export function AudioPlayer() {
             {queueTitle || "Now Playing"}
           </Text>
         </View>
-        <TouchableOpacity onPress={() => setShowQueue(!showQueue)}>
-          <ListMusic
-            size={24}
-            color={showQueue ? THEME.primary : THEME.white}
-          />
-        </TouchableOpacity>
+        <View className="flex-row items-center">
+          <TouchableOpacity onPress={handleSleepTimerPress} className="mr-4">
+            <View>
+              <Moon
+                size={22}
+                color={sleepTimer ? THEME.primary : THEME.white}
+                opacity={sleepTimer ? 1 : 0.6}
+              />
+              {sleepTimer && (
+                <View className="absolute -top-1.5 -right-1.5 bg-primary rounded-full w-4 h-4 items-center justify-center">
+                  <Text className="text-[8px] text-darker font-bold">
+                    {sleepTimer}
+                  </Text>
+                </View>
+              )}
+            </View>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => setShowQueue(!showQueue)}>
+            <ListMusic
+              size={24}
+              color={showQueue ? THEME.primary : THEME.white}
+            />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {!showQueue ? (

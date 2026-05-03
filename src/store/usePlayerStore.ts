@@ -33,6 +33,7 @@ interface PlayerState {
   repeatMode: RepeatMode;
   isShuffled: boolean;
   isInternalStateChange: boolean; // Flag to prevent sync flickers during reordering
+  sleepTimer: number | null; // Remaining minutes
 
   // Actions
   loadTrack: (
@@ -54,6 +55,7 @@ interface PlayerState {
   toggleShuffle: () => void;
   setVolume: (vol: number) => void;
   setPlaybackSpeed: (speed: number) => void;
+  setSleepTimer: (minutes: number | null) => void;
   resetPlayer: () => void;
 
   // Internal Sync
@@ -82,6 +84,7 @@ export const usePlayerStore = create<PlayerState>()(
       repeatMode: "off",
       isShuffled: false,
       isInternalStateChange: false,
+      sleepTimer: null,
 
       setPlaylistStatus: (status) => {
         const state = get();
@@ -328,6 +331,10 @@ export const usePlayerStore = create<PlayerState>()(
         if (playlist) playlist.playbackRate = speed;
         set({ playbackSpeed: speed });
       },
+      
+      setSleepTimer: (minutes) => {
+        set({ sleepTimer: minutes });
+      },
 
       resetPlayer: () => {
         const { playlist } = get();
@@ -384,6 +391,8 @@ export const useInitializePlayer = () => {
   const setPlaylistStatus = usePlayerStore((state) => state.setPlaylistStatus);
   const volume = usePlayerStore((state) => state.volume);
   const playbackSpeed = usePlayerStore((state) => state.playbackSpeed);
+  const sleepTimer = usePlayerStore((state) => state.sleepTimer);
+  const setSleepTimer = usePlayerStore((state) => state.setSleepTimer);
   const isHydrated = useRef(false);
 
   const status = useAudioPlaylistStatus(playlist!);
@@ -421,6 +430,26 @@ export const useInitializePlayer = () => {
     if (!isHydrated.current || !playlist) return;
     setPlaylistStatus(status);
   }, [status, setPlaylistStatus, playlist]);
+
+  // Sleep Timer logic
+  useEffect(() => {
+    if (sleepTimer === null || sleepTimer <= 0) return;
+
+    const interval = setInterval(() => {
+      const currentTimer = usePlayerStore.getState().sleepTimer;
+      if (currentTimer !== null) {
+        if (currentTimer <= 1) {
+          playlist?.pause();
+          setSleepTimer(null);
+          clearInterval(interval);
+        } else {
+          setSleepTimer(currentTimer - 1);
+        }
+      }
+    }, 60000); // Check every minute
+
+    return () => clearInterval(interval);
+  }, [sleepTimer, playlist, setSleepTimer]);
 
   // Remote Media Controls Setup
   useEffect(() => {
