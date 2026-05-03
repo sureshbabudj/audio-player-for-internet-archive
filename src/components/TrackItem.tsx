@@ -1,123 +1,138 @@
-import React, { useState } from "react";
-import { Icon } from "@iconify/react";
-import { Track, Playlist } from "../types";
+import { THEME } from "@/constants/colors";
+import { usePlaylistStore } from "@/store/usePlaylistStore";
+import { ArchiveTrack } from "@/types";
+import { Heart, Music, Plus, Radio, Trash2, Zap } from "lucide-react-native";
+import React, { memo } from "react";
+import { Image, Text, TouchableOpacity, View } from "react-native";
 
 interface TrackItemProps {
-  track: Track;
-  isActive: boolean;
-  isPlaying: boolean;
-  onClick: () => void;
-  index: number;
-  playlists?: Playlist[];
-  onAddToPlaylist?: (playlistId: string, track: Track) => void;
+  track: ArchiveTrack;
+  onPress: () => void;
+  onRemove?: () => void;
+  type?: "recent" | "mostly" | "liked" | "search" | "playlist" | "collection";
+  playCount?: number;
+  isCurrent?: boolean;
+  isLiked?: boolean;
+  showPlaylistAction?: boolean;
+  rank?: number;
 }
 
-const TrackItem: React.FC<TrackItemProps> = ({
-  track,
-  isActive,
-  isPlaying,
-  onClick,
-  index,
-  playlists = [],
-  onAddToPlaylist,
-}) => {
-  const [showMenu, setShowMenu] = useState(false);
+const TrackItem: React.FC<TrackItemProps> = memo(
+  ({
+    track,
+    onPress,
+    onRemove,
+    type = "search",
+    playCount,
+    isCurrent = false,
+    isLiked = false,
+    showPlaylistAction = true,
+    rank,
+  }) => {
+    const openSelector = usePlaylistStore((state) => state.openSelector);
 
-  return (
-    <div className="relative group/item" data-track-id={track.id}>
-      <button
-        onClick={onClick}
-        className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-300 group ${
-          isActive
-            ? "bg-gradient-to-r from-primary-500/20 to-primary-600/10 border border-primary-500/30"
-            : "hover:bg-dark-800/50 border border-transparent"
+    const getIcon = () => {
+      if (track.thumbnail || track.identifier) {
+        return (
+          <Image
+            source={{
+              uri:
+                track.thumbnail ||
+                `https://archive.org/services/img/${track.identifier}`,
+            }}
+            className="w-full h-full object-cover"
+          />
+        );
+      }
+
+      switch (type) {
+        case "recent":
+          return <Radio size={20} color={THEME.primary} />;
+        case "mostly":
+          return <Music size={20} color={THEME.primary} />;
+        case "liked":
+          return <Heart size={20} color={THEME.primary} fill={THEME.primary} />;
+        default:
+          return <Music size={20} color={THEME.primary} />;
+      }
+    };
+
+    return (
+      <TouchableOpacity
+        onPress={onPress}
+        activeOpacity={0.7}
+        className={`flex-row items-center p-3 mb-2 bg-surface rounded-2xl ${
+          isCurrent ? "border border-primary/30" : "border border-transparent"
         }`}
       >
-        {/* Track Number / Playing Indicator */}
-        <div
-          className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold ${
-            isActive
-              ? "bg-primary-500 text-white"
-              : "bg-dark-800 text-dark-400 group-hover:text-primary-400"
-          }`}
-        >
-          {isActive && isPlaying ? (
-            <Icon icon="solar:play-bold" className="w-4 h-4 animate-pulse" />
-          ) : (
-            <span>{index + 1}</span>
-          )}
-        </div>
-
-        {/* Track Info */}
-        <div className="flex-1 text-left min-w-0">
-          <p
-            className={`text-sm font-medium truncate ${
-              isActive
-                ? "text-primary-300"
-                : "text-dark-200 group-hover:text-white"
-            }`}
-          >
-            {track.name}
-          </p>
-        </div>
-
-        {/* Add to Playlist Toggle */}
-        {onAddToPlaylist && playlists.length > 0 && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setShowMenu(!showMenu);
-            }}
-            className="p-2 rounded-lg bg-dark-900/50 text-dark-500 hover:text-primary-400 opacity-0 group-hover:opacity-100 transition-all active:scale-90"
-          >
-            <Icon icon="solar:add-circle-bold" className="w-5 h-5" />
-          </button>
+        {rank !== undefined && (
+          <Text className="text-white/20 font-bold w-10 text-center mr-2 text-sm">
+            {rank.toString().padStart(2, "0")}
+          </Text>
         )}
+        <View className="w-12 h-12 rounded-xl bg-surface-light items-center justify-center mr-4 overflow-hidden">
+          {getIcon()}
+        </View>
 
-        {/* 3D Icon */}
-        <Icon
-          icon={
-            isActive ? "solar:music-note-2-bold-duotone" : "solar:music-note-bold"
-          }
-          className={`w-5 h-5 flex-shrink-0 ${
-            isActive
-              ? "text-primary-400"
-              : "text-dark-600 group-hover:text-dark-400"
-          }`}
-        />
-      </button>
+        <View className="flex-1">
+          <View className="flex-row items-center">
+            <Text
+              className={`font-semibold text-sm mr-2 ${
+                isCurrent ? "text-primary" : "text-white"
+              }`}
+              numberOfLines={1}
+            >
+              {track.title}
+            </Text>
+            {isCurrent && <Zap size={12} color={THEME.primary} />}
+          </View>
+          <Text className="text-white/40 text-xs" numberOfLines={1}>
+            {track.creator}
+          </Text>
+        </View>
 
-      {/* Mini Playlist Selection Menu */}
-      {showMenu && (
-        <>
-          <div 
-            className="fixed inset-0 z-20" 
-            onClick={() => setShowMenu(false)} 
-          />
-          <div className="absolute right-12 top-0 z-30 w-40 bg-dark-900 border border-dark-700 rounded-xl shadow-2xl overflow-hidden py-1 animate-in fade-in zoom-in-95 duration-200">
-            <div className="px-3 py-1.5 text-[10px] font-bold text-dark-500 uppercase tracking-wider border-b border-dark-800">
-              Add to Playlist
-            </div>
-            <div className="max-h-32 overflow-y-auto custom-scrollbar">
-              {playlists.map((p) => (
-                <button
-                  key={p.id}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onAddToPlaylist?.(p.id, track);
-                    setShowMenu(false);
-                  }}
-                  className="w-full text-left px-3 py-2 text-xs text-dark-200 hover:bg-primary-500 hover:text-white transition-colors"
-                >
-                  {p.name}
-                </button>
-              ))}
-            </div>
-          </div>
-        </>
-      )}
-    </div>
-  );
-};
+        <View className="flex-row items-center gap-x-2">
+          {playCount !== undefined && (
+            <View className="bg-primary/10 px-2 py-1 rounded-lg mr-1">
+              <Text className="text-primary text-[10px] font-bold">
+                {playCount}x
+              </Text>
+            </View>
+          )}
 
-export default TrackItem;
+          {showPlaylistAction && (
+            <TouchableOpacity
+              onPress={(e) => {
+                e.stopPropagation();
+                openSelector(track);
+              }}
+              className="p-2"
+            >
+              <Plus size={18} color={THEME.white} opacity={0.6} />
+            </TouchableOpacity>
+          )}
+
+          {onRemove && (
+            <TouchableOpacity
+              onPress={(e) => {
+                e.stopPropagation();
+                onRemove();
+              }}
+              className="p-2"
+            >
+              <Trash2 size={18} color={THEME.error} opacity={0.6} />
+            </TouchableOpacity>
+          )}
+
+          {isLiked && !isCurrent && !onRemove && (
+            <Heart size={16} color={THEME.primary} fill={THEME.primary} />
+          )}
+        </View>
+      </TouchableOpacity>
+    );
+  },
+);
+
+TrackItem.displayName = "TrackItem";
+
+export { TrackItem };

@@ -1,0 +1,9 @@
+{
+  "platforms": ["apple", "android", "web"],
+  "apple": {
+    "modules": ["ExpoAudioControlsModule"]
+  },
+  "android": {
+    "modules": ["expo.modules.audiocontrols.ExpoAudioControlsModule"]
+  }
+}

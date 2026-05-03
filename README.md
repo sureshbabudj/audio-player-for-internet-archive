@@ -1,128 +1,56 @@
-# 🎵 Audio Player for Internet Archive
+# Welcome to your Expo app 👋
 
-[![GitHub Stars](https://img.shields.io/github/stars/sureshbabudj/audio-player-for-internet-archive?style=for-the-badge&color=e94560)](https://github.com/sureshbabudj/audio-player-for-internet-archive/stargazers)
-[![GitHub Issues](https://img.shields.io/github/issues/sureshbabudj/audio-player-for-internet-archive?style=for-the-badge&color=e94560)](https://github.com/sureshbabudj/audio-player-for-internet-archive/issues)
-[![GitHub License](https://img.shields.io/github/license/sureshbabudj/audio-player-for-internet-archive?style=for-the-badge&color=e94560)](https://github.com/sureshbabudj/audio-player-for-internet-archive/blob/master/LICENSE)
+This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
 
-A premium, high-fidelity music player extension designed for seamless streaming from Archive.org. Built with a focus on visual excellence, persistent playback, and advanced metadata management.
+## Get started
 
-## ✨ Key Functionalities
+1. Install dependencies
 
-### 🎧 Persistent Background Playback
+   ```bash
+   npm install
+   ```
 
-- **Non-Stop Music**: Audio continues playing in a dedicated background service worker even after you close the popup.
-- **Smart Session Recovery**: Automatically restores your exact state—including the active track, queue, and playback timestamp—the moment you reopen the player.
-- **Initialization Guard**: Prevents race conditions during startup to ensure your saved queue is never lost.
+2. Start the app
 
-### 📂 Advanced Playlist Management
+   ```bash
+   npx expo start
+   ```
 
-- **Featured Collections**: Access a curated list of high-quality default playlists.
-- **Custom Imports**: Add any Archive.org collection by simply pasting the URL or item identifier.
-- **User Collections**: Create and manage your own custom playlists locally.
-- **Backup & Restore**: Export your entire library of playlists as a single JSON file and restore it on any device.
+In the output, you'll find options to open the app in a
 
-### 📑 Smart Metadata & UI
+- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
+- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
+- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
+- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
 
-- **Embedded Tag Extraction**: Automatically extracts **Artist**, **Album**, and **Title** metadata from Archive.org's internal file parsing.
-- **Dynamic Artwork**: Fetches high-resolution collection imagery for every track.
-- **Intelligent Queue**: The playlist automatically scrolls to keep the currently playing song centered in view upon opening the tab.
-- **Visual Feedback**: Integrated real-time visualizer bars that respond to playback.
+You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
 
-### 🎨 Visual Excellence & UX
+## Get a fresh project
 
-- **Glassmorphism Design**: A sleek, modern interface with backdrop blurs and subtle borders.
-- **3D Animations**: Dynamic 3D-transformed album art and smooth interface transitions.
-- **Multi-Tab Navigation**: Intuitive horizontal-scrolling navigation for Browse, Library, Settings, and Help.
-- **Responsive Controls**: Full support for Shuffle, Repeat modes (All/One), Volume management, and precise seeking.
-
-### 🖥️ Technical Features
-
-- **Cross-Browser Support**: Optimized for Chrome (Manifest V3) and Firefox (Manifest V2).
-- **High Performance**: Minimal memory footprint using Vite-optimized builds and efficient React state synchronization.
-- **No Placeholders**: Real images and dynamic data used throughout for a premium feel.
-
-## 🚀 Getting Started
-
-### Prerequisites
-
-- Node.js 18+
-- pnpm
-
-### Installation
+When you're ready, run:
 
 ```bash
-# Clone the repository
-git clone https://github.com/sureshbabudj/audio-player-for-internet-archive.git
-cd audio-player-for-internet-archive
-
-# Install dependencies
-pnpm install
-
-# Build the extension
-pnpm run build
-
-# Build the PWA
-pnpm run build:pwa
-
-# Build GitHub Pages bundle
-pnpm run build:pages
-
-# Build all release artifacts in one command
-pnpm run build:release
+npm run reset-project
 ```
 
-### Run Targets
+This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
 
-```bash
-# Browser extension (Chrome MV3 default)
-pnpm run dev
+### Other setup steps
 
-# Browser extension (Firefox MV2)
-pnpm run dev:firefox
+- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
+- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
+- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
 
-# PWA web app
-pnpm run dev:pwa
+## Learn more
 
-# Preview GitHub Pages build locally
-pnpm run preview:pages
-```
+To learn more about developing your project with Expo, look at the following resources:
 
-### Release Output
+- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
+- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
 
-Running `pnpm run build:release` creates a `release/` folder with:
+## Join the community
 
-- `release/extension-chrome`
-- `release/extension-firefox`
-- `release/pwa`
-- `release/pages`
+Join our community of developers creating universal apps.
 
-### GitHub Pages Deployment
-
-GitHub Actions workflow is included at `.github/workflows/deploy-pages.yml`.
-
-1. Open your GitHub repository settings.
-2. Go to **Pages**.
-3. Set **Source** to **GitHub Actions**.
-4. Push to `main` or `master`.
-5. The workflow builds `dist-pages` and deploys automatically.
-
-The GitHub Actions workflow sets the correct Pages base path automatically from the repository name, so forks do not need manual script edits.
-
-### Load into Browser
-
-1. Open `chrome://extensions/`
-2. Enable **Developer mode** (top-right)
-3. Click **Load unpacked**
-4. Select the `dist/` folder from the project directory
-
-## 🛠️ Built With
-
-- **Framework**: React 18 + TypeScript
-- **Styling**: Vanilla CSS + Tailwind Utility Classes
-- **Icons**: Iconify Solar Collection
-- **Build Tool**: Vite 5
-- **Streaming**: Archive.org Metadata API
-
----
-
-**Enjoy a premium music experience powered by the world's largest open-source library.** 🎶
+- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
+- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.

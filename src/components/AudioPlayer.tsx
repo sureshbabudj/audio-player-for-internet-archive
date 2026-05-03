@@ -1,499 +1,354 @@
-import React, { useState } from "react";
-import { Track, Playlist } from "../types";
-import NowPlaying from "./NowPlaying";
-import PlayerControls from "./PlayerControls";
-import TrackList from "./TrackList";
-import PlaylistManager from "./PlaylistManager";
-import { Icon } from "@iconify/react";
-import { usePlaylists } from "../hooks/usePlaylists";
+import { TrackItem } from "@/components/TrackItem";
+import { THEME } from "@/constants/colors";
+import { useLibraryStore } from "@/store/useLibraryStore";
+import { usePlayerStore } from "@/store/usePlayerStore";
+import { formatTime } from "@/utils/time";
+import Slider from "@react-native-community/slider";
+import { useRouter } from "expo-router";
+import {
+  ChevronDown,
+  Heart,
+  ListMusic,
+  Moon,
+  Pause,
+  Play,
+  Repeat,
+  Repeat1,
+  Shuffle,
+  SkipBack,
+  SkipForward,
+  Zap,
+} from "lucide-react-native";
+import React from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Image,
+  Platform,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { WaveAnimation } from "./WaveAnimation";
 
-const PLAYER_UI_STORAGE_KEY = "audioPlayerWebUiState";
+export function AudioPlayer() {
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
 
-interface AudioPlayerProps {
-  tracks: Track[];
-  currentTrack: Track | null;
-  isPlaying: boolean;
-  currentTime: number;
-  duration: number;
-  volume: number;
-  isMuted: boolean;
-  shuffleMode: boolean;
-  repeatMode: "off" | "all" | "one";
-  tracksList: Track[];
-  onTrackSelect: (track: Track) => void;
-  onPlayTracks: (tracks: Track[], startTrack: Track) => void;
-  onTogglePlay: () => void;
-  onPrevious: () => void;
-  onNext: () => void;
-  onSeek: (time: number) => void;
-  onVolumeChange: (volume: number) => void;
-  onToggleMute: () => void;
-  onToggleShuffle: () => void;
-  onToggleRepeat: () => void;
-}
+  const currentTrack = usePlayerStore((state) => state.currentTrack);
+  const queue = usePlayerStore((state) => state.queue);
+  const queueTitle = usePlayerStore((state) => state.queueTitle);
+  const currentIndex = usePlayerStore((state) => state.currentIndex);
+  const isPlaying = usePlayerStore((state) => state.isPlaying);
+  const isBuffering = usePlayerStore((state) => state.isBuffering);
+  const position = usePlayerStore((state) => state.position);
+  const duration = usePlayerStore((state) => state.duration);
+  const repeatMode = usePlayerStore((state) => state.repeatMode);
+  const isShuffled = usePlayerStore((state) => state.isShuffled);
+  const sleepTimer = usePlayerStore((state) => state.sleepTimer);
 
-const AudioPlayer: React.FC<AudioPlayerProps> = ({
-  tracks: initialTracks,
-  currentTrack,
-  isPlaying,
-  currentTime,
-  duration,
-  volume,
-  isMuted,
-  shuffleMode,
-  repeatMode,
-  tracksList,
-  onTrackSelect,
-  onPlayTracks,
-  onTogglePlay,
-  onPrevious,
-  onNext,
-  onSeek,
-  onVolumeChange,
-  onToggleMute,
-  onToggleShuffle,
-  onToggleRepeat,
-}) => {
-  const isExtensionRuntime =
-    typeof globalThis !== "undefined" &&
-    !!(globalThis as any).chrome?.runtime?.id;
-  const [isPlaylistOpen, setIsPlaylistOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<
-    "browse" | "library" | "settings" | "help"
-  >("browse");
-  const [selectedPlaylist, setSelectedPlaylist] = useState<Playlist | null>(
+  const togglePlayPause = usePlayerStore((state) => state.togglePlayPause);
+  const skipNext = usePlayerStore((state) => state.skipNext);
+  const skipPrevious = usePlayerStore((state) => state.skipPrevious);
+  const seekTo = usePlayerStore((state) => state.seekTo);
+  const setRepeatMode = usePlayerStore((state) => state.setRepeatMode);
+  const toggleShuffle = usePlayerStore((state) => state.toggleShuffle);
+  const playFromQueue = usePlayerStore((state) => state.playFromQueue);
+  const setSleepTimer = usePlayerStore((state) => state.setSleepTimer);
+
+  const liked = useLibraryStore((state) =>
+    currentTrack ? state.likedTrackIds.includes(currentTrack.id) : false,
+  );
+  const { toggleLike } = useLibraryStore();
+
+  const [slidingPosition, setSlidingPosition] = React.useState<number | null>(
     null,
   );
-
-  const {
-    playlists,
-    createPlaylist,
-    deletePlaylist,
-    addTrackToPlaylist,
-    importFromArchive,
-    exportAll,
-    importAll,
-  } = usePlaylists();
+  const [showQueue, setShowQueue] = React.useState(false);
+  const flatListRef = React.useRef<FlatList>(null);
 
   React.useEffect(() => {
-    if (isExtensionRuntime) return;
-
-    try {
-      const raw = localStorage.getItem(PLAYER_UI_STORAGE_KEY);
-      if (!raw) return;
-
-      const parsed = JSON.parse(raw) as {
-        activeTab?: "browse" | "library" | "settings" | "help";
-        selectedPlaylistId?: string | null;
-      };
-
-      if (parsed.activeTab) {
-        setActiveTab(parsed.activeTab);
-      }
-
-      if (parsed.selectedPlaylistId && playlists.length > 0) {
-        const restoredPlaylist = playlists.find(
-          (playlist) => playlist.id === parsed.selectedPlaylistId,
-        );
-        if (restoredPlaylist) {
-          setSelectedPlaylist(restoredPlaylist);
-          setIsPlaylistOpen(true);
+    if (showQueue && flatListRef.current && queue.length > currentIndex) {
+      setTimeout(() => {
+        try {
+          flatListRef.current?.scrollToIndex({
+            index: currentIndex,
+            animated: true,
+            viewPosition: 0.5,
+          });
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        } catch (e) {
+          // Ignore scroll errors if item is not yet rendered
         }
-      }
-    } catch {
-      // Ignore malformed persisted UI state.
+      }, 100);
     }
-  }, [isExtensionRuntime, playlists]);
+  }, [showQueue, currentIndex, queue.length]);
 
-  React.useEffect(() => {
-    if (isExtensionRuntime) return;
+  if (!currentTrack) return null;
 
-    try {
-      localStorage.setItem(
-        PLAYER_UI_STORAGE_KEY,
-        JSON.stringify({
-          activeTab,
-          selectedPlaylistId: selectedPlaylist?.id ?? null,
-        }),
-      );
-    } catch {
-      // Ignore local storage write failures.
-    }
-  }, [activeTab, isExtensionRuntime, selectedPlaylist?.id]);
+  const handleToggleLike = () => {
+    toggleLike(currentTrack);
+  };
 
-  // For the 'Browse' tab, we want to show the current active tracks list from background
-  // but since we get 'tracks' as a prop (which is initialTracks), we use that for now.
-  // Ideally, the background would broadcast its full list.
+  const handleSleepTimerPress = () => {
+    Alert.alert(
+      "Sleep Timer",
+      sleepTimer
+        ? `Timer active: ${sleepTimer} minutes remaining.`
+        : "Select duration:",
+      [
+        {
+          text: "Off",
+          onPress: () => setSleepTimer(null),
+          style: "destructive",
+        },
+        { text: "1 Minutes", onPress: () => setSleepTimer(1) },
+        { text: "15 Minutes", onPress: () => setSleepTimer(15) },
+        { text: "30 Minutes", onPress: () => setSleepTimer(30) },
+        { text: "45 Minutes", onPress: () => setSleepTimer(45) },
+        { text: "60 Minutes", onPress: () => setSleepTimer(60) },
+        { text: "Cancel", style: "cancel" },
+      ],
+    );
+  };
+
+  const displayPosition = slidingPosition !== null ? slidingPosition : position;
+
+  const content = (
+    <View
+      className="flex-1 bg-darker md:pt-0 md:w-[500px] md:h-[90%] md:rounded-[48px] md:border md:border-white/5 md:shadow-2xl md:overflow-hidden"
+      style={{
+        paddingTop: Platform.OS === "web" ? 0 : Math.max(insets.top, 20),
+      }}
+    >
+      {/* Header */}
+      <View className="flex-row items-center justify-between px-6 py-6">
+        <TouchableOpacity onPress={() => router.back()}>
+          <ChevronDown size={28} color={THEME.white} />
+        </TouchableOpacity>
+        <View className="items-center">
+          <Text className="text-white/40 text-[10px] font-bold uppercase tracking-widest mb-0.5">
+            Playing From
+          </Text>
+          <Text
+            className="font-display text-base text-primary"
+            numberOfLines={1}
+          >
+            {queueTitle || "Now Playing"}
+          </Text>
+        </View>
+        <View className="flex-row items-center">
+          <TouchableOpacity onPress={handleSleepTimerPress} className="mr-4">
+            <View>
+              <Moon
+                size={22}
+                color={sleepTimer ? THEME.primary : THEME.white}
+                opacity={sleepTimer ? 1 : 0.6}
+              />
+              {sleepTimer && (
+                <View className="absolute -top-1.5 -right-1.5 bg-primary rounded-full w-4 h-4 items-center justify-center">
+                  <Text className="text-[8px] text-darker font-bold">
+                    {sleepTimer}
+                  </Text>
+                </View>
+              )}
+            </View>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => setShowQueue(!showQueue)}>
+            <ListMusic
+              size={24}
+              color={showQueue ? THEME.primary : THEME.white}
+            />
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {!showQueue ? (
+        <View className="flex-1">
+          {/* Album Art Section */}
+          <View className="flex-1 items-center justify-center mt-4">
+            <View className="w-[75%] aspect-square md:w-[380px] md:h-[380px] rounded-[48px] overflow-hidden shadow-2xl shadow-black/80 border border-white/10 bg-surface-light mb-8">
+              <Image
+                source={{
+                  uri:
+                    currentTrack.thumbnail ||
+                    `https://archive.org/services/img/${currentTrack.identifier}`,
+                }}
+                className="w-full h-full object-cover"
+              />
+              {isBuffering && (
+                <View className="absolute inset-0 items-center justify-center bg-black/40">
+                  <Zap size={48} color={THEME.primary} />
+                </View>
+              )}
+            </View>
+
+            {/* Visualizer */}
+            <View className="h-[72px] items-center justify-center">
+              {isPlaying && <WaveAnimation size="large" height={72} />}
+            </View>
+          </View>
+
+          {/* Track Info & Like */}
+          <View className="px-8 mb-6 flex-row items-center justify-between">
+            <View className="flex-1 mr-4">
+              <Text
+                className="text-white font-display text-2xl mb-1"
+                numberOfLines={1}
+              >
+                {currentTrack.title}
+              </Text>
+              <Text
+                className="text-white/50 font-body text-lg"
+                numberOfLines={1}
+              >
+                {currentTrack.creator || "Unknown Artist"}
+              </Text>
+            </View>
+            <TouchableOpacity onPress={handleToggleLike}>
+              <Heart
+                size={28}
+                color={liked ? THEME.primary : THEME.white}
+                fill={liked ? THEME.primary : "none"}
+                opacity={liked ? 1 : 0.6}
+              />
+            </TouchableOpacity>
+          </View>
+
+          {/* Progress Bar */}
+          <View className="px-8 mb-4">
+            <Slider
+              value={displayPosition}
+              minimumValue={0}
+              maximumValue={duration || 1}
+              minimumTrackTintColor={THEME.primary}
+              maximumTrackTintColor="rgba(255,255,255,0.1)"
+              thumbTintColor={THEME.white}
+              onValueChange={(value) => setSlidingPosition(value)}
+              onSlidingComplete={async (value) => {
+                await seekTo(value);
+                // Slight delay before clearing sliding position to mask native seek latency
+                setTimeout(() => setSlidingPosition(null), 100);
+              }}
+              style={{ height: 40, marginHorizontal: -10 }}
+            />
+            <View className="flex-row justify-between mt-1">
+              <Text className="text-white/40 font-body text-[10px] font-medium">
+                {formatTime(displayPosition)}
+              </Text>
+              <Text className="text-white/40 font-body text-[10px] font-medium">
+                {formatTime(duration)}
+              </Text>
+            </View>
+          </View>
+
+          {/* Main Controls */}
+          <View className="flex-row items-center justify-between px-10 mb-8">
+            <TouchableOpacity onPress={toggleShuffle}>
+              <Shuffle
+                size={22}
+                color={isShuffled ? THEME.primary : THEME.white}
+                opacity={isShuffled ? 1 : 0.6}
+              />
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={skipPrevious}>
+              <SkipBack size={32} color={THEME.white} fill={THEME.white} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={togglePlayPause}
+              className="w-20 h-20 rounded-full bg-white items-center justify-center shadow-lg shadow-white/20"
+            >
+              {isBuffering ? (
+                <ActivityIndicator size="large" color={THEME.darker} />
+              ) : isPlaying ? (
+                <Pause size={36} color={THEME.darker} fill={THEME.darker} />
+              ) : (
+                <Play
+                  size={36}
+                  color={THEME.darker}
+                  fill={THEME.darker}
+                  style={{ marginLeft: 4 }}
+                />
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={skipNext}>
+              <SkipForward size={32} color={THEME.white} fill={THEME.white} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() =>
+                setRepeatMode(
+                  repeatMode === "off"
+                    ? "all"
+                    : repeatMode === "all"
+                      ? "one"
+                      : "off",
+                )
+              }
+            >
+              {repeatMode === "one" ? (
+                <Repeat1 size={22} color={THEME.primary} opacity={1} />
+              ) : (
+                <Repeat
+                  size={22}
+                  color={repeatMode !== "off" ? THEME.primary : THEME.white}
+                  opacity={repeatMode !== "off" ? 1 : 0.6}
+                />
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      ) : (
+        <View className="flex-1 px-6">
+          <Text className="text-white font-display text-xl mb-4">Up Next</Text>
+          <FlatList
+            ref={flatListRef}
+            data={queue}
+            keyExtractor={(item, index) => `${item.id}-${index}`}
+            getItemLayout={(data, index) => ({
+              length: 80, // 72px item + 8px margin
+              offset: 80 * index,
+              index,
+            })}
+            initialScrollIndex={queue.length > currentIndex ? currentIndex : 0}
+            onScrollToIndexFailed={(info) => {
+              const wait = new Promise((resolve) => setTimeout(resolve, 100));
+              wait.then(() => {
+                flatListRef.current?.scrollToIndex({
+                  index: info.index,
+                  animated: true,
+                  viewPosition: 0.5,
+                });
+              });
+            }}
+            renderItem={({ item, index }) => (
+              <TrackItem
+                track={item}
+                type="playlist"
+                isCurrent={index === currentIndex}
+                onPress={() => playFromQueue(index)}
+              />
+            )}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingBottom: 150 }}
+            removeClippedSubviews={true}
+            initialNumToRender={10}
+            maxToRenderPerBatch={10}
+            windowSize={5}
+          />
+        </View>
+      )}
+    </View>
+  );
 
   return (
-    <div className="flex flex-col h-full relative overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4 pb-4 border-b border-dark-800">
-        <div className="flex items-center gap-3">
-          <div className="rounded-full bg-primary-500 flex items-center justify-center shadow-lg shadow-primary-500/20">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 500 500"
-              className="w-10 h-10 text-primary-100"
-            >
-              <path
-                fill="currentColor"
-                d="M 495.36 250 C 495.36 385.509 385.509 495.36 250 495.36 C 114.491 495.36 4.64 385.509 4.64 250 C 4.64 114.491 114.491 4.64 250 4.64 C 385.509 4.64 495.36 114.491 495.36 250 Z M 377.807 174.915 L 377.807 325.084 C 377.809 343.088 377.809 359.251 376.96 373.245 C 376.662 378.186 376.257 382.855 375.707 387.241 C 375.462 389.21 375.182 391.17 374.861 393.12 C 374.209 397.08 377.27 400.814 381.267 400.462 C 389.163 399.769 396.292 398.291 402.951 394.644 C 413.371 388.936 421.844 379.827 427.155 368.625 C 430.547 361.466 431.923 353.801 432.568 345.316 C 433.191 337.116 433.191 327.028 433.191 314.694 L 433.191 185.308 C 433.191 172.973 433.191 162.883 432.568 154.685 C 431.923 146.198 430.547 138.533 427.155 131.375 C 421.844 120.173 413.371 111.065 402.951 105.357 C 396.292 101.71 389.163 100.231 381.267 99.537 C 377.27 99.186 374.209 102.921 374.861 106.88 C 375.182 108.829 375.462 110.79 375.707 112.759 C 376.257 117.145 376.662 121.815 376.96 126.755 C 377.809 140.749 377.809 156.911 377.807 174.915 Z M 123.039 126.755 C 123.338 121.815 123.744 117.145 124.292 112.759 C 124.539 110.79 124.819 108.829 125.139 106.88 C 125.791 102.921 122.73 99.186 118.732 99.537 C 110.838 100.231 103.708 101.71 97.049 105.357 C 86.628 111.065 78.156 120.173 72.846 131.375 C 69.453 138.533 68.077 146.198 67.432 154.685 C 66.809 162.884 66.809 172.972 66.809 185.308 L 66.809 314.692 C 66.809 327.028 66.809 337.116 67.432 345.316 C 68.077 353.801 69.453 361.466 72.846 368.625 C 78.156 379.827 86.628 388.936 97.049 394.644 C 103.708 398.291 110.838 399.769 118.732 400.462 C 122.73 400.814 125.791 397.08 125.139 393.12 C 124.819 391.17 124.539 389.21 124.292 387.241 C 123.744 382.855 123.338 378.186 123.039 373.245 C 122.191 359.251 122.191 343.088 122.192 325.084 L 122.192 174.915 C 122.191 156.911 122.191 140.749 123.039 126.755 Z M 147.754 323.276 C 147.754 375.09 147.754 400.997 162.728 417.094 C 177.701 433.191 201.801 433.191 250 433.191 C 298.199 433.191 322.298 433.191 337.272 417.094 C 352.246 400.997 352.246 375.09 352.246 323.276 L 352.246 176.724 C 352.246 124.909 352.246 99.002 337.272 82.906 C 322.298 66.809 298.199 66.809 250 66.809 C 201.801 66.809 177.701 66.809 162.728 82.906 C 147.754 99.002 147.754 124.909 147.754 176.724 Z M 304.957 199.623 C 312.545 199.623 318.697 205.774 318.697 213.362 C 318.697 220.95 312.545 227.101 304.957 227.101 C 296.712 227.101 288.928 225.121 282.058 221.607 L 282.058 286.638 C 282.058 314.461 259.504 337.016 231.681 337.016 C 203.858 337.016 181.303 314.461 181.303 286.638 C 181.303 258.815 203.858 236.261 231.681 236.261 C 239.926 236.261 247.71 238.241 254.58 241.755 L 254.58 176.724 C 254.58 169.136 260.731 162.984 268.319 162.984 C 275.907 162.984 282.058 169.136 282.058 176.724 C 282.058 189.37 292.31 199.623 304.957 199.623 Z M 208.782 286.638 C 208.782 299.286 219.033 309.537 231.681 309.537 C 244.328 309.537 254.58 299.286 254.58 286.638 C 254.58 273.991 244.328 263.739 231.681 263.739 C 219.033 263.739 208.782 273.991 208.782 286.638 Z"
-              ></path>
-            </svg>
-          </div>
-          <div>
-            <h1 className="text-white font-bold text-lg leading-tight">
-              Audio Player
-            </h1>
-            <p className="text-dark-500 text-xs">for Internet Archive</p>
-          </div>
-        </div>
-
-        <button
-          onClick={() => {
-            setIsPlaylistOpen(!isPlaylistOpen);
-            if (!isPlaylistOpen) setSelectedPlaylist(null);
-          }}
-          className={`p-2 rounded-lg transition-all duration-300 ${
-            isPlaylistOpen
-              ? "bg-primary-500 text-white rotate-90"
-              : "text-dark-500 hover:text-white"
-          }`}
-        >
-          <Icon
-            icon={
-              isPlaylistOpen
-                ? "solar:close-circle-bold"
-                : "solar:hamburger-menu-bold"
-            }
-            className="w-6 h-6"
-          />
-        </button>
-      </div>
-
-      <div className="relative flex-1 flex flex-col min-h-0">
-        {/* Main Player Content */}
-        <div
-          className={`flex-1 flex flex-col transition-all duration-500 ${isPlaylistOpen ? "opacity-0 scale-95 pointer-events-none" : "opacity-100 scale-100"}`}
-        >
-          <NowPlaying track={currentTrack} isPlaying={isPlaying} />
-
-          <div className="mt-auto mb-4">
-            <PlayerControls
-              isPlaying={isPlaying}
-              onTogglePlay={onTogglePlay}
-              onPrevious={onPrevious}
-              onNext={onNext}
-              currentTime={currentTime}
-              duration={duration}
-              onSeek={onSeek}
-              volume={volume}
-              onVolumeChange={onVolumeChange}
-              shuffleMode={shuffleMode}
-              onToggleShuffle={onToggleShuffle}
-              repeatMode={repeatMode}
-              onToggleRepeat={onToggleRepeat}
-              isMuted={isMuted}
-              onToggleMute={onToggleMute}
-            />
-          </div>
-        </div>
-
-        {/* Navigation Overlay */}
-        <div
-          className={`absolute inset-0 z-10 bg-dark-950/90 backdrop-blur-xl transition-all duration-500 flex flex-col rounded-2xl ${
-            isPlaylistOpen
-              ? "translate-y-0 opacity-100"
-              : "translate-y-full opacity-0"
-          }`}
-        >
-          {/* Horizontal Scroll Tabs */}
-          <div className="flex overflow-x-auto no-scrollbar bg-dark-900/50 p-1.5 rounded-2xl mb-4 mx-2 border border-dark-800">
-            {[
-              { id: "browse", icon: "solar:play-circle-bold", label: "Queue" },
-              {
-                id: "library",
-                icon: "solar:music-library-bold",
-                label: "Library",
-              },
-              {
-                id: "settings",
-                icon: "solar:settings-bold",
-                label: "Settings",
-              },
-              { id: "help", icon: "solar:help-bold", label: "Help" },
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => {
-                  setActiveTab(tab.id as any);
-                  setSelectedPlaylist(null);
-                }}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
-                  activeTab === tab.id
-                    ? "bg-primary-500 text-white shadow-lg"
-                    : "text-dark-400 hover:text-white"
-                }`}
-              >
-                <Icon icon={tab.icon} className="w-4 h-4" />
-                {tab.label}
-              </button>
-            ))}
-          </div>
-
-          <div className="flex-1 flex flex-col min-h-0 overflow-hidden px-2 pb-2">
-            {activeTab === "browse" ? (
-              <div className="flex flex-col h-full overflow-hidden">
-                <div className="flex items-center gap-2 mb-3 px-1 text-dark-500">
-                  <Icon
-                    icon="solar:playlist-minimalistic-bold"
-                    className="w-4 h-4"
-                  />
-                  <span className="text-[10px] uppercase font-bold tracking-widest">
-                    Now Playing Queue
-                  </span>
-                </div>
-                <TrackList
-                  tracks={tracksList.length > 0 ? tracksList : initialTracks}
-                  currentTrack={currentTrack}
-                  isPlaying={isPlaying}
-                  playlists={playlists}
-                  onAddToPlaylist={addTrackToPlaylist}
-                  onTrackSelect={(track) => {
-                    const activeList =
-                      tracksList.length > 0 ? tracksList : initialTracks;
-                    onPlayTracks(activeList, track);
-                    setIsPlaylistOpen(false);
-                  }}
-                  shouldScroll={true}
-                />
-              </div>
-            ) : activeTab === "library" ? (
-              selectedPlaylist ? (
-                <div className="flex flex-col h-full overflow-hidden">
-                  <div className="flex items-center gap-2 mb-3 px-1">
-                    <button
-                      onClick={() => setSelectedPlaylist(null)}
-                      className="p-1 text-dark-500 hover:text-primary-400 transition-colors"
-                    >
-                      <Icon
-                        icon="solar:alt-arrow-left-bold"
-                        className="w-5 h-5"
-                      />
-                    </button>
-                    <h4 className="text-white font-bold truncate flex-1">
-                      {selectedPlaylist.name}
-                    </h4>
-                  </div>
-                  <TrackList
-                    tracks={selectedPlaylist.tracks}
-                    currentTrack={currentTrack}
-                    isPlaying={isPlaying}
-                    onTrackSelect={(track) => {
-                      setActiveTab("library");
-                      onPlayTracks(selectedPlaylist.tracks, track);
-                      setIsPlaylistOpen(false);
-                    }}
-                  />
-                </div>
-              ) : (
-                <PlaylistManager
-                  playlists={playlists}
-                  onCreate={createPlaylist}
-                  onDelete={deletePlaylist}
-                  onImportFromArchive={importFromArchive}
-                  onSelect={setSelectedPlaylist}
-                  onPlayPlaylist={(p) => {
-                    if (p.tracks.length > 0) {
-                      setActiveTab("library");
-                      setSelectedPlaylist(p);
-                      onPlayTracks(p.tracks, p.tracks[0]);
-                      setIsPlaylistOpen(false);
-                    }
-                  }}
-                />
-              )
-            ) : activeTab === "settings" ? (
-              <div className="flex-1 overflow-y-auto custom-scrollbar space-y-6 px-1 pt-2 pb-4">
-                <section>
-                  <h3 className="text-[10px] font-bold text-dark-500 uppercase tracking-widest mb-4">
-                    Backup & Restore
-                  </h3>
-                  <div className="grid grid-cols-1 gap-3">
-                    <button
-                      onClick={exportAll}
-                      className="flex items-center justify-between p-4 rounded-2xl bg-dark-900/50 border border-dark-800 hover:border-primary-500/50 transition-all group"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-primary-500/10 flex items-center justify-center text-primary-500 group-hover:bg-primary-500 group-hover:text-white transition-all">
-                          <Icon
-                            icon="solar:download-square-bold"
-                            className="w-6 h-6"
-                          />
-                        </div>
-                        <div className="text-left">
-                          <h4 className="text-white text-sm font-bold">
-                            Export Data
-                          </h4>
-                          <p className="text-dark-500 text-[10px]">
-                            Download your playlists as JSON
-                          </p>
-                        </div>
-                      </div>
-                      <Icon
-                        icon="solar:alt-arrow-right-bold"
-                        className="w-4 h-4 text-dark-600"
-                      />
-                    </button>
-
-                    <label className="flex items-center justify-between p-4 rounded-2xl bg-dark-900/50 border border-dark-800 hover:border-primary-500/50 transition-all group cursor-pointer">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-primary-500/10 flex items-center justify-center text-primary-500 group-hover:bg-primary-500 group-hover:text-white transition-all">
-                          <Icon
-                            icon="solar:upload-square-bold"
-                            className="w-6 h-6"
-                          />
-                        </div>
-                        <div className="text-left">
-                          <h4 className="text-white text-sm font-bold">
-                            Import Data
-                          </h4>
-                          <p className="text-dark-500 text-[10px]">
-                            Restore from a backup file
-                          </p>
-                        </div>
-                      </div>
-                      <Icon
-                        icon="solar:alt-arrow-right-bold"
-                        className="w-4 h-4 text-dark-600"
-                      />
-                      <input
-                        type="file"
-                        accept=".json"
-                        className="hidden"
-                        onChange={(e) =>
-                          e.target.files?.[0] && importAll(e.target.files[0])
-                        }
-                      />
-                    </label>
-                  </div>
-                </section>
-
-                <section>
-                  <h3 className="text-[10px] font-bold text-dark-500 uppercase tracking-widest mb-4">
-                    About & Support
-                  </h3>
-                  <div className="p-4 rounded-2xl bg-dark-900/50 border border-dark-800 space-y-4">
-                    <p className="text-dark-400 text-xs leading-relaxed">
-                      Audio Player is a high-fidelity music player powered by
-                      Archive.org collections. Built for performance and
-                      privacy.
-                    </p>
-
-                    <div className="grid grid-cols-2 gap-2">
-                      <a
-                        href="https://github.com/sureshbabudj/audio-player-for-internet-archive"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-primary-500/10 border border-primary-500/20 text-primary-400 hover:bg-primary-500 hover:text-white transition-all text-[10px] font-bold"
-                      >
-                        <Icon icon="solar:star-bold" className="w-3.5 h-3.5" />
-                        Star on GitHub
-                      </a>
-                      <a
-                        href="https://github.com/sureshbabudj/audio-player-for-internet-archive/issues"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-dark-800 border border-dark-700 text-dark-200 hover:border-dark-500 transition-all text-[10px] font-bold"
-                      >
-                        <Icon icon="solar:bug-bold" className="w-3.5 h-3.5" />
-                        Report Issue
-                      </a>
-                    </div>
-
-                    <div className="pt-4 border-t border-dark-800 flex justify-between text-[10px] text-dark-600 font-bold">
-                      <span>Version 1.0.1</span>
-                      <span>
-                        © {new Date().getFullYear()} Audio Player for Internet
-                        Archive
-                      </span>
-                    </div>
-                  </div>
-                </section>
-              </div>
-            ) : (
-              <div className="flex-1 overflow-y-auto custom-scrollbar space-y-4 px-1 pt-2 pb-4">
-                <h3 className="text-[10px] font-bold text-dark-500 uppercase tracking-widest mb-2">
-                  How to use
-                </h3>
-                {[
-                  {
-                    q: "How do I import songs?",
-                    a: "Go to Library > My Collections and click 'Import IA'. You can paste a full Archive.org URL or just the collection ID.",
-                  },
-                  {
-                    q: "What is 'Play Now' vs 'Import'?",
-                    a: "'Play Now' streams the collection immediately without saving it. 'Import' saves it permanently to your local library.",
-                  },
-                  {
-                    q: "Does it keep playing if I close the popup?",
-                    a: "Yes! The player uses a background service worker to keep your music playing non-stop even when the window is closed.",
-                  },
-                  {
-                    q: "How do I find the currently playing song?",
-                    a: "Opening the 'Queue' tab will automatically scroll to and center the currently playing track for you.",
-                  },
-                  {
-                    q: "Where does the Artist/Album info come from?",
-                    a: "The player automatically extracts embedded ID3 tags (Artist, Album Title, Year) from the Archive.org metadata.",
-                  },
-                  {
-                    q: "How do I backup my playlists?",
-                    a: "Go to Settings and click 'Export Data'. This saves all your custom collections as a JSON file you can restore later.",
-                  },
-                  {
-                    q: "How do I use Shuffle and Repeat?",
-                    a: "Use the icons in the bottom player bar. Repeat has three modes: Off, Repeat All, and Repeat One (current track).",
-                  },
-                ].map((item, i) => (
-                  <div
-                    key={i}
-                    className="p-4 rounded-2xl bg-dark-900/50 border border-dark-800"
-                  >
-                    <h4 className="text-white text-xs font-bold mb-1">
-                      {item.q}
-                    </h4>
-                    <p className="text-dark-100 text-[10px] leading-relaxed">
-                      {item.a}
-                    </p>
-                  </div>
-                ))}
-
-                <a
-                  href="https://github.com/sureshbabudj/audio-player-for-internet-archive"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-auto p-4 rounded-2xl bg-primary-500/10 border border-primary-500/20 text-center hover:bg-primary-500/20 transition-all block group"
-                >
-                  <Icon
-                    icon="solar:heart-bold"
-                    className="w-8 h-8 text-primary-500 mx-auto mb-2 group-hover:scale-110 transition-transform"
-                  />
-                  <p className="text-primary-400 text-xs font-bold">
-                    Enjoying the player?
-                  </p>
-                  <p className="text-primary-400/60 text-[9px]">
-                    Give it a star on GitHub
-                  </p>
-                </a>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
+    <View className="flex-1 md:justify-center md:items-center md:bg-dark md:py-4">
+      {content}
+    </View>
   );
-};
-
-export default AudioPlayer;
+}

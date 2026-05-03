@@ -1,0 +1,54 @@
+import { THEME } from "@/constants/colors";
+import { usePathname, useRouter } from "expo-router";
+import {
+  ChartNoAxesCombined,
+  Home,
+  Library,
+  ListMusic,
+  Settings,
+} from "lucide-react-native";
+import React from "react";
+import { TouchableOpacity, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+export function BottomNav() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const insets = useSafeAreaInsets();
+
+  const navItems = [
+    { icon: Home, route: "/", label: "Home" },
+    { icon: Library, route: "/library", label: "Library" },
+    { icon: ListMusic, route: "/playlists", label: "Playlists" },
+    { icon: ChartNoAxesCombined, route: "/stats", label: "Stats" },
+    { icon: Settings, route: "/settings", label: "Settings" },
+  ];
+
+  return (
+    <View
+      className="absolute bottom-0 left-0 right-0 bg-dark border-t border-white/20 px-6 flex-row items-center justify-between"
+      style={{ paddingBottom: Math.max(insets.bottom, 20), paddingTop: 12 }}
+    >
+      {navItems.map((item, index) => {
+        const isActive =
+          pathname === item.route ||
+          (item.route === "/" && pathname === "/index");
+
+        return (
+          <TouchableOpacity
+            key={index}
+            onPress={() => router.replace(item.route as any)}
+            className="items-center justify-center p-2"
+          >
+            <item.icon
+              size={24}
+              color={isActive ? THEME.primary : THEME.white}
+              opacity={isActive ? 1 : 0.9}
+              strokeWidth={isActive ? 2.5 : 2}
+            />
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+}
