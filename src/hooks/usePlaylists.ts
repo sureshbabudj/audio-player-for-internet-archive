@@ -1,0 +1,131 @@
+import { useState, useEffect, useCallback } from "react";
+import { Playlist, Track } from "../types";
+import { playlistStore } from "../utils/playlistStore";
+import { fetchArchiveMetadata, convertToTracks, extractIdentifier } from "../utils/archiveOrg";
+
+export function usePlaylists() {
+  const [playlists, setPlaylists] = useState<Playlist[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await playlistStore.getPlaylists();
+      setPlaylists(data);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  const createPlaylist = async (name: string, tracks: Track[] = []) => {
+    const newPlaylist: Playlist = {
+      id: crypto.randomUUID(),
+      name,
+      tracks,
+      createdAt: Date.now(),
+    };
+    await playlistStore.savePlaylist(newPlaylist);
+    await refresh();
+    return newPlaylist;
+  };
+
+  const updatePlaylist = async (playlist: Playlist) => {
+    await playlistStore.savePlaylist(playlist);
+    await refresh();
+  };
+
+  const deletePlaylist = async (id: string) => {
+    await playlistStore.deletePlaylist(id);
+    await refresh();
+  };
+
+  const addTrackToPlaylist = async (playlistId: string, track: Track) => {
+    const playlists = await playlistStore.getPlaylists();
+    const index = playlists.findIndex((p) => p.id === playlistId);
+    if (index > -1) {
+      const playlist = playlists[index];
+      if (!playlist.tracks.some((t) => t.id === track.id)) {
+        playlist.tracks.push(track);
+        await playlistStore.savePlaylist(playlist);
+        await refresh();
+      }
+    }
+  };
+
+  const exportAll = async () => {
+    const data = await playlistStore.exportPlaylists();
+    const blob = new Blob([data], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `tamil-melody-playlists-${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const importAll = async (file: File) => {
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const json = e.target?.result as string;
+      await playlistStore.importPlaylists(json);
+      await refresh();
+    };
+    reader.readAsText(file);
+  };
+
+  const importFromArchive = async (urlOrId: string, customName?: string) => {
+    let tracks: Track[] = [];
+    let identifier = extractIdentifier(urlOrId) || urlOrId;
+    let finalName = customName || identifier;
+
+    try {
+      // Method 1: Try Metadata API (Best for structured data and official IDs)
+      const metadata = await fetchArchiveMetadata(identifier);
+      tracks = convertToTracks(metadata);
+      finalName = customName || metadata.metadata.title || identifier;
+    } catch (apiError) {
+      console.warn("Metadata API failed, trying scraper fallback...", apiError);
+      // Method 2: Try Scraper (Best for direct download URLs or if API fails)
+      try {
+        const scrapeUrl = urlOrId.startsWith("http") 
+          ? urlOrId 
+          : `https://archive.org/download/${urlOrId}`;
+        
+        const { fetchTracks } = await import("../utils/parser");
+        tracks = await fetchTracks(scrapeUrl);
+        
+        if (tracks.length === 0) throw new Error("No tracks found at this URL");
+      } catch (scrapeError) {
+        throw new Error("Could not find any audio tracks at this Archive.org location.");
+      }
+    }
+
+    const newPlaylist: Playlist = {
+      id: crypto.randomUUID(),
+      name: finalName,
+      tracks,
+      createdAt: Date.now(),
+    };
+
+    await playlistStore.savePlaylist(newPlaylist);
+    await refresh();
+    return newPlaylist;
+  };
+
+  return {
+    playlists,
+    loading,
+    createPlaylist,
+    updatePlaylist,
+    deletePlaylist,
+    addTrackToPlaylist,
+    importFromArchive,
+    exportAll,
+    importAll,
+    refresh
+  };
+}
