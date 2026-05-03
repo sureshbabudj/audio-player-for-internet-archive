@@ -20,6 +20,7 @@ import React from "react";
 import {
   Alert,
   Linking,
+  Platform,
   ScrollView,
   Text,
   TouchableOpacity,
@@ -73,6 +74,11 @@ export default function SettingsScreen() {
             label="Send Feedback"
             onPress={() => Linking.openURL("mailto:archiplay@genaul.com")}
           />
+          <SettingsItem
+            icon={ExternalLink}
+            label="Visit Website"
+            onPress={() => Linking.openURL("https://archieplay.web.app/")}
+          />
 
           <SectionHeader title="Open Source" />
           <SettingsItem
@@ -109,21 +115,31 @@ export default function SettingsScreen() {
                 };
                 const json = JSON.stringify(data, null, 2);
                 const filename = `archiplay_backup_${Date.now()}.json`;
-                const fileUri = `${FileSystem.cacheDirectory}${filename}`;
 
-                await FileSystem.writeAsStringAsync(fileUri, json);
-
-                if (await Sharing.isAvailableAsync()) {
-                  await Sharing.shareAsync(fileUri, {
-                    mimeType: "application/json",
-                    dialogTitle: "Export ArchiPlay Data",
-                    UTI: "public.json",
-                  });
+                if (Platform.OS === "web") {
+                  const blob = new Blob([json], { type: "application/json" });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement("a");
+                  a.href = url;
+                  a.download = filename;
+                  a.click();
+                  URL.revokeObjectURL(url);
                 } else {
-                  Alert.alert(
-                    "Error",
-                    "Sharing is not available on this device.",
-                  );
+                  const fileUri = `${FileSystem.cacheDirectory}${filename}`;
+                  await FileSystem.writeAsStringAsync(fileUri, json);
+
+                  if (await Sharing.isAvailableAsync()) {
+                    await Sharing.shareAsync(fileUri, {
+                      mimeType: "application/json",
+                      dialogTitle: "Export ArchiPlay Data",
+                      UTI: "public.json",
+                    });
+                  } else {
+                    Alert.alert(
+                      "Error",
+                      "Sharing is not available on this device.",
+                    );
+                  }
                 }
               } catch (e) {
                 console.error("Export error:", e);
@@ -144,7 +160,15 @@ export default function SettingsScreen() {
                 if (result.canceled) return;
 
                 const fileUri = result.assets[0].uri;
-                const json = await FileSystem.readAsStringAsync(fileUri);
+                let json: string;
+
+                if (Platform.OS === "web") {
+                  const response = await fetch(fileUri);
+                  json = await response.text();
+                } else {
+                  json = await FileSystem.readAsStringAsync(fileUri);
+                }
+
                 const data = JSON.parse(json);
 
                 if (!data.collections && !data.likedTracks) {
@@ -191,12 +215,12 @@ export default function SettingsScreen() {
           <SettingsItem
             icon={Shield}
             label="Privacy Policy"
-            onPress={() => Linking.openURL("https://archiplay.app/privacy")}
+            onPress={() => Linking.openURL("https://archieplay.web.app/privacy")}
           />
           <SettingsItem
             icon={Info}
             label="Terms of Service"
-            onPress={() => Linking.openURL("https://archiplay.app/terms")}
+            onPress={() => Linking.openURL("https://archieplay.web.app/terms")}
           />
 
           <SectionHeader title="Danger Zone" />
