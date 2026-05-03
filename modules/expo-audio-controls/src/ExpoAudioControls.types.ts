@@ -6,6 +6,8 @@ export type ExpoAudioControlsModuleEvents = {
   onChange: (params: ChangeEventPayload) => void;
   onNextTrack: () => void;
   onPreviousTrack: () => void;
+  onPlay: () => void;
+  onPause: () => void;
 };
 
 export type ExpoAudioControlsViewProps = {

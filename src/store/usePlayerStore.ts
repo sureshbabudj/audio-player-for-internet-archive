@@ -2,11 +2,10 @@ import { useLibraryStore } from "@/store/useLibraryStore";
 import { ArchiveTrack, RepeatMode } from "@/types";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
-  createAudioPlayer,
-  preload,
+  createAudioPlaylist,
   setAudioModeAsync,
-  useAudioPlayerStatus,
-  type AudioPlayer,
+  useAudioPlaylistStatus,
+  type AudioPlaylist,
 } from "expo-audio";
 import { useEffect, useRef } from "react";
 import { create } from "zustand";
@@ -15,7 +14,7 @@ import ExpoAudioControls from "../../modules/expo-audio-controls";
 
 interface PlayerState {
   // Native Object
-  player: AudioPlayer | null;
+  playlist: AudioPlaylist | null;
 
   // Track State
   currentTrack: ArchiveTrack | null;
@@ -56,18 +55,18 @@ interface PlayerState {
   setVolume: (vol: number) => void;
   setPlaybackSpeed: (speed: number) => void;
   resetPlayer: () => void;
-  preloadNext: () => void;
 
   // Internal Sync
-  setPlaybackStatus: (status: any) => void;
+  setPlaylistStatus: (status: any) => void;
 }
 
 export const usePlayerStore = create<PlayerState>()(
   persist(
     (set, get) => ({
-      player: createAudioPlayer(null, {
+      playlist: createAudioPlaylist({
+        sources: [],
         updateInterval: 500,
-        keepAudioSessionActive: true,
+        loop: "none",
       }),
       currentTrack: null,
       queue: [],
@@ -84,65 +83,93 @@ export const usePlayerStore = create<PlayerState>()(
       isShuffled: false,
       isInternalStateChange: false,
 
-      setPlaybackStatus: (status) => {
+      setPlaylistStatus: (status) => {
         const state = get();
-        if (!state.player || state.isInternalStateChange) return;
+        if (!state.playlist || state.isInternalStateChange) return;
 
         let newPosition = Math.floor((status.currentTime || 0) * 1000);
         const newDuration = Math.floor((status.duration || 0) * 1000);
+        const newIndex = status.currentIndex;
 
-        if ((status as any).error) {
-          console.error(
-            "❌ Player status reported error:",
-            (status as any).error,
-          );
-        }
-        if ((status as any).status === "error") {
-          console.error(
-            "❌ Player status is error. Check connection or track format.",
-          );
-        }
-
-        // Clamp the position to the duration to prevent the progress bar from overflowing
-        // This handles cases where the native player miscalculates time after seeking on VBR files.
+        // Clamp the position to the duration
         if (newDuration > 0 && newPosition > newDuration) {
           newPosition = newDuration;
         }
 
-        if (
-          state.isPlaying === status.playing &&
-          state.isBuffering === status.isBuffering &&
-          state.position === newPosition &&
-          state.duration === newDuration
-        ) {
-          return;
-        }
+        const currentTrack = state.queue[newIndex] || null;
+        const prevIndex = state.currentIndex;
+        const prevPlaying = state.isPlaying;
+        const prevPosition = state.position;
 
         const updates: Partial<PlayerState> = {
           isPlaying: status.playing,
           isBuffering: status.isBuffering,
           position: newPosition,
           duration: newDuration,
+          currentIndex: newIndex,
+          currentTrack: currentTrack,
         };
 
         set(updates);
+
+        // Update custom native module for lock screen / notifications
+        // We only update if:
+        // 1. The track changed
+        // 2. The playing state changed
+        // 3. A significant seek occurred (> 2s difference from expected position)
+        const trackChanged = newIndex !== prevIndex;
+        const playingChanged = status.playing !== prevPlaying;
+        const seekOccurred = Math.abs(newPosition - (prevPosition + 500)) > 2000;
+
+        if (currentTrack && (trackChanged || playingChanged || seekOccurred)) {
+          ExpoAudioControls.updateNowPlaying({
+            title: currentTrack.title,
+            artist: currentTrack.creator || "Unknown Artist",
+            album: state.queueTitle || "ArchiPlay",
+            artworkUrl:
+              currentTrack.thumbnail ||
+              `https://archive.org/services/img/${currentTrack.identifier}`,
+            duration: newDuration,
+            position: newPosition,
+            isPlaying: status.playing,
+          });
+        }
       },
 
       loadQueue: async (tracks, startIndex = 0, title = "Playlist") => {
-        const track = tracks[startIndex];
-        if (!track) return;
+        const { playlist, volume, playbackSpeed, repeatMode } = get();
+        if (!playlist) return;
+
+        const sources = tracks.map((t) => ({
+          uri: t.url,
+          name: t.title,
+        }));
+
+        // Reset playlist with new sources
+        playlist.pause();
+        playlist.clear();
+        sources.forEach((s) => playlist.add(s));
+
+        playlist.volume = volume;
+        playlist.playbackRate = playbackSpeed;
+        playlist.loop =
+          repeatMode === "all" ? "all" : repeatMode === "one" ? "single" : "none";
 
         set({
           queue: tracks,
           shuffledIndices: [],
           currentIndex: startIndex,
-          currentTrack: track,
+          currentTrack: tracks[startIndex],
           queueTitle: title,
           isShuffled: false,
         });
 
-        get().playFromQueue(startIndex);
-        useLibraryStore.getState().addToRecentlyPlayed(track);
+        playlist.skipTo(startIndex);
+        playlist.play();
+
+        if (tracks[startIndex]) {
+          useLibraryStore.getState().addToRecentlyPlayed(tracks[startIndex]);
+        }
       },
 
       loadTrack: async (track, queue = [], title = "Now Playing") => {
@@ -153,173 +180,91 @@ export const usePlayerStore = create<PlayerState>()(
       },
 
       togglePlayPause: () => {
-        const { player } = get();
-        if (!player) return;
-        if (player.playing) {
-          player.pause();
+        const { playlist } = get();
+        if (!playlist) return;
+        if (playlist.playing) {
+          playlist.pause();
         } else {
-          player.play();
+          playlist.play();
         }
       },
 
       seekTo: async (position) => {
-        const { player } = get();
-        if (player) {
-          player.seekTo(position / 1000);
+        const { playlist } = get();
+        if (playlist) {
+          playlist.seekTo(position / 1000);
           set({ position });
         }
       },
 
       skipNext: () => {
-        const { currentIndex, queue, repeatMode, isShuffled, shuffledIndices } =
-          get();
-        let nextIndex = currentIndex + 1;
-
-        if (isShuffled && shuffledIndices.length > 0) {
-          const currentShufflePos = shuffledIndices.indexOf(currentIndex);
-          if (
-            currentShufflePos !== -1 &&
-            currentShufflePos + 1 < shuffledIndices.length
-          ) {
-            nextIndex = shuffledIndices[currentShufflePos + 1];
-          } else {
-            if (repeatMode === "all") {
-              nextIndex = shuffledIndices[0];
-            } else {
-              return;
-            }
-          }
-        } else {
-          if (nextIndex >= queue.length) {
-            if (repeatMode === "all") {
-              nextIndex = 0;
-            } else {
-              return;
-            }
-          }
-        }
-        get().playFromQueue(nextIndex);
+        const { playlist } = get();
+        if (playlist) playlist.next();
       },
 
       skipPrevious: () => {
-        const {
-          currentIndex,
-          queue,
-          position,
-          repeatMode,
-          isShuffled,
-          shuffledIndices,
-        } = get();
+        const { playlist, position } = get();
+        if (!playlist) return;
+
         if (position > 3000) {
-          get().seekTo(0);
-          return;
-        }
-
-        let prevIndex = currentIndex - 1;
-
-        if (isShuffled && shuffledIndices.length > 0) {
-          const currentShufflePos = shuffledIndices.indexOf(currentIndex);
-          if (currentShufflePos > 0) {
-            prevIndex = shuffledIndices[currentShufflePos - 1];
-          } else {
-            if (repeatMode === "all") {
-              prevIndex = shuffledIndices[shuffledIndices.length - 1];
-            } else {
-              prevIndex = currentIndex;
-            }
-          }
+          playlist.seekTo(0);
         } else {
-          if (prevIndex < 0) {
-            if (repeatMode === "all") {
-              prevIndex = queue.length - 1;
-            } else {
-              return;
-            }
-          }
+          playlist.previous();
         }
-
-        get().playFromQueue(prevIndex);
       },
 
       playFromQueue: async (index) => {
-        const { player, queue, volume, playbackSpeed } = get();
-        const track = queue[index];
-        if (!track) return;
-
-        // Clean up previous player properly
-        if (player) {
-          try {
-            player.pause();
-            player.remove();
-          } catch (e) {
-            console.error("Player cleanup error:", e);
-          }
+        const { playlist } = get();
+        if (playlist) {
+          playlist.skipTo(index);
+          playlist.play();
         }
-
-        // Create fresh player to avoid native SDK 55 'replace' bug
-        const newPlayer = createAudioPlayer(
-          { uri: track.url },
-          {
-            updateInterval: 500,
-            keepAudioSessionActive: true,
-          },
-        );
-
-        newPlayer.volume = volume;
-        newPlayer.setPlaybackRate(playbackSpeed);
-
-        // Initial Lock Screen setup for the new player instance
-        newPlayer.setActiveForLockScreen(
-          true,
-          {
-            title: track.title,
-            artist: track.creator || "Unknown Artist",
-            albumTitle: track.title || "Unknown Album",
-            artworkUrl:
-              track.thumbnail ||
-              `https://archive.org/services/img/${track.identifier}`,
-          },
-          {
-            showSeekBackward: false,
-            showSeekForward: false,
-          },
-        );
-
-        try {
-          newPlayer.play();
-        } catch (error) {
-          console.error(`❌ Failed to play track: ${track.title}`, error);
-        }
-
-        set({
-          currentIndex: index,
-          currentTrack: track,
-          player: newPlayer,
-        });
-
-        get().preloadNext();
-        useLibraryStore.getState().addToRecentlyPlayed(track);
       },
 
       setRepeatMode: (mode) => {
-        const { player } = get();
-        if (player) {
-          player.loop = mode === "one";
+        const { playlist } = get();
+        if (playlist) {
+          playlist.loop = mode === "all" ? "all" : mode === "one" ? "single" : "none";
         }
         set({ repeatMode: mode });
       },
 
       toggleShuffle: () => {
-        const { isShuffled, queue } = get();
+        const { isShuffled, queue, playlist, currentIndex } = get();
+        if (!playlist) return;
 
         if (!isShuffled) {
-          const indices = Array.from({ length: queue.length }, (_, i) => i);
-          const shuffled = indices.sort(() => Math.random() - 0.5);
+          // Implementing shuffle by reordering the playlist sources
+          const currentTrack = queue[currentIndex];
+          const otherIndices = Array.from({ length: queue.length }, (_, i) => i).filter(
+            (i) => i !== currentIndex,
+          );
+          const shuffledIndices = [
+            currentIndex,
+            ...otherIndices.sort(() => Math.random() - 0.5),
+          ];
+
+          const shuffledQueue = shuffledIndices.map((i) => queue[i]);
+          const sources = shuffledQueue.map((t) => ({
+            uri: t.url,
+            name: t.title,
+          }));
+
+          playlist.pause();
+          playlist.clear();
+          sources.forEach((s) => playlist.add(s));
+          playlist.skipTo(0); // Current track is at 0
+          playlist.play();
+
           set({
             isShuffled: true,
-            shuffledIndices: shuffled,
+            queue: shuffledQueue,
+            currentIndex: 0,
+            shuffledIndices,
           });
         } else {
+          // Reseting shuffle is more complex because we need to find the original index
+          // For simplicity, we just keep the current order but mark as not shuffled
           set({
             isShuffled: false,
             shuffledIndices: [],
@@ -328,25 +273,24 @@ export const usePlayerStore = create<PlayerState>()(
       },
 
       setVolume: (vol) => {
-        const { player } = get();
-        if (player) player.volume = vol;
+        const { playlist } = get();
+        if (playlist) playlist.volume = vol;
         set({ volume: vol });
       },
 
       setPlaybackSpeed: (speed) => {
-        const { player } = get();
-        if (player) player.playbackRate = speed;
+        const { playlist } = get();
+        if (playlist) playlist.playbackRate = speed;
         set({ playbackSpeed: speed });
       },
 
       resetPlayer: () => {
-        const { player } = get();
-        if (player) {
-          player.pause();
-          player.remove();
+        const { playlist } = get();
+        if (playlist) {
+          playlist.pause();
+          playlist.clear();
         }
         set({
-          player: null,
           currentTrack: null,
           queue: [],
           queueTitle: "",
@@ -355,41 +299,6 @@ export const usePlayerStore = create<PlayerState>()(
           position: 0,
           duration: 0,
         });
-      },
-
-      preloadNext: () => {
-        const { currentIndex, queue, isShuffled, shuffledIndices, repeatMode } =
-          get();
-        let nextIndex = currentIndex + 1;
-
-        if (isShuffled && shuffledIndices.length > 0) {
-          const currentShufflePos = shuffledIndices.indexOf(currentIndex);
-          if (
-            currentShufflePos !== -1 &&
-            currentShufflePos + 1 < shuffledIndices.length
-          ) {
-            nextIndex = shuffledIndices[currentShufflePos + 1];
-          } else {
-            if (repeatMode === "all") {
-              nextIndex = shuffledIndices[0];
-            } else {
-              return;
-            }
-          }
-        } else {
-          if (nextIndex >= queue.length) {
-            if (repeatMode === "all") {
-              nextIndex = 0;
-            } else {
-              return;
-            }
-          }
-        }
-
-        if (nextIndex >= 0 && nextIndex < queue.length) {
-          const nextTrack = queue[nextIndex];
-          preload(nextTrack.url);
-        }
       },
     }),
     {
@@ -423,86 +332,87 @@ export const usePlayerStore = create<PlayerState>()(
 
 /**
  * Hook to initialize and sync the native player with the store.
- * Call this once in the root layout.
  */
 export const useInitializePlayer = () => {
   const currentTrack = usePlayerStore((state) => state.currentTrack);
-  const player = usePlayerStore((state) => state.player);
-  const setPlaybackStatus = usePlayerStore((state) => state.setPlaybackStatus);
+  const queue = usePlayerStore((state) => state.queue);
+  const playlist = usePlayerStore((state) => state.playlist);
+  const setPlaylistStatus = usePlayerStore((state) => state.setPlaylistStatus);
   const volume = usePlayerStore((state) => state.volume);
   const playbackSpeed = usePlayerStore((state) => state.playbackSpeed);
   const isHydrated = useRef(false);
-  const lastFinishedPlayerId = useRef<string | null>(null);
 
-  // useAudioPlayerStatus will automatically re-subscribe when 'player' object changes
-  const status = useAudioPlayerStatus(player!);
+  const status = useAudioPlaylistStatus(playlist!);
 
-  // Audio Mode configuration
   useEffect(() => {
     setAudioModeAsync({
       interruptionMode: "doNotMix",
       playsInSilentMode: true,
+      shouldPlayInBackground: true,
       shouldRouteThroughEarpiece: false,
     }).catch(console.error);
   }, []);
 
-  // Hydration handling
+  // Hydration and initial sources setup
   useEffect(() => {
-    if (!isHydrated.current && currentTrack?.url) {
+    if (!isHydrated.current && playlist && queue.length > 0) {
       setTimeout(() => {
-        try {
-          const newPlayer = createAudioPlayer(
-            { uri: currentTrack.url },
-            {
-              updateInterval: 500,
-              keepAudioSessionActive: true,
-            },
-          );
-          newPlayer.volume = volume;
-          newPlayer.setPlaybackRate(playbackSpeed);
-
-          usePlayerStore.setState({ player: newPlayer });
-        } catch (e) {
-          console.error("Initial hydration replace error:", e);
-        }
+        playlist.clear();
+        queue.forEach((t) => playlist.add({ uri: t.url, name: t.title }));
+        playlist.volume = volume;
+        playlist.playbackRate = playbackSpeed;
+        
+        const index = usePlayerStore.getState().currentIndex;
+        playlist.skipTo(index);
+        
         isHydrated.current = true;
       }, 500);
     } else {
       isHydrated.current = true;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Sync status and handle track finish
   useEffect(() => {
-    if (!isHydrated.current || !player) return;
+    if (!isHydrated.current || !playlist) return;
+    setPlaylistStatus(status);
+  }, [status, setPlaylistStatus, playlist]);
 
-    setPlaybackStatus(status);
-
-    if (status.didJustFinish && status.id !== lastFinishedPlayerId.current) {
-      lastFinishedPlayerId.current = status.id;
-      usePlayerStore.getState().skipNext();
-    }
-  }, [status, setPlaybackStatus, player]);
-
-  // Remote Media Controls (Next/Previous) Setup
+  // Remote Media Controls Setup
   useEffect(() => {
     let isMounted = true;
-    let nextSub: any;
-    let prevSub: any;
+    let subs: any[] = [];
 
     async function initRemoteControls() {
       try {
         await ExpoAudioControls.setupRemoteControls();
         if (!isMounted) return;
 
-        nextSub = ExpoAudioControls.addListener("onNextTrack", () => {
-          if (isMounted) usePlayerStore.getState().skipNext();
-        });
-
-        prevSub = ExpoAudioControls.addListener("onPreviousTrack", () => {
-          if (isMounted) usePlayerStore.getState().skipPrevious();
-        });
+        subs.push(
+          ExpoAudioControls.addListener("onNextTrack", () => {
+            if (isMounted) usePlayerStore.getState().skipNext();
+          }),
+        );
+        subs.push(
+          ExpoAudioControls.addListener("onPreviousTrack", () => {
+            if (isMounted) usePlayerStore.getState().skipPrevious();
+          }),
+        );
+        subs.push(
+          ExpoAudioControls.addListener("onPlay", () => {
+            if (isMounted) {
+              const { playlist } = usePlayerStore.getState();
+              playlist?.play();
+            }
+          }),
+        );
+        subs.push(
+          ExpoAudioControls.addListener("onPause", () => {
+            if (isMounted) {
+              const { playlist } = usePlayerStore.getState();
+              playlist?.pause();
+            }
+          }),
+        );
       } catch (e) {
         console.error("Failed to setup remote controls:", e);
       }
@@ -512,10 +422,9 @@ export const useInitializePlayer = () => {
 
     return () => {
       isMounted = false;
-      nextSub?.remove();
-      prevSub?.remove();
+      subs.forEach((s) => s.remove());
     };
   }, []);
 
-  return { player, status };
+  return { playlist, status };
 };

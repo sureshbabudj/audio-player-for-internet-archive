@@ -1,17 +1,19 @@
 {
   "expo": {
     "name": "ArchiPlay",
-    "slug": "app",
+    "slug": "archiplay",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/adaptive-icon.png",
-    "scheme": "app",
+    "scheme": "archiplay",
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/expo.icon",
-      "bundleIdentifier": "com.sureshbabudj.app",
+      "bundleIdentifier": "com.sureshbabudj.archiplay",
       "infoPlist": {
-        "UIBackgroundModes": ["audio"],
+        "UIBackgroundModes": [
+          "audio"
+        ],
         "ITSAppUsesNonExemptEncryption": false
       },
       "appleTeamId": "FP96G88XFR"
@@ -22,7 +24,7 @@
         "foregroundImage": "./assets/images/adaptive-icon.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.sureshbabudj.app",
+      "package": "com.sureshbabudj.archiplay",
       "permissions": [
         "android.permission.RECORD_AUDIO",
         "android.permission.MODIFY_AUDIO_SETTINGS",
@@ -69,7 +71,6 @@
       "eas": {
         "projectId": "47cc9fc2-3d6b-46aa-b49d-5a3955369ccb"
       }
-    },
-    "owner": "sureshbabudj"
+    }
   }
 }
