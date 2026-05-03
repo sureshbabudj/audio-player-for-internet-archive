@@ -4,7 +4,6 @@ import { useLibraryStore } from "@/store/useLibraryStore";
 import { usePlayerStore } from "@/store/usePlayerStore";
 import { formatTime } from "@/utils/time";
 import Slider from "@react-native-community/slider";
-import { Image as ExpoImage } from "expo-image";
 import { useRouter } from "expo-router";
 import {
   ChevronDown,
@@ -24,6 +23,7 @@ import {
   ActivityIndicator,
   FlatList,
   Image,
+  Platform,
   Text,
   TouchableOpacity,
   View,
@@ -90,15 +90,15 @@ export function AudioPlayer() {
 
   const displayPosition = slidingPosition !== null ? slidingPosition : position;
 
-  return (
+  const content = (
     <View
-      className="flex-1 bg-darker"
+      className="flex-1 bg-darker md:pt-0 md:w-[500px] md:h-[90%] md:rounded-[48px] md:border md:border-white/5 md:shadow-2xl md:overflow-hidden"
       style={{
-        paddingTop: Math.max(insets.top, 20),
+        paddingTop: Platform.OS === "web" ? 0 : Math.max(insets.top, 20),
       }}
     >
       {/* Header */}
-      <View className="flex-row items-center justify-between px-6 mb-4">
+      <View className="flex-row items-center justify-between px-6 py-6">
         <TouchableOpacity onPress={() => router.back()}>
           <ChevronDown size={28} color={THEME.white} />
         </TouchableOpacity>
@@ -125,7 +125,7 @@ export function AudioPlayer() {
         <View className="flex-1">
           {/* Album Art Section */}
           <View className="flex-1 items-center justify-center mt-4">
-            <View className="w-[70%] aspect-square rounded-[40px] overflow-hidden shadow-2xl shadow-black/80 border border-white/10 bg-surface-light mb-6">
+            <View className="w-[75%] aspect-square md:w-[380px] md:h-[380px] rounded-[48px] overflow-hidden shadow-2xl shadow-black/80 border border-white/10 bg-surface-light mb-8">
               <Image
                 source={{
                   uri:
@@ -299,22 +299,12 @@ export function AudioPlayer() {
           />
         </View>
       )}
+    </View>
+  );
 
-      {/* Footer / Device Selector Placeholder */}
-      <View
-        className="px-10 flex-row items-center justify-center"
-        style={{ paddingBottom: Math.max(insets.bottom, 20) }}
-      >
-        <TouchableOpacity className="flex-row items-center bg-surface px-4 py-2 rounded-full">
-          <ExpoImage
-            source={require("../../assets/images/icon.svg")}
-            style={{ width: 14, height: 14 }}
-          />
-          <Text className="text-white/60 text-xs font-medium ml-2">
-            ArchiPlay
-          </Text>
-        </TouchableOpacity>
-      </View>
+  return (
+    <View className="flex-1 md:justify-center md:items-center md:bg-dark md:py-4">
+      {content}
     </View>
   );
 }

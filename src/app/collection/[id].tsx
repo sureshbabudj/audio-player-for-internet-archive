@@ -100,7 +100,7 @@ export default function CollectionDetailScreen() {
   const HeaderComponent = useMemo(() => {
     if (!item) return null;
     return (
-      <View className="px-6 items-center">
+      <View className="items-center">
         <View className="w-48 h-48 rounded-[32px] overflow-hidden shadow-2xl shadow-black mb-6 border border-white/10">
           <Image
             key={item.thumbnail}
@@ -121,7 +121,7 @@ export default function CollectionDetailScreen() {
           {item.creator}
         </Text>
 
-        <View className="flex-row gap-x-3 mb-8">
+        <View className="flex-row w-full max-w-[400px] gap-x-3 mb-8">
           <TouchableOpacity
             onPress={handlePlayAll}
             className="flex-1 flex-row items-center justify-center bg-primary h-14 rounded-2xl"
@@ -176,7 +176,7 @@ export default function CollectionDetailScreen() {
         keyExtractor={(track) => track.id}
         ListHeaderComponent={HeaderComponent}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 150 }}
+        contentContainerStyle={{ paddingBottom: 150, paddingHorizontal: 24 }}
         removeClippedSubviews={true}
         initialNumToRender={10}
         maxToRenderPerBatch={10}

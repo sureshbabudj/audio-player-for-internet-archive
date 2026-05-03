@@ -105,11 +105,11 @@ export default function SearchScreen() {
     setAddingId(null);
   };
 
-  return (
+  const content = (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
-      className="flex-1 bg-darker"
+      className="flex-1 bg-darker lg:w-full"
     >
       <ScreenHeader type="detail" title="Search" showSearch={false} />
 
@@ -199,10 +199,14 @@ export default function SearchScreen() {
               </View>
             ) : null
           }
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 180 }}
         />
       )}
     </KeyboardAvoidingView>
+  );
+
+  return (
+    <View className="flex-1 md:justify-center md:items-center md:bg-dark/50">
+      {content}
+    </View>
   );
 }

@@ -53,8 +53,8 @@ export function PlaylistSelector({
       animationType="fade"
       onRequestClose={onClose}
     >
-      <View className="flex-1 bg-black/80 justify-end">
-        <View className="bg-surface rounded-t-[32px] p-6 pb-10">
+      <View className="flex-1 bg-black/80 justify-end md:justify-center md:items-center">
+        <View className="bg-surface p-6 pb-10 w-full rounded-t-[32px] md:w-[400px] md:rounded-[32px] md:border md:border-white/10">
           <View className="flex-row items-center justify-between mb-6">
             <Text className="text-white font-display text-xl">
               Add to Playlist
@@ -64,7 +64,7 @@ export function PlaylistSelector({
             </TouchableOpacity>
           </View>
 
-          <ScrollView className="max-h-[60%]">
+          <ScrollView className="max-h-[60vh]">
             <TouchableOpacity
               onPress={() => setShowCreateModal(true)}
               className="flex-row items-center p-4 mb-3 bg-primary/10 rounded-2xl border border-primary/20"
@@ -101,15 +101,15 @@ export function PlaylistSelector({
         <Modal
           visible={showCreateModal}
           transparent
-          animationType="slide"
+          animationType="fade"
           onRequestClose={() => setShowCreateModal(false)}
         >
           <KeyboardAvoidingView
             behavior={Platform.OS === "ios" ? "padding" : "height"}
             className="flex-1"
           >
-            <View className="flex-1 bg-black/90 justify-end">
-              <View className="bg-surface rounded-t-[32px] p-8 pb-12">
+            <View className="flex-1 bg-black/90 justify-end md:justify-center md:items-center">
+              <View className="bg-surface p-8 pb-12 w-full rounded-t-[32px] md:w-[400px] md:rounded-[32px] md:border md:border-white/10">
                 <View className="flex-row items-center justify-between mb-6">
                   <Text className="text-white font-display text-2xl">
                     New Playlist
@@ -120,7 +120,7 @@ export function PlaylistSelector({
                 </View>
 
                 <TextInput
-                  className="bg-darker text-white font-body text-lg p-5 rounded-2xl mb-6"
+                  className="bg-darker text-white font-body text-lg p-5 rounded-2xl mb-6 border border-white/5"
                   placeholder="Playlist Name"
                   placeholderTextColor={THEME.white + "40"}
                   value={newName}

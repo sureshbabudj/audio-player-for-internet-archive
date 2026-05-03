@@ -1,7 +1,12 @@
 import { THEME } from "@/constants/colors";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
-import { ChevronDown, MoreVertical, Search } from "lucide-react-native";
+import {
+  ChevronDown,
+  ChevronLeft,
+  MoreVertical,
+  Search,
+} from "lucide-react-native";
 import React from "react";
 import { Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -61,7 +66,12 @@ export function ScreenHeader({
         onPress={() => router.back()}
         className="w-10 h-10 items-center justify-center rounded-full"
       >
-        <ChevronDown size={28} color={THEME.white} />
+        <ChevronDown size={28} color={THEME.white} className="md:hidden" />
+        <ChevronLeft
+          size={28}
+          color={THEME.white}
+          className="hidden md:block"
+        />
       </TouchableOpacity>
 
       <View className="flex-1 items-center px-4">

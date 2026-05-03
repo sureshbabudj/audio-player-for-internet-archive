@@ -96,17 +96,22 @@ export const usePlayerStore = create<PlayerState>()(
           newPosition = newDuration;
         }
 
-        const currentTrack = state.queue[newIndex] || null;
+        // Map native index back to queue index if shuffled
+        const mappedIndex = state.isShuffled && state.shuffledIndices.length > 0
+          ? state.shuffledIndices[newIndex]
+          : newIndex;
+
+        const currentTrack = state.queue[mappedIndex] || null;
         const prevIndex = state.currentIndex;
         const prevPlaying = state.isPlaying;
         const prevPosition = state.position;
 
         const updates: Partial<PlayerState> = {
           isPlaying: status.playing,
-          isBuffering: status.isBuffering,
+          isBuffering: status.isBuffering && !status.playing,
           position: newPosition,
           duration: newDuration,
-          currentIndex: newIndex,
+          currentIndex: mappedIndex,
           currentTrack: currentTrack,
         };
 
@@ -122,17 +127,23 @@ export const usePlayerStore = create<PlayerState>()(
         const seekOccurred = Math.abs(newPosition - (prevPosition + 500)) > 2000;
 
         if (currentTrack && (trackChanged || playingChanged || seekOccurred)) {
-          ExpoAudioControls.updateNowPlaying({
-            title: currentTrack.title,
-            artist: currentTrack.creator || "Unknown Artist",
-            album: state.queueTitle || "ArchiPlay",
-            artworkUrl:
-              currentTrack.thumbnail ||
-              `https://archive.org/services/img/${currentTrack.identifier}`,
-            duration: newDuration,
-            position: newPosition,
-            isPlaying: status.playing,
-          });
+          try {
+            if (typeof ExpoAudioControls?.updateNowPlaying === "function") {
+              ExpoAudioControls.updateNowPlaying({
+                title: currentTrack.title,
+                artist: currentTrack.creator || "Unknown Artist",
+                album: state.queueTitle || "ArchiPlay",
+                artworkUrl:
+                  currentTrack.thumbnail ||
+                  `https://archive.org/services/img/${currentTrack.identifier}`,
+                duration: newDuration,
+                position: newPosition,
+                isPlaying: status.playing,
+              });
+            }
+          } catch (e) {
+            console.warn("Failed to update native media controls:", e);
+          }
         }
       },
 
@@ -214,9 +225,17 @@ export const usePlayerStore = create<PlayerState>()(
       },
 
       playFromQueue: async (index) => {
-        const { playlist } = get();
+        const { playlist, isShuffled, shuffledIndices } = get();
         if (playlist) {
-          playlist.skipTo(index);
+          if (isShuffled && shuffledIndices.length > 0) {
+            // Find where this original index is in the shuffled playlist
+            const nativeIndex = shuffledIndices.indexOf(index);
+            if (nativeIndex >= 0) {
+              playlist.skipTo(nativeIndex);
+            }
+          } else {
+            playlist.skipTo(index);
+          }
           playlist.play();
         }
       },
@@ -231,44 +250,60 @@ export const usePlayerStore = create<PlayerState>()(
 
       toggleShuffle: () => {
         const { isShuffled, queue, playlist, currentIndex } = get();
-        if (!playlist) return;
+        if (!playlist || queue.length === 0) return;
 
         if (!isShuffled) {
-          // Implementing shuffle by reordering the playlist sources
-          const currentTrack = queue[currentIndex];
-          const otherIndices = Array.from({ length: queue.length }, (_, i) => i).filter(
-            (i) => i !== currentIndex,
-          );
-          const shuffledIndices = [
-            currentIndex,
-            ...otherIndices.sort(() => Math.random() - 0.5),
-          ];
+          // Shuffle logic: reorder native playlist but keep store queue intact
+          const indices = Array.from({ length: queue.length }, (_, i) => i);
+          const otherIndices = indices.filter((i) => i !== currentIndex);
+          
+          for (let i = otherIndices.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [otherIndices[i], otherIndices[j]] = [otherIndices[j], otherIndices[i]];
+          }
 
+          const shuffledIndices = [currentIndex, ...otherIndices];
           const shuffledQueue = shuffledIndices.map((i) => queue[i]);
+          
           const sources = shuffledQueue.map((t) => ({
             uri: t.url,
             name: t.title,
           }));
 
+          set({ isInternalStateChange: true });
           playlist.pause();
           playlist.clear();
           sources.forEach((s) => playlist.add(s));
-          playlist.skipTo(0); // Current track is at 0
+          playlist.skipTo(0);
           playlist.play();
 
           set({
             isShuffled: true,
-            queue: shuffledQueue,
-            currentIndex: 0,
             shuffledIndices,
+            // currentIndex remains originalIndex of current track
           });
+
+          setTimeout(() => set({ isInternalStateChange: false }), 1000);
         } else {
-          // Reseting shuffle is more complex because we need to find the original index
-          // For simplicity, we just keep the current order but mark as not shuffled
+          // Un-shuffle logic: Restore sequential order to native playlist
+          const sources = queue.map((t) => ({
+            uri: t.url,
+            name: t.title,
+          }));
+
+          set({ isInternalStateChange: true });
+          playlist.pause();
+          playlist.clear();
+          sources.forEach((s) => playlist.add(s));
+          playlist.skipTo(currentIndex);
+          playlist.play();
+
           set({
             isShuffled: false,
             shuffledIndices: [],
           });
+
+          setTimeout(() => set({ isInternalStateChange: false }), 1000);
         }
       },
 
@@ -323,6 +358,7 @@ export const usePlayerStore = create<PlayerState>()(
         currentIndex: state.currentIndex,
         repeatMode: state.repeatMode,
         isShuffled: state.isShuffled,
+        shuffledIndices: state.shuffledIndices,
         volume: state.volume,
         playbackSpeed: state.playbackSpeed,
       }),

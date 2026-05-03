@@ -3,8 +3,10 @@ import { usePlayerStore } from "@/store/usePlayerStore";
 import { useRouter } from "expo-router";
 import { Pause, Play, SkipForward } from "lucide-react-native";
 import React from "react";
-import { Image, Text, TouchableOpacity, View } from "react-native";
+import { Image, Platform, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+const isWeb = Platform.OS === "web";
 
 export function MiniPlayer() {
   const router = useRouter();
@@ -21,7 +23,7 @@ export function MiniPlayer() {
   return (
     <View
       className="absolute left-0 right-0 px-0"
-      style={{ bottom: insets.bottom + 50 }}
+      style={{ bottom: isWeb ? 72 : insets.bottom + 50 }}
     >
       <TouchableOpacity
         activeOpacity={0.9}

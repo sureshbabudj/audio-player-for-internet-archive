@@ -14,6 +14,7 @@ interface TrackItemProps {
   isCurrent?: boolean;
   isLiked?: boolean;
   showPlaylistAction?: boolean;
+  rank?: number;
 }
 
 const TrackItem: React.FC<TrackItemProps> = memo(
@@ -26,6 +27,7 @@ const TrackItem: React.FC<TrackItemProps> = memo(
     isCurrent = false,
     isLiked = false,
     showPlaylistAction = true,
+    rank,
   }) => {
     const openSelector = usePlaylistStore((state) => state.openSelector);
 
@@ -63,6 +65,11 @@ const TrackItem: React.FC<TrackItemProps> = memo(
           isCurrent ? "border border-primary/30" : "border border-transparent"
         }`}
       >
+        {rank !== undefined && (
+          <Text className="text-white/20 font-bold w-10 text-center mr-2 text-sm">
+            {rank.toString().padStart(2, "0")}
+          </Text>
+        )}
         <View className="w-12 h-12 rounded-xl bg-surface-light items-center justify-center mr-4 overflow-hidden">
           {getIcon()}
         </View>
