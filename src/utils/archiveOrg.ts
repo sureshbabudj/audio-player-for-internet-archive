@@ -1,5 +1,5 @@
 // src/utils/archiveOrg.ts
-import { Track } from "../types";
+import { ArchiveTrack } from "../types";
 
 const API_BASE = "https://archive.org/metadata";
 
@@ -21,6 +21,7 @@ export interface ArchiveResponse {
     creator?: string;
     album?: string;
     description?: string;
+    date?: string;
   };
   server: string;
   dir: string;
@@ -51,7 +52,7 @@ export function extractIdentifier(url: string): string | null {
 
 export function convertToTracks(
   response: ArchiveResponse,
-): Track[] {
+): ArchiveTrack[] {
   const { server, dir, files, metadata } = response;
   const audioFormats = ["MP3", "VBR MP3", "MPEG-4 AUDIO", "FLAC", "WAVE"];
 
@@ -62,12 +63,13 @@ export function convertToTracks(
     })
     .map((file, index) => ({
       id: `${metadata.identifier}-${index}`,
-      name: file.title || file.name.replace(/\.[^/.]+$/, "").replace(/[_-]/g, " "),
+      identifier: metadata.identifier,
+      title: file.title || file.name.replace(/\.[^/.]+$/, "").replace(/[_-]/g, " "),
       url: `https://${server}${dir}/${file.name}`,
-      artwork: `https://archive.org/services/img/${metadata.identifier}`,
+      thumbnail: `https://archive.org/services/img/${metadata.identifier}`,
       duration: parseDuration(file.length),
-      playlistId: metadata.identifier,
-      artist: file.artist || file.creator || metadata.creator || "Unknown Artist",
-      album: file.album || metadata.album || metadata.title || "Archive Collection",
+      creator: file.artist || file.creator || metadata.creator || "Unknown Artist",
+      fileName: file.name,
+      date: metadata.date,
     }));
 }

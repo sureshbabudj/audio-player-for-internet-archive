@@ -128,12 +128,12 @@ export function AudioPlayer() {
         <TouchableOpacity onPress={() => router.back()}>
           <ChevronDown size={28} color={THEME.white} />
         </TouchableOpacity>
-        <View className="items-center">
-          <Text className="text-white/40 text-[10px] font-bold uppercase tracking-widest mb-0.5">
+        <View className="flex-1 items-center px-4">
+          <Text className="text-white/40 text-[10px] font-bold uppercase tracking-widest mb-0.5" numberOfLines={1}>
             Playing From
           </Text>
           <Text
-            className="font-display text-base text-primary"
+            className="font-display text-base text-primary text-center"
             numberOfLines={1}
           >
             {queueTitle || "Now Playing"}
@@ -168,8 +168,11 @@ export function AudioPlayer() {
       {!showQueue ? (
         <View className="flex-1">
           {/* Album Art Section */}
-          <View className="flex-1 items-center justify-center mt-4">
-            <View className="w-[75%] aspect-square md:w-[380px] md:h-[380px] rounded-[48px] overflow-hidden shadow-2xl shadow-black/80 border border-white/10 bg-surface-light mb-8">
+          <View className="flex-1 items-center justify-center p-6">
+            <View 
+              style={{ flex: 1, aspectRatio: 1, maxWidth: '100%' }}
+              className="md:w-[320px] md:h-[320px] rounded-[48px] overflow-hidden shadow-2xl shadow-black/80 border border-white/10 bg-surface-light"
+            >
               <Image
                 source={{
                   uri:
@@ -184,15 +187,15 @@ export function AudioPlayer() {
                 </View>
               )}
             </View>
+          </View>
 
-            {/* Visualizer */}
-            <View className="h-[72px] items-center justify-center">
-              {isPlaying && <WaveAnimation size="large" height={72} />}
-            </View>
+          {/* Visualizer */}
+          <View className="h-[60px] items-center justify-center mb-4">
+            {isPlaying && <WaveAnimation size="large" height={60} />}
           </View>
 
           {/* Track Info & Like */}
-          <View className="px-8 mb-6 flex-row items-center justify-between">
+          <View className="px-8 mb-4 flex-row items-center justify-between">
             <View className="flex-1 mr-4">
               <Text
                 className="text-white font-display text-2xl mb-1"
@@ -201,7 +204,7 @@ export function AudioPlayer() {
                 {currentTrack.title}
               </Text>
               <Text
-                className="text-white/50 font-body text-lg"
+                className="text-white/50 font-body text-base"
                 numberOfLines={1}
               >
                 {currentTrack.creator || "Unknown Artist"}

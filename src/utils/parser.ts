@@ -1,4 +1,4 @@
-import { Track } from "../types";
+import { ArchiveTrack } from "../types";
 import {
   convertToTracks,
   extractIdentifier,
@@ -12,7 +12,7 @@ const hasExtensionRuntime =
   !!(globalThis as any).chrome?.runtime?.id &&
   typeof (globalThis as any).chrome?.runtime?.sendMessage === "function";
 
-const fetchTracksInWeb = async (url: string): Promise<Track[]> => {
+const fetchTracksInWeb = async (url: string): Promise<ArchiveTrack[]> => {
   const identifier = extractIdentifier(url) || url.match(/\/download\/([^/]+)/)?.[1];
 
   // Prefer metadata API in web mode because direct directory scraping is usually blocked by CORS.
@@ -29,7 +29,7 @@ const fetchTracksInWeb = async (url: string): Promise<Track[]> => {
   const html = await response.text();
 
   const regex = /href="([^"]+\.mp3)"/g;
-  const tracks: Track[] = [];
+  const tracks: ArchiveTrack[] = [];
   let match: RegExpExecArray | null;
   let index = 0;
 
@@ -45,18 +45,19 @@ const fetchTracksInWeb = async (url: string): Promise<Track[]> => {
 
     tracks.push({
       id: `${fallbackIdentifier}-${index++}`,
-      name,
+      identifier: fallbackIdentifier,
+      title: name,
       url: (url.endsWith("/") ? url : `${url}/`) + href,
-      artwork: `https://archive.org/services/img/${fallbackIdentifier}`,
-      artist: "Archive Collection",
-      album: fallbackIdentifier.replace(/[_-]/g, " "),
+      thumbnail: `https://archive.org/services/img/${fallbackIdentifier}`,
+      creator: "Archive Collection",
+      fileName: href,
     });
   }
 
   return tracks;
 };
 
-export async function fetchTracks(url?: string): Promise<Track[]> {
+export async function fetchTracks(url?: string): Promise<ArchiveTrack[]> {
   const targetUrl = url || BASE_URL;
 
   if (!hasExtensionRuntime) {

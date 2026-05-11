@@ -1,23 +1,12 @@
 import React from "react";
 import { useTracks } from "../hooks/useTracks";
 import { useAudioPlayer } from "../hooks/useAudioPlayer";
-import AudioPlayer from "../components/AudioPlayer";
+import { AudioPlayer } from "../components/AudioPlayer";
 import { Icon } from "@iconify/react";
 
 const App: React.FC = () => {
   const { tracks, loading, error } = useTracks();
-  const {
-    state,
-    playTracks,
-    togglePlay,
-    playNext,
-    playPrevious,
-    seek,
-    setVolume,
-    toggleMute,
-    toggleShuffle,
-    toggleRepeat,
-  } = useAudioPlayer(tracks);
+  useAudioPlayer(tracks);
 
   if (loading) {
     return (
@@ -54,28 +43,7 @@ const App: React.FC = () => {
   }
 
   return (
-    <AudioPlayer
-      tracks={tracks}
-      currentTrack={state.currentTrack}
-      isPlaying={state.isPlaying}
-      currentTime={state.currentTime}
-      duration={state.duration}
-      volume={state.volume}
-      isMuted={state.isMuted}
-      shuffleMode={state.shuffleMode}
-      repeatMode={state.repeatMode}
-      tracksList={state.tracksList}
-      onTrackSelect={(track) => playTracks(tracks, track)}
-      onPlayTracks={playTracks}
-      onTogglePlay={togglePlay}
-      onPrevious={playPrevious}
-      onNext={playNext}
-      onSeek={seek}
-      onVolumeChange={setVolume}
-      onToggleMute={toggleMute}
-      onToggleShuffle={toggleShuffle}
-      onToggleRepeat={toggleRepeat}
-    />
+    <AudioPlayer />
   );
 };
 

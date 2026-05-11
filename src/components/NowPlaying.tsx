@@ -1,10 +1,10 @@
 import React from "react";
 import { Icon } from "@iconify/react";
-import { Track } from "../types";
+import { ArchiveTrack } from "../types";
 import Visualizer from "./Visualizer";
 
 interface NowPlayingProps {
-  track: Track | null;
+  track: ArchiveTrack | null;
   isPlaying: boolean;
 }
 
@@ -26,10 +26,10 @@ const NowPlaying: React.FC<NowPlayingProps> = ({ track, isPlaying }) => {
       {/* 3D Album Art / Thumbnail */}
       <div className="relative mb-4 group">
         <div className="w-32 h-32 rounded-2xl bg-dark-800 overflow-hidden shadow-2xl transform rotate-3 group-hover:rotate-0 transition-transform duration-500 flex items-center justify-center border-2 border-primary-500/30">
-          {track.artwork ? (
+          {track.thumbnail ? (
             <img
-              src={track.artwork}
-              alt={track.name}
+              src={track.thumbnail}
+              alt={track.title}
               className={`w-full h-full object-cover transition-all duration-700 ${
                 isPlaying ? "scale-110" : "scale-100 grayscale-[0.2]"
               }`}
@@ -54,13 +54,13 @@ const NowPlaying: React.FC<NowPlayingProps> = ({ track, isPlaying }) => {
 
       <div className="mt-4 text-center px-4 w-full">
         <h3 className="text-white font-bold text-sm truncate">
-          {track.name}
+          {track.title}
         </h3>
         <p className="text-primary-400/80 text-[11px] font-medium mt-0.5 truncate">
-          {track.artist}
+          {track.creator}
         </p>
         <p className="text-dark-500 text-[10px] mt-1 truncate italic">
-          {track.album}
+          {track.identifier}
         </p>
       </div>
     </div>

@@ -1,4 +1,4 @@
-import { Playlist, Track } from "../types";
+import { Playlist } from "../types";
 
 const STORAGE_KEY = "user_playlists";
 

@@ -8,12 +8,7 @@ import { usePlaylistStore } from "@/store/usePlaylistStore";
 import { useRouter } from "expo-router";
 import { ListMusic } from "lucide-react-native";
 import React, { useMemo } from "react";
-import {
-  ScrollView,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { ScrollView, Text, TouchableOpacity, View } from "react-native";
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -51,7 +46,7 @@ export default function HomeScreen() {
           <WaveAnimation size="large" />
           {currentTrack && (
             <TouchableOpacity onPress={() => router.push("/player" as any)}>
-              <View className="flex-row items-center mt-4 bg-primary/10 px-4 py-2 overflow-hidden  rounded-full border border-primary/20">
+              <View className="flex-row items-center mt-4 mx-3 bg-primary/10 px-4 py-2 overflow-hidden  rounded-full border border-primary/20">
                 <View className="w-1.5 h-1.5 rounded-full bg-primary mr-2" />
                 <Text className="text-white/80 font-body text-[10px] font-bold uppercase tracking-widest mr-2">
                   Now Playing

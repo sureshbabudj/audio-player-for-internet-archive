@@ -1,4 +1,5 @@
 import browser from "webextension-polyfill";
+import { ArchiveTrack } from "./types";
 
 browser.runtime.onInstalled.addListener((details) => {
   console.log("[Audio Player] Extension installed", details.reason);
@@ -28,7 +29,7 @@ browser.commands?.onCommand.addListener((command) => {
 });
 
 const BASE_URL = "https://archive.org/download/tamil-melody-hits/";
-let tracksList: any[] = [];
+let tracksList: ArchiveTrack[] = [];
 let currentAudioState = {
   isPlaying: false,
   currentTime: 0,
@@ -37,8 +38,8 @@ let currentAudioState = {
   isMuted: false,
   shuffleMode: false,
   repeatMode: "off" as "off" | "all" | "one",
-  currentTrack: null as any,
-  tracksList: [] as any[],
+  currentTrack: null as ArchiveTrack | null,
+  tracksList: [] as ArchiveTrack[],
 };
 
 // Check if we need offscreen (Chrome MV3) or can play directly (Firefox MV2)
@@ -113,16 +114,16 @@ async function saveStateToStorage(force = false) {
         tracksList: tracksList,
       },
     });
-  } catch (err) {
+  } catch (err: any) {
     console.error("Failed to save state", err);
   }
 }
 
 async function loadStateFromStorage() {
   try {
-    const data = await browser.storage.local.get("audioState");
+    const data: any = await browser.storage.local.get("audioState");
     if (data.audioState) {
-      const saved = data.audioState;
+      const saved: any = data.audioState;
       tracksList = saved.tracksList || [];
       currentAudioState = {
         ...saved,
@@ -137,7 +138,7 @@ async function loadStateFromStorage() {
 
       console.log("[Audio Player] State restored from storage");
     }
-  } catch (err) {
+  } catch (err: any) {
     console.error("Failed to load state", err);
   } finally {
     isInitialized = true;
@@ -160,7 +161,7 @@ async function fetchTracksFromArchive(url: string = BASE_URL) {
     const html = await response.text();
 
     const regex = /href="([^"]+\.mp3)"/g;
-    const tracks: any[] = [];
+    const tracks: ArchiveTrack[] = [];
     let match;
     let index = 0;
 
@@ -176,11 +177,12 @@ async function fetchTracksFromArchive(url: string = BASE_URL) {
 
       tracks.push({
         id: `${identifier}-${index++}`,
-        name,
+        identifier,
+        title: name,
         url: (url.endsWith("/") ? url : url + "/") + href,
-        artwork: `https://archive.org/services/img/${identifier}`,
-        artist: "Archive Collection",
-        album: identifier.replace(/[_-]/g, " "),
+        thumbnail: `https://archive.org/services/img/${identifier}`,
+        creator: "Archive Collection",
+        fileName: href,
       });
     }
     return tracks;
@@ -236,7 +238,7 @@ function getPreviousTrack() {
   return tracksList[prevIndex];
 }
 
-async function playTrack(track: any) {
+async function playTrack(track: ArchiveTrack) {
   if (!track) return;
   currentAudioState.currentTrack = track;
   if (useOffscreen) {
@@ -265,7 +267,7 @@ function handleTrackEnded() {
   }
 }
 
-browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
+browser.runtime.onMessage.addListener((message: any, sender: any, sendResponse: (response?: any) => void) => {
   if (message.type === "PING") {
     (sendResponse as any)({ status: "alive" });
     return true;
@@ -371,7 +373,7 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message.type === "TOGGLE_REPEAT") {
-    const modes: Array<"off" | "all" | "one"> = ["off", "all", "one"];
+    const modes = ["off", "all", "one"] as const;
     const currentIndex = modes.indexOf(currentAudioState.repeatMode);
     currentAudioState.repeatMode = modes[(currentIndex + 1) % modes.length];
     broadcastState();

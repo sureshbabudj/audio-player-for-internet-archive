@@ -76,6 +76,8 @@ const PlaylistManager: React.FC<PlaylistManagerProps> = ({
         name: featured.name,
         tracks,
         createdAt: Date.now(),
+        color: "#6366f1",
+        icon: featured.icon,
       });
     } catch (err) {
       console.error(err);

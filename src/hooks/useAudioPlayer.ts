@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
-import { Track, AudioState } from "../types";
+import { ArchiveTrack, AudioState } from "../types";
 
 const hasExtensionRuntime =
   typeof globalThis !== "undefined" &&
@@ -37,7 +37,7 @@ const removeRuntimeMessageListener = (listener: (message: any) => void) => {
 
 const LOCAL_STORAGE_KEY = "audioPlayerWebState";
 
-export function useAudioPlayer(tracks: Track[]) {
+export function useAudioPlayer(tracks: ArchiveTrack[]) {
   const [hasHydrated, setHasHydrated] = useState(hasExtensionRuntime);
   const [state, setState] = useState<AudioState>({
     isPlaying: false,
@@ -76,7 +76,7 @@ export function useAudioPlayer(tracks: Track[]) {
       const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw) as Partial<AudioState>;
-        setState((prev) => ({
+        setState((prev: AudioState) => ({
           ...prev,
           ...parsed,
           isPlaying: false,
@@ -107,26 +107,26 @@ export function useAudioPlayer(tracks: Track[]) {
     if (isExtension || !audio) return;
 
     const onTimeUpdate = () => {
-      setState((prev) => ({ ...prev, currentTime: audio.currentTime || 0 }));
+      setState((prev: AudioState) => ({ ...prev, currentTime: audio.currentTime || 0 }));
     };
 
     const onLoadedMetadata = () => {
-      setState((prev) => ({
+      setState((prev: AudioState) => ({
         ...prev,
         duration: Number.isFinite(audio.duration) ? audio.duration : 0,
       }));
     };
 
     const onPlay = () => {
-      setState((prev) => ({ ...prev, isPlaying: true }));
+      setState((prev: AudioState) => ({ ...prev, isPlaying: true }));
     };
 
     const onPause = () => {
-      setState((prev) => ({ ...prev, isPlaying: false }));
+      setState((prev: AudioState) => ({ ...prev, isPlaying: false }));
     };
 
     const onEnded = () => {
-      setState((prev) => {
+      setState((prev: AudioState) => {
         if (prev.repeatMode === "one" && prev.currentTrack) {
           audio.currentTime = 0;
           void audio.play();
@@ -138,12 +138,12 @@ export function useAudioPlayer(tracks: Track[]) {
           return { ...prev, isPlaying: false };
         }
 
-        let nextTrack: Track | null = null;
+        let nextTrack: ArchiveTrack | null = null;
         if (prev.shuffleMode) {
           nextTrack = list[Math.floor(Math.random() * list.length)] ?? null;
         } else {
           const currentIndex = list.findIndex(
-            (t) => t.id === prev.currentTrack?.id,
+            (t: any) => t.id === prev.currentTrack?.id,
           );
           const nextIndex = currentIndex + 1;
           if (nextIndex < list.length) {
@@ -220,7 +220,7 @@ export function useAudioPlayer(tracks: Track[]) {
   useEffect(() => {
     if (isExtension) return;
     if (state.tracksList.length > 0 || tracks.length === 0) return;
-    setState((prev) => ({ ...prev, tracksList: tracks }));
+    setState((prev: AudioState) => ({ ...prev, tracksList: tracks }));
   }, [isExtension, state.tracksList.length, tracks]);
 
   // Listen for sync updates
@@ -238,7 +238,7 @@ export function useAudioPlayer(tracks: Track[]) {
   }, [isExtension]);
 
   const playTrack = useCallback(
-    (track: Track) => {
+    (track: ArchiveTrack) => {
       if (isExtension) {
         void sendRuntimeMessage({ type: "PLAY_TRACK", track });
       } else if (audio) {
@@ -249,7 +249,7 @@ export function useAudioPlayer(tracks: Track[]) {
         void audio.play();
       }
 
-      setState((prev) => ({ ...prev, currentTrack: track, isPlaying: true }));
+      setState((prev: AudioState) => ({ ...prev, currentTrack: track, isPlaying: true }));
     },
     [audio, isExtension, state.isMuted, state.volume],
   );
@@ -269,7 +269,7 @@ export function useAudioPlayer(tracks: Track[]) {
         audio.volume = state.volume;
         audio.muted = state.isMuted;
         void audio.play();
-        setState((prev) => ({
+        setState((prev: AudioState) => ({
           ...prev,
           currentTrack: list[0],
           isPlaying: true,
@@ -300,18 +300,18 @@ export function useAudioPlayer(tracks: Track[]) {
     }
 
     if (!audio) return;
-    setState((prev) => {
+    setState((prev: AudioState) => {
       const list = prev.tracksList.length > 0 ? prev.tracksList : tracks;
       if (list.length === 0) return prev;
 
-      let nextTrack: Track;
+      let nextTrack: ArchiveTrack;
       if (prev.shuffleMode) {
         nextTrack = list[Math.floor(Math.random() * list.length)];
       } else if (!prev.currentTrack) {
         nextTrack = list[0];
       } else {
         const currentIndex = list.findIndex(
-          (t) => t.id === prev.currentTrack?.id,
+          (t: any) => t.id === prev.currentTrack?.id,
         );
         const nextIndex = currentIndex + 1;
         if (nextIndex >= list.length) {
@@ -346,18 +346,18 @@ export function useAudioPlayer(tracks: Track[]) {
     }
 
     if (!audio) return;
-    setState((prev) => {
+    setState((prev: AudioState) => {
       const list = prev.tracksList.length > 0 ? prev.tracksList : tracks;
       if (list.length === 0) return prev;
 
-      let previousTrack: Track;
+      let previousTrack: ArchiveTrack;
       if (prev.shuffleMode) {
         previousTrack = list[Math.floor(Math.random() * list.length)];
       } else if (!prev.currentTrack) {
         previousTrack = list[0];
       } else {
         const currentIndex = list.findIndex(
-          (t) => t.id === prev.currentTrack?.id,
+          (t: any) => t.id === prev.currentTrack?.id,
         );
         const previousIndex = currentIndex - 1;
         if (previousIndex < 0) {
@@ -393,7 +393,7 @@ export function useAudioPlayer(tracks: Track[]) {
 
       if (!audio) return;
       audio.currentTime = time;
-      setState((prev) => ({ ...prev, currentTime: time }));
+      setState((prev: AudioState) => ({ ...prev, currentTime: time }));
     },
     [audio, isExtension],
   );
@@ -408,7 +408,7 @@ export function useAudioPlayer(tracks: Track[]) {
       if (audio) {
         audio.volume = volume;
       }
-      setState((prev) => ({ ...prev, volume }));
+      setState((prev: AudioState) => ({ ...prev, volume }));
     },
     [audio, isExtension],
   );
@@ -419,7 +419,7 @@ export function useAudioPlayer(tracks: Track[]) {
       return;
     }
 
-    setState((prev) => {
+    setState((prev: AudioState) => {
       const nextMuted = !prev.isMuted;
       if (audio) {
         audio.muted = nextMuted;
@@ -433,7 +433,7 @@ export function useAudioPlayer(tracks: Track[]) {
       void sendRuntimeMessage({ type: "TOGGLE_SHUFFLE" });
       return;
     }
-    setState((prev) => ({ ...prev, shuffleMode: !prev.shuffleMode }));
+    setState((prev: AudioState) => ({ ...prev, shuffleMode: !prev.shuffleMode }));
   }, [isExtension]);
 
   const toggleRepeat = useCallback(() => {
@@ -442,7 +442,7 @@ export function useAudioPlayer(tracks: Track[]) {
       return;
     }
 
-    setState((prev) => {
+    setState((prev: AudioState) => {
       const nextMode =
         prev.repeatMode === "off"
           ? "all"
@@ -454,7 +454,7 @@ export function useAudioPlayer(tracks: Track[]) {
   }, [isExtension]);
 
   const playTracks = useCallback(
-    (newTracks: Track[], startTrack: Track) => {
+    (newTracks: ArchiveTrack[], startTrack: ArchiveTrack) => {
       if (isExtension) {
         void sendRuntimeMessage({
           type: "UPDATE_TRACKS_LIST",
@@ -469,7 +469,7 @@ export function useAudioPlayer(tracks: Track[]) {
         void audio.play();
       }
 
-      setState((prev) => ({
+      setState((prev: AudioState) => ({
         ...prev,
         tracksList: newTracks,
         currentTrack: startTrack,

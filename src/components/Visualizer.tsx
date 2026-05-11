@@ -1,5 +1,4 @@
 import React from "react";
-import { Icon } from "@iconify/react";
 
 interface VisualizerProps {
   isPlaying: boolean;

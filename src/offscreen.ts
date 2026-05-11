@@ -1,10 +1,8 @@
 import browser from "webextension-polyfill";
 
 const audio = new Audio();
-let playNextCallback = () => {};
-
 // Listen for messages from the background script
-browser.runtime.onMessage.addListener((message) => {
+browser.runtime.onMessage.addListener((message: any) => {
   if (message.target !== "offscreen") return;
 
   switch (message.type) {

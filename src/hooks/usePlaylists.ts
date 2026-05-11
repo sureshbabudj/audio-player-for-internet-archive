@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Playlist, Track } from "../types";
+import { Playlist, ArchiveTrack } from "../types";
 import { playlistStore } from "../utils/playlistStore";
 import { fetchArchiveMetadata, convertToTracks, extractIdentifier } from "../utils/archiveOrg";
 
@@ -21,12 +21,14 @@ export function usePlaylists() {
     refresh();
   }, [refresh]);
 
-  const createPlaylist = async (name: string, tracks: Track[] = []) => {
+  const createPlaylist = async (name: string, tracks: ArchiveTrack[] = []) => {
     const newPlaylist: Playlist = {
       id: crypto.randomUUID(),
       name,
       tracks,
       createdAt: Date.now(),
+      color: "#6366f1",
+      icon: "ListMusic",
     };
     await playlistStore.savePlaylist(newPlaylist);
     await refresh();
@@ -43,7 +45,7 @@ export function usePlaylists() {
     await refresh();
   };
 
-  const addTrackToPlaylist = async (playlistId: string, track: Track) => {
+  const addTrackToPlaylist = async (playlistId: string, track: ArchiveTrack) => {
     const playlists = await playlistStore.getPlaylists();
     const index = playlists.findIndex((p) => p.id === playlistId);
     if (index > -1) {
@@ -78,7 +80,7 @@ export function usePlaylists() {
   };
 
   const importFromArchive = async (urlOrId: string, customName?: string) => {
-    let tracks: Track[] = [];
+    let tracks: ArchiveTrack[] = [];
     let identifier = extractIdentifier(urlOrId) || urlOrId;
     let finalName = customName || identifier;
 
@@ -99,7 +101,7 @@ export function usePlaylists() {
         tracks = await fetchTracks(scrapeUrl);
         
         if (tracks.length === 0) throw new Error("No tracks found at this URL");
-      } catch (scrapeError) {
+      } catch {
         throw new Error("Could not find any audio tracks at this Archive.org location.");
       }
     }
@@ -109,6 +111,8 @@ export function usePlaylists() {
       name: finalName,
       tracks,
       createdAt: Date.now(),
+      color: "#8b5cf6",
+      icon: "Archive",
     };
 
     await playlistStore.savePlaylist(newPlaylist);
