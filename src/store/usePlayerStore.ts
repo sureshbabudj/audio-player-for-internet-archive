@@ -33,6 +33,8 @@ interface PlayerState {
   playbackSpeed: number;
   repeatMode: RepeatMode;
   isShuffled: boolean;
+  shuffledIndices: number[];
+  shufflePointer: number;
   sleepTimer: number | null; // Remaining minutes (UI display)
   sleepTimerEndTime: number | null; // Exact epoch ms to stop
 
@@ -161,6 +163,8 @@ export const usePlayerStore = create<PlayerState>()(
       playbackSpeed: 1,
       repeatMode: "off",
       isShuffled: false,
+      shuffledIndices: [],
+      shufflePointer: -1,
       sleepTimer: null,
       sleepTimerEndTime: null,
 
@@ -252,6 +256,8 @@ export const usePlayerStore = create<PlayerState>()(
           currentTrack: track,
           queueTitle: title,
           isShuffled: false,
+          shuffledIndices: [],
+          shufflePointer: -1,
         });
 
         // Play first on Android to satisfy foreground service requirements
@@ -334,14 +340,32 @@ export const usePlayerStore = create<PlayerState>()(
           setPlayer,
           player,
           queueTitle,
+          isShuffled,
+          shuffledIndices,
+          shufflePointer,
         } = get();
-        let nextIndex = currentIndex + 1;
 
-        if (nextIndex >= queue.length) {
-          if (repeatMode === "all") {
-            nextIndex = 0;
-          } else {
-            return;
+        let nextIndex: number;
+
+        if (isShuffled && shuffledIndices.length > 0) {
+          let nextPointer = shufflePointer + 1;
+          if (nextPointer >= shuffledIndices.length) {
+            if (repeatMode === "all") {
+              nextPointer = 0;
+            } else {
+              return;
+            }
+          }
+          nextIndex = shuffledIndices[nextPointer];
+          set({ shufflePointer: nextPointer });
+        } else {
+          nextIndex = currentIndex + 1;
+          if (nextIndex >= queue.length) {
+            if (repeatMode === "all") {
+              nextIndex = 0;
+            } else {
+              return;
+            }
           }
         }
 
@@ -393,6 +417,9 @@ export const usePlayerStore = create<PlayerState>()(
           player,
           repeatMode,
           queueTitle,
+          isShuffled,
+          shuffledIndices,
+          shufflePointer,
         } = get();
 
         if (position > 3000) {
@@ -400,12 +427,27 @@ export const usePlayerStore = create<PlayerState>()(
           return;
         }
 
-        let prevIndex = currentIndex - 1;
-        if (prevIndex < 0) {
-          if (repeatMode === "all") {
-            prevIndex = queue.length - 1;
-          } else {
-            return;
+        let prevIndex: number;
+
+        if (isShuffled && shuffledIndices.length > 0) {
+          let prevPointer = shufflePointer - 1;
+          if (prevPointer < 0) {
+            if (repeatMode === "all") {
+              prevPointer = shuffledIndices.length - 1;
+            } else {
+              return;
+            }
+          }
+          prevIndex = shuffledIndices[prevPointer];
+          set({ shufflePointer: prevPointer });
+        } else {
+          prevIndex = currentIndex - 1;
+          if (prevIndex < 0) {
+            if (repeatMode === "all") {
+              prevIndex = queue.length - 1;
+            } else {
+              return;
+            }
           }
         }
 
@@ -450,9 +492,18 @@ export const usePlayerStore = create<PlayerState>()(
           player,
           repeatMode,
           queueTitle,
+          isShuffled,
+          shuffledIndices,
         } = get();
         const track = queue[index];
         if (!track) return;
+
+        if (isShuffled) {
+          const pointer = shuffledIndices.indexOf(index);
+          if (pointer !== -1) {
+            set({ shufflePointer: pointer });
+          }
+        }
 
         if (player) {
           player.clearLockScreenControls?.();
@@ -492,28 +543,34 @@ export const usePlayerStore = create<PlayerState>()(
       },
 
       toggleShuffle: () => {
-        const { isShuffled, queue, originalQueue, currentIndex } = get();
+        const { isShuffled, queue, currentIndex } = get();
 
         if (!isShuffled) {
-          const currentTrack = queue[currentIndex];
-          const otherTracks = queue.filter((_, i) => i !== currentIndex);
-
-          for (let i = otherTracks.length - 1; i > 0; i--) {
+          // Enable shuffle: create a random sequence of indices
+          const indices = Array.from({ length: queue.length }, (_, i) => i);
+          // Standard Fisher-Yates shuffle
+          for (let i = indices.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
-            [otherTracks[i], otherTracks[j]] = [otherTracks[j], otherTracks[i]];
+            [indices[i], indices[j]] = [indices[j], indices[i]];
+          }
+          // Move the current track's index to the front so the sequence starts from now
+          const currentInIndices = indices.indexOf(currentIndex);
+          if (currentInIndices !== -1) {
+            indices.splice(currentInIndices, 1);
+            indices.unshift(currentIndex);
           }
 
-          const newQueue = [currentTrack, ...otherTracks];
-          set({ queue: newQueue, currentIndex: 0, isShuffled: true });
-        } else {
-          const currentTrack = queue[currentIndex];
-          const newIndex = originalQueue.findIndex(
-            (t) => t.id === currentTrack.id,
-          );
           set({
-            queue: [...originalQueue],
-            currentIndex: newIndex >= 0 ? newIndex : 0,
+            isShuffled: true,
+            shuffledIndices: indices,
+            shufflePointer: 0,
+          });
+        } else {
+          // Disable shuffle: return to normal sequential order
+          set({
             isShuffled: false,
+            shuffledIndices: [],
+            shufflePointer: -1,
           });
         }
       },
