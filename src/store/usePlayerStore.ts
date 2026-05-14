@@ -69,12 +69,17 @@ interface PlayerState {
  * - Android: Uses expo-audio's built-in MediaSession via setActiveForLockScreen
  * - iOS:     Uses our custom MPNowPlayingInfoCenter module
  */
-const activateLockScreen = (player: AudioPlayer, track: ArchiveTrack, title: string) => {
+const activateLockScreen = (
+  player: AudioPlayer,
+  track: ArchiveTrack,
+  title: string,
+) => {
   const metadata = {
     title: track.title,
     artist: track.creator || "Unknown Artist",
     albumTitle: title,
-    artworkUrl: track.thumbnail || `https://archive.org/services/img/${track.identifier}`,
+    artworkUrl:
+      track.thumbnail || `https://archive.org/services/img/${track.identifier}`,
     duration: 0, // Will be updated during playback
   };
 
@@ -93,7 +98,11 @@ const activateLockScreen = (player: AudioPlayer, track: ArchiveTrack, title: str
       position: 0,
       duration: 0,
     });
-  } else if (Platform.OS === "web" && typeof navigator !== "undefined" && "mediaSession" in navigator) {
+  } else if (
+    Platform.OS === "web" &&
+    typeof navigator !== "undefined" &&
+    "mediaSession" in navigator
+  ) {
     // @ts-ignore
     navigator.mediaSession.metadata = new MediaMetadata({
       title: metadata.title,
@@ -108,14 +117,20 @@ const activateLockScreen = (player: AudioPlayer, track: ArchiveTrack, title: str
       ["pause", () => store.togglePlayPause()],
       ["nexttrack", () => store.skipNext()],
       ["previoustrack", () => store.skipPrevious()],
-      ["seekbackward", () => {
-        const { player: p } = usePlayerStore.getState();
-        if (p) p.seekTo(p.currentTime - 10);
-      }],
-      ["seekforward", () => {
-        const { player: p } = usePlayerStore.getState();
-        if (p) p.seekTo(p.currentTime + 10);
-      }],
+      [
+        "seekbackward",
+        () => {
+          const { player: p } = usePlayerStore.getState();
+          if (p) p.seekTo(p.currentTime - 10);
+        },
+      ],
+      [
+        "seekforward",
+        () => {
+          const { player: p } = usePlayerStore.getState();
+          if (p) p.seekTo(p.currentTime + 10);
+        },
+      ],
     ];
 
     handlers.forEach(([action, handler]) => {
@@ -266,7 +281,33 @@ export const usePlayerStore = create<PlayerState>()(
       },
 
       togglePlayPause: () => {
-        const { player } = get();
+        const {
+          player,
+          currentTrack,
+          volume,
+          playbackSpeed,
+          repeatMode,
+          setPlayer,
+          queueTitle,
+        } = get();
+
+        // If no player but we have a track (e.g. after reload), initialize it
+        if (Platform.OS === "web" && !player && currentTrack) {
+          const newPlayer = createAudioPlayer({
+            uri: currentTrack.url,
+            name: currentTrack.title,
+          });
+          newPlayer.volume = volume;
+          newPlayer.setPlaybackRate(playbackSpeed);
+          newPlayer.loop = repeatMode === "one";
+
+          setPlayer(newPlayer);
+          newPlayer.play();
+
+          activateLockScreen(newPlayer, currentTrack, queueTitle);
+          return;
+        }
+
         if (!player) return;
         if (player.playing) {
           player.pause();
@@ -284,7 +325,16 @@ export const usePlayerStore = create<PlayerState>()(
       },
 
       skipNext: () => {
-        const { queue, currentIndex, repeatMode, volume, playbackSpeed, setPlayer, player, queueTitle } = get();
+        const {
+          queue,
+          currentIndex,
+          repeatMode,
+          volume,
+          playbackSpeed,
+          setPlayer,
+          player,
+          queueTitle,
+        } = get();
         let nextIndex = currentIndex + 1;
 
         if (nextIndex >= queue.length) {
@@ -333,7 +383,17 @@ export const usePlayerStore = create<PlayerState>()(
       },
 
       skipPrevious: () => {
-        const { queue, currentIndex, position, volume, playbackSpeed, setPlayer, player, repeatMode, queueTitle } = get();
+        const {
+          queue,
+          currentIndex,
+          position,
+          volume,
+          playbackSpeed,
+          setPlayer,
+          player,
+          repeatMode,
+          queueTitle,
+        } = get();
 
         if (position > 3000) {
           player?.seekTo(0);
@@ -382,7 +442,15 @@ export const usePlayerStore = create<PlayerState>()(
       },
 
       playFromQueue: async (index) => {
-        const { queue, volume, playbackSpeed, setPlayer, player, repeatMode, queueTitle } = get();
+        const {
+          queue,
+          volume,
+          playbackSpeed,
+          setPlayer,
+          player,
+          repeatMode,
+          queueTitle,
+        } = get();
         const track = queue[index];
         if (!track) return;
 
@@ -439,7 +507,9 @@ export const usePlayerStore = create<PlayerState>()(
           set({ queue: newQueue, currentIndex: 0, isShuffled: true });
         } else {
           const currentTrack = queue[currentIndex];
-          const newIndex = originalQueue.findIndex((t) => t.id === currentTrack.id);
+          const newIndex = originalQueue.findIndex(
+            (t) => t.id === currentTrack.id,
+          );
           set({
             queue: [...originalQueue],
             currentIndex: newIndex >= 0 ? newIndex : 0,
@@ -584,7 +654,9 @@ export const useInitializePlayer = () => {
         usePlayerStore.setState({ sleepTimer: null, sleepTimerEndTime: null });
       } else {
         // Update UI countdown
-        const remainingMins = Math.ceil((state.sleepTimerEndTime - now) / 60000);
+        const remainingMins = Math.ceil(
+          (state.sleepTimerEndTime - now) / 60000,
+        );
         if (state.sleepTimer !== remainingMins) {
           usePlayerStore.setState({ sleepTimer: remainingMins });
         }

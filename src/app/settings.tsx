@@ -175,23 +175,37 @@ export default function SettingsScreen() {
                   throw new Error("Invalid backup file format");
                 }
 
-                Alert.alert(
-                  "Import Library",
-                  `This will replace your current library with ${data.collections?.length || 0} collections and ${data.likedTracks?.length || 0} liked tracks. Continue?`,
-                  [
-                    { text: "Cancel", style: "cancel" },
-                    {
-                      text: "Import",
-                      onPress: () => {
-                        importLibrary(data);
-                        Alert.alert(
-                          "Success",
-                          "Library imported successfully!",
-                        );
-                      },
-                    },
-                  ],
-                );
+                const confirmImport = () => {
+                  if (Platform.OS === "web") {
+                    if (
+                      window.confirm(
+                        `This will replace your current library with ${data.collections?.length || 0} collections and ${data.likedTracks?.length || 0} liked tracks. Continue?`,
+                      )
+                    ) {
+                      importLibrary(data);
+                      alert("Library imported successfully!");
+                    }
+                  } else {
+                    Alert.alert(
+                      "Import Library",
+                      `This will replace your current library with ${data.collections?.length || 0} collections and ${data.likedTracks?.length || 0} liked tracks. Continue?`,
+                      [
+                        { text: "Cancel", style: "cancel" },
+                        {
+                          text: "Import",
+                          onPress: () => {
+                            importLibrary(data);
+                            Alert.alert(
+                              "Success",
+                              "Library imported successfully!",
+                            );
+                          },
+                        },
+                      ],
+                    );
+                  }
+                };
+                confirmImport();
               } catch (e) {
                 console.error("Import error:", e);
                 Alert.alert(
@@ -215,7 +229,9 @@ export default function SettingsScreen() {
           <SettingsItem
             icon={Shield}
             label="Privacy Policy"
-            onPress={() => Linking.openURL("https://archieplay.web.app/privacy")}
+            onPress={() =>
+              Linking.openURL("https://archieplay.web.app/privacy")
+            }
           />
           <SettingsItem
             icon={Info}
@@ -229,21 +245,33 @@ export default function SettingsScreen() {
             label="Reset All Data"
             color={THEME.error}
             onPress={() => {
-              Alert.alert(
-                "Reset Library",
-                "This will permanently delete all your collections, playlists, and playback history. This action cannot be undone.",
-                [
-                  { text: "Cancel", style: "cancel" },
-                  {
-                    text: "Reset Everything",
-                    style: "destructive",
-                    onPress: () => {
-                      clearLibrary();
-                      usePlayerStore.getState().resetPlayer();
+              if (Platform.OS === "web") {
+                if (
+                  window.confirm(
+                    "This will permanently delete all your collections, playlists, and playback history. This action cannot be undone.",
+                  )
+                ) {
+                  clearLibrary();
+                  usePlayerStore.getState().resetPlayer();
+                  alert("All data has been reset.");
+                }
+              } else {
+                Alert.alert(
+                  "Reset Library",
+                  "This will permanently delete all your collections, playlists, and playback history. This action cannot be undone.",
+                  [
+                    { text: "Cancel", style: "cancel" },
+                    {
+                      text: "Reset Everything",
+                      style: "destructive",
+                      onPress: () => {
+                        clearLibrary();
+                        usePlayerStore.getState().resetPlayer();
+                      },
                     },
-                  },
-                ],
-              );
+                  ],
+                );
+              }
             }}
           />
 
