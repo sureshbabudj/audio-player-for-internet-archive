@@ -21,6 +21,15 @@ export interface ArchiveItem {
   date?: string;
 }
 
+export interface Collection {
+  id: string;
+  title: string;
+  creator: string | null;
+  thumbnail: string;
+  tracks: ArchiveTrack[];
+  addedAt: number;
+}
+
 export interface Playlist {
   id: string;
   name: string;
@@ -35,12 +44,20 @@ export type RepeatMode = "off" | "one" | "all";
 
 export interface AudioState {
   isPlaying: boolean;
-  currentTime: number;
+  isBuffering: boolean;
+  position: number;
   duration: number;
   volume: number;
-  isMuted: boolean;
-  shuffleMode: boolean;
+  playbackSpeed: number;
   repeatMode: RepeatMode;
+  isShuffled: boolean;
+  shuffledIndices: number[];
+  shufflePointer: number;
   currentTrack: ArchiveTrack | null;
-  tracksList: ArchiveTrack[];
+  queue: ArchiveTrack[];
+  originalQueue: ArchiveTrack[];
+  queueTitle: string;
+  currentIndex: number;
+  sleepTimer: number | null;
+  sleepTimerEndTime: number | null;
 }

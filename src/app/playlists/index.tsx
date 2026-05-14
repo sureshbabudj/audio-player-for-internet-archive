@@ -1,3 +1,4 @@
+import { EmptyState } from "@/components/EmptyState";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { PlaylistCard } from "@/components/PlaylistCard";
 import { THEME } from "@/constants/colors";
@@ -48,12 +49,13 @@ export default function PlaylistsScreen() {
 
       {/* Playlists Grid */}
       {playlists.length === 0 ? (
-        <View className="flex-1 items-center justify-center px-8">
-          <Music size={48} color={THEME.primary} opacity={0.3} />
-          <Text className="text-white/30 font-body text-lg mt-4 text-center">
-            No playlists yet. Create your first one!
-          </Text>
-        </View>
+        <EmptyState
+          title="No Playlists"
+          message="Group your favorite tracks together by creating playlists. You can add tracks from any collection."
+          icon={Music}
+          actionLabel="Create First Playlist"
+          onAction={() => setModalVisible(true)}
+        />
       ) : (
         <FlatList
           data={playlists}

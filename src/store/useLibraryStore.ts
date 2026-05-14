@@ -1,16 +1,7 @@
-import { ArchiveItem, ArchiveTrack } from "@/types";
+import { ArchiveItem, ArchiveTrack, Collection } from "@/types";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-
-interface Collection {
-  id: string;
-  title: string;
-  creator: string | null;
-  thumbnail: string;
-  tracks: ArchiveTrack[];
-  addedAt: number;
-}
 
 interface LibraryState {
   collections: Collection[];

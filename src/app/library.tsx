@@ -1,3 +1,4 @@
+import { EmptyState } from "@/components/EmptyState";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { TrackList } from "@/components/TrackList";
 import { THEME } from "@/constants/colors";
@@ -119,12 +120,11 @@ export default function LibraryScreen() {
           keyExtractor={(item) => item.id}
           className="flex-1 px-4"
           ListEmptyComponent={
-            <View className="items-center justify-center py-20">
-              <Text className="text-white/30 font-body text-center text-lg px-10">
-                Your library is empty. Search and add collections to get
-                started!
-              </Text>
-            </View>
+            <EmptyState
+              title="Your Library is Empty"
+              message="Search the Internet Archive for your favorite collections and add them here to build your personal library."
+              actionLabel="Start Searching"
+            />
           }
           renderItem={({ item: collection }) => (
             <TouchableOpacity
@@ -156,13 +156,16 @@ export default function LibraryScreen() {
           contentContainerStyle={{ paddingBottom: 100 }}
         />
       ) : tracks.length === 0 ? (
-        <View className="flex-1 items-center justify-center p-10">
-          <Text className="text-white/30 font-body text-center text-lg">
-            {activeTab === "liked"
-              ? "No liked tracks yet. Tap the heart to add favorites!"
-              : "No recent plays. Start listening to see your history."}
-          </Text>
-        </View>
+        <EmptyState
+          title={activeTab === "liked" ? "No Liked Tracks" : "No Recent Plays"}
+          message={
+            activeTab === "liked"
+              ? "Start exploring and heart your favorite tracks to see them here."
+              : "Your recently played tracks will appear here once you start listening."
+          }
+          icon={activeTab === "liked" ? Heart : Clock}
+          actionLabel="Go to Search"
+        />
       ) : (
         <TrackList
           tracks={tracks}
