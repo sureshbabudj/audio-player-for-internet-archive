@@ -208,10 +208,16 @@ export default function SettingsScreen() {
                 confirmImport();
               } catch (e) {
                 console.error("Import error:", e);
-                Alert.alert(
-                  "Error",
-                  "Failed to import backup file. Make sure it's a valid ArchiPlay JSON backup.",
-                );
+                if (Platform.OS === "web") {
+                  alert(
+                    "Error: Failed to import backup file. Make sure it's a valid ArchiPlay JSON backup.",
+                  );
+                } else {
+                  Alert.alert(
+                    "Error",
+                    "Failed to import backup file. Make sure it's a valid ArchiPlay JSON backup.",
+                  );
+                }
               }
             }}
           />
@@ -221,7 +227,11 @@ export default function SettingsScreen() {
             icon={RotateCcw}
             label="Clear Image Cache"
             onPress={() => {
-              Alert.alert("Cache", "All image cache has been cleared.");
+              if (Platform.OS === "web") {
+                alert("Cache: All image cache has been cleared.");
+              } else {
+                Alert.alert("Cache", "All image cache has been cleared.");
+              }
             }}
           />
 
