@@ -8,7 +8,7 @@ import {
   Search,
 } from "lucide-react-native";
 import React from "react";
-import { Text, TouchableOpacity, View } from "react-native";
+import { Text, TouchableOpacity, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 interface ScreenHeaderProps {
@@ -26,6 +26,7 @@ export function ScreenHeader({
 }: ScreenHeaderProps) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
 
   if (type === "main") {
     return (
@@ -66,12 +67,11 @@ export function ScreenHeader({
         onPress={() => router.back()}
         className="w-10 h-10 items-center justify-center rounded-full"
       >
-        <ChevronDown size={28} color={THEME.white} className="md:hidden" />
-        <ChevronLeft
-          size={28}
-          color={THEME.white}
-          className="hidden md:block"
-        />
+        {width < 768 ? (
+          <ChevronDown size={28} color={THEME.white} />
+        ) : (
+          <ChevronLeft size={28} color={THEME.white} />
+        )}
       </TouchableOpacity>
 
       <View className="flex-1 items-center px-4">

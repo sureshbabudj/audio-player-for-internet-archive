@@ -8,6 +8,7 @@ import {
   type AudioPlayer,
 } from "expo-audio";
 import { useEffect, useRef } from "react";
+import { Platform } from "react-native";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import ExpoAudioControls from "../../modules/expo-audio-controls";
@@ -19,7 +20,7 @@ interface PlayerState {
   // Track State
   currentTrack: ArchiveTrack | null;
   queue: ArchiveTrack[];
-  originalQueue: ArchiveTrack[]; // Keep sequential order for un-shuffling
+  originalQueue: ArchiveTrack[];
   queueTitle: string;
   currentIndex: number;
 
@@ -32,7 +33,8 @@ interface PlayerState {
   playbackSpeed: number;
   repeatMode: RepeatMode;
   isShuffled: boolean;
-  sleepTimer: number | null; // Remaining minutes
+  sleepTimer: number | null; // Remaining minutes (UI display)
+  sleepTimerEndTime: number | null; // Exact epoch ms to stop
 
   // Actions
   setPlayer: (player: AudioPlayer | null) => void;
@@ -62,6 +64,71 @@ interface PlayerState {
   setPlaybackStatus: (status: any) => void;
 }
 
+/**
+ * Activates the native lock screen for a player on BOTH platforms.
+ * - Android: Uses expo-audio's built-in MediaSession via setActiveForLockScreen
+ * - iOS:     Uses our custom MPNowPlayingInfoCenter module
+ */
+const activateLockScreen = (player: AudioPlayer, track: ArchiveTrack, title: string) => {
+  const metadata = {
+    title: track.title,
+    artist: track.creator || "Unknown Artist",
+    albumTitle: title,
+    artworkUrl: track.thumbnail || `https://archive.org/services/img/${track.identifier}`,
+    duration: 0, // Will be updated during playback
+  };
+
+  if (Platform.OS === "android") {
+    player.setActiveForLockScreen(true, metadata);
+  } else if (Platform.OS === "ios") {
+    // On iOS, we use our custom module for BOTH metadata and controls.
+    // This gives us 100% control over the MPRemoteCommandCenter.
+    ExpoAudioControls.setupRemoteControls();
+    ExpoAudioControls.updateNowPlaying({
+      title: metadata.title,
+      artist: metadata.artist,
+      album: metadata.albumTitle,
+      artworkUrl: metadata.artworkUrl,
+      isPlaying: true,
+      position: 0,
+      duration: 0,
+    });
+  } else if (Platform.OS === "web" && typeof navigator !== "undefined" && "mediaSession" in navigator) {
+    // @ts-ignore
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: metadata.title,
+      artist: metadata.artist,
+      album: metadata.albumTitle,
+      artwork: [{ src: metadata.artworkUrl }],
+    });
+
+    const store = usePlayerStore.getState();
+    const handlers = [
+      ["play", () => store.togglePlayPause()],
+      ["pause", () => store.togglePlayPause()],
+      ["nexttrack", () => store.skipNext()],
+      ["previoustrack", () => store.skipPrevious()],
+      ["seekbackward", () => {
+        const { player: p } = usePlayerStore.getState();
+        if (p) p.seekTo(p.currentTime - 10);
+      }],
+      ["seekforward", () => {
+        const { player: p } = usePlayerStore.getState();
+        if (p) p.seekTo(p.currentTime + 10);
+      }],
+    ];
+
+    handlers.forEach(([action, handler]) => {
+      try {
+        // @ts-ignore
+        navigator.mediaSession.setActionHandler(action, handler);
+      } catch (error) {
+        /* Action not supported */
+      }
+    });
+  }
+};
+
 export const usePlayerStore = create<PlayerState>()(
   persist(
     (set, get) => ({
@@ -80,15 +147,14 @@ export const usePlayerStore = create<PlayerState>()(
       repeatMode: "off",
       isShuffled: false,
       sleepTimer: null,
+      sleepTimerEndTime: null,
 
       setPlayer: (player) => {
-        // Setup listeners if a new player is provided
         if (player) {
           player.addListener("playbackStatusUpdate", (status) => {
             get().setPlaybackStatus(status);
           });
         }
-        
         set({ player });
       },
 
@@ -101,45 +167,51 @@ export const usePlayerStore = create<PlayerState>()(
         const isPlaying = status.playing;
 
         set({
-          isPlaying: isPlaying,
+          isPlaying,
           isBuffering: status.isBuffering && !isPlaying,
           position: newPosition,
           duration: newDuration,
         });
 
-        // Handle auto-advance when track finishes
+        // Auto-advance when track ends
         if (status.didJustFinish && !state.player.loop) {
           state.skipNext();
         }
 
-        // Update native module metadata if significant change
-        const track = state.currentTrack;
-        if (track && (isPlaying !== state.isPlaying || Math.abs(newPosition - state.position) > 5000)) {
-          try {
-            if (typeof ExpoAudioControls?.updateNowPlaying === "function") {
-              ExpoAudioControls.updateNowPlaying({
-                title: track.title,
-                artist: track.creator || "Unknown Artist",
-                album: state.queueTitle || "ArchiPlay",
-                artworkUrl:
-                  track.thumbnail ||
-                  `https://archive.org/services/img/${track.identifier}`,
-                duration: newDuration,
-                position: newPosition,
-                isPlaying: isPlaying,
-              });
+        // iOS lock screen metadata update (Android is handled natively via setActiveForLockScreen)
+        if (Platform.OS === "ios") {
+          const track = state.currentTrack;
+          if (
+            track &&
+            (isPlaying !== state.isPlaying ||
+              Math.abs(newPosition - state.position) > 5000)
+          ) {
+            try {
+              if (typeof ExpoAudioControls?.updateNowPlaying === "function") {
+                ExpoAudioControls.updateNowPlaying({
+                  title: track.title,
+                  artist: track.creator || "Unknown Artist",
+                  album: state.queueTitle || "ArchiPlay",
+                  artworkUrl:
+                    track.thumbnail ||
+                    `https://archive.org/services/img/${track.identifier}`,
+                  duration: newDuration,
+                  position: newPosition,
+                  isPlaying,
+                });
+              }
+            } catch {
+              // Ignore
             }
-          } catch {
-            // Ignore
           }
         }
       },
 
       loadQueue: async (tracks, startIndex = 0, title = "Playlist") => {
         const state = get();
-        
-        // Clean up current player
+
         if (state.player) {
+          state.player.clearLockScreenControls?.();
           state.player.pause();
           state.player.remove();
         }
@@ -153,11 +225,11 @@ export const usePlayerStore = create<PlayerState>()(
         });
 
         newPlayer.volume = state.volume;
-        newPlayer.playbackSpeed = state.playbackSpeed;
+        newPlayer.setPlaybackRate(state.playbackSpeed);
         newPlayer.loop = state.repeatMode === "one";
 
         state.setPlayer(newPlayer);
-        
+
         set({
           queue: tracks,
           originalQueue: [...tracks],
@@ -167,9 +239,17 @@ export const usePlayerStore = create<PlayerState>()(
           isShuffled: false,
         });
 
+        // Play first on Android to satisfy foreground service requirements
         newPlayer.play();
 
-        // Preload next track
+        if (Platform.OS === "android") {
+          setTimeout(() => {
+            activateLockScreen(newPlayer, track, title);
+          }, 100);
+        } else {
+          activateLockScreen(newPlayer, track, title);
+        }
+
         const nextTrack = tracks[startIndex + 1];
         if (nextTrack) {
           preload({ uri: nextTrack.url });
@@ -204,7 +284,7 @@ export const usePlayerStore = create<PlayerState>()(
       },
 
       skipNext: () => {
-        const { queue, currentIndex, repeatMode, volume, playbackSpeed, setPlayer, player } = get();
+        const { queue, currentIndex, repeatMode, volume, playbackSpeed, setPlayer, player, queueTitle } = get();
         let nextIndex = currentIndex + 1;
 
         if (nextIndex >= queue.length) {
@@ -218,8 +298,8 @@ export const usePlayerStore = create<PlayerState>()(
         const nextTrack = queue[nextIndex];
         if (!nextTrack) return;
 
-        // Create new player for next track
         if (player) {
+          player.clearLockScreenControls?.();
           player.pause();
           player.remove();
         }
@@ -229,14 +309,23 @@ export const usePlayerStore = create<PlayerState>()(
           name: nextTrack.title,
         });
         newPlayer.volume = volume;
-        newPlayer.playbackSpeed = playbackSpeed;
+        newPlayer.setPlaybackRate(playbackSpeed);
         newPlayer.loop = repeatMode === "one";
-        
+
         setPlayer(newPlayer);
         set({ currentIndex: nextIndex, currentTrack: nextTrack });
+
+        // Play first on Android to satisfy foreground service requirements
         newPlayer.play();
 
-        // Preload track after the next one
+        if (Platform.OS === "android") {
+          setTimeout(() => {
+            activateLockScreen(newPlayer, nextTrack, queueTitle);
+          }, 100);
+        } else {
+          activateLockScreen(newPlayer, nextTrack, queueTitle);
+        }
+
         const afterNext = queue[nextIndex + 1];
         if (afterNext) {
           preload({ uri: afterNext.url });
@@ -244,8 +333,8 @@ export const usePlayerStore = create<PlayerState>()(
       },
 
       skipPrevious: () => {
-        const { queue, currentIndex, position, volume, playbackSpeed, setPlayer, player, repeatMode } = get();
-        
+        const { queue, currentIndex, position, volume, playbackSpeed, setPlayer, player, repeatMode, queueTitle } = get();
+
         if (position > 3000) {
           player?.seekTo(0);
           return;
@@ -264,6 +353,7 @@ export const usePlayerStore = create<PlayerState>()(
         if (!prevTrack) return;
 
         if (player) {
+          player.clearLockScreenControls?.();
           player.pause();
           player.remove();
         }
@@ -273,20 +363,31 @@ export const usePlayerStore = create<PlayerState>()(
           name: prevTrack.title,
         });
         newPlayer.volume = volume;
-        newPlayer.playbackSpeed = playbackSpeed;
+        newPlayer.setPlaybackRate(playbackSpeed);
         newPlayer.loop = repeatMode === "one";
 
         setPlayer(newPlayer);
         set({ currentIndex: prevIndex, currentTrack: prevTrack });
+
+        // Play first on Android to satisfy foreground service requirements
         newPlayer.play();
+
+        if (Platform.OS === "android") {
+          setTimeout(() => {
+            activateLockScreen(newPlayer, prevTrack, queueTitle);
+          }, 100);
+        } else {
+          activateLockScreen(newPlayer, prevTrack, queueTitle);
+        }
       },
 
       playFromQueue: async (index) => {
-        const { queue, volume, playbackSpeed, setPlayer, player, repeatMode } = get();
+        const { queue, volume, playbackSpeed, setPlayer, player, repeatMode, queueTitle } = get();
         const track = queue[index];
         if (!track) return;
 
         if (player) {
+          player.clearLockScreenControls?.();
           player.pause();
           player.remove();
         }
@@ -296,12 +397,22 @@ export const usePlayerStore = create<PlayerState>()(
           name: track.title,
         });
         newPlayer.volume = volume;
-        newPlayer.playbackSpeed = playbackSpeed;
+        newPlayer.setPlaybackRate(playbackSpeed);
         newPlayer.loop = repeatMode === "one";
 
         setPlayer(newPlayer);
         set({ currentIndex: index, currentTrack: track });
+
+        // Play first on Android to satisfy foreground service requirements
         newPlayer.play();
+
+        if (Platform.OS === "android") {
+          setTimeout(() => {
+            activateLockScreen(newPlayer, track, queueTitle);
+          }, 100);
+        } else {
+          activateLockScreen(newPlayer, track, queueTitle);
+        }
       },
 
       setRepeatMode: (mode) => {
@@ -314,27 +425,21 @@ export const usePlayerStore = create<PlayerState>()(
 
       toggleShuffle: () => {
         const { isShuffled, queue, originalQueue, currentIndex } = get();
-        
+
         if (!isShuffled) {
-          // Shuffle
           const currentTrack = queue[currentIndex];
           const otherTracks = queue.filter((_, i) => i !== currentIndex);
-          
+
           for (let i = otherTracks.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
             [otherTracks[i], otherTracks[j]] = [otherTracks[j], otherTracks[i]];
           }
-          
+
           const newQueue = [currentTrack, ...otherTracks];
-          set({
-            queue: newQueue,
-            currentIndex: 0,
-            isShuffled: true,
-          });
+          set({ queue: newQueue, currentIndex: 0, isShuffled: true });
         } else {
-          // Un-shuffle
           const currentTrack = queue[currentIndex];
-          const newIndex = originalQueue.findIndex(t => t.id === currentTrack.id);
+          const newIndex = originalQueue.findIndex((t) => t.id === currentTrack.id);
           set({
             queue: [...originalQueue],
             currentIndex: newIndex >= 0 ? newIndex : 0,
@@ -351,17 +456,19 @@ export const usePlayerStore = create<PlayerState>()(
 
       setPlaybackSpeed: (speed) => {
         const { player } = get();
-        if (player) player.playbackSpeed = speed;
+        if (player) player.setPlaybackRate(speed);
         set({ playbackSpeed: speed });
       },
-      
+
       setSleepTimer: (minutes) => {
-        set({ sleepTimer: minutes });
+        const endTime = minutes !== null ? Date.now() + minutes * 60000 : null;
+        set({ sleepTimer: minutes, sleepTimerEndTime: endTime });
       },
 
       resetPlayer: () => {
         const { player } = get();
         if (player) {
+          player.clearLockScreenControls?.();
           player.pause();
           player.remove();
         }
@@ -409,22 +516,24 @@ export const usePlayerStore = create<PlayerState>()(
 
 /**
  * Hook to initialize and sync the native player with the store.
+ * Must be called once at the app root level.
  */
 export const useInitializePlayer = () => {
-  const { 
-    currentTrack, 
-    player, 
-    volume, 
-    playbackSpeed, 
-    sleepTimer, 
-    setSleepTimer, 
-    setPlayer 
+  const {
+    currentTrack,
+    player,
+    volume,
+    playbackSpeed,
+    sleepTimerEndTime,
+    setPlayer,
   } = usePlayerStore();
-  
+
   const isHydrated = useRef(false);
 
+  // Configure audio session once on mount
   useEffect(() => {
     setAudioModeAsync({
+      // doNotMix is required for lock screen controls to work on both platforms
       interruptionMode: "doNotMix",
       playsInSilentMode: true,
       shouldPlayInBackground: true,
@@ -432,17 +541,20 @@ export const useInitializePlayer = () => {
     }).catch(() => {});
   }, []);
 
-  // Hydration and initial sources setup
+  // Hydrate player from persisted state on app start
   useEffect(() => {
     if (!isHydrated.current && !player && currentTrack) {
       const initPlayer = async () => {
+        const { queueTitle } = usePlayerStore.getState();
         const newPlayer = createAudioPlayer({
           uri: currentTrack.url,
           name: currentTrack.title,
         });
         newPlayer.volume = volume;
-        newPlayer.playbackSpeed = playbackSpeed;
+        newPlayer.setPlaybackRate(playbackSpeed);
         setPlayer(newPlayer);
+        // Restore lock screen registration after app restart
+        activateLockScreen(newPlayer, currentTrack, queueTitle);
         isHydrated.current = true;
       };
       initPlayer();
@@ -451,28 +563,43 @@ export const useInitializePlayer = () => {
     }
   }, [currentTrack, player, volume, playbackSpeed, setPlayer]);
 
-  // Sleep Timer logic
+  // Sleep Timer — timestamp-based to survive background JS throttling
   useEffect(() => {
-    if (sleepTimer === null || sleepTimer <= 0) return;
+    if (!sleepTimerEndTime) return;
 
+    // Poll every 5 seconds rather than every minute so the timer fires
+    // accurately even after Android throttles background JS timers.
     const interval = setInterval(() => {
-      const currentTimer = usePlayerStore.getState().sleepTimer;
-      if (currentTimer !== null) {
-        if (currentTimer <= 1) {
-          player?.pause();
-          setSleepTimer(null);
-          clearInterval(interval);
-        } else {
-          setSleepTimer(currentTimer - 1);
+      const state = usePlayerStore.getState();
+      if (!state.sleepTimerEndTime) {
+        clearInterval(interval);
+        return;
+      }
+
+      const now = Date.now();
+      if (now >= state.sleepTimerEndTime) {
+        // Timer expired — stop playback and clear timer atomically
+        state.player?.pause();
+        // Use setState directly (we are outside the store creator)
+        usePlayerStore.setState({ sleepTimer: null, sleepTimerEndTime: null });
+      } else {
+        // Update UI countdown
+        const remainingMins = Math.ceil((state.sleepTimerEndTime - now) / 60000);
+        if (state.sleepTimer !== remainingMins) {
+          usePlayerStore.setState({ sleepTimer: remainingMins });
         }
       }
-    }, 60000); // Check every minute
+    }, 5000);
 
     return () => clearInterval(interval);
-  }, [sleepTimer, player, setSleepTimer]);
+  }, [sleepTimerEndTime]);
 
-  // Remote Media Controls Setup
+  // iOS Remote Media Controls Setup via custom module
+  // On Android, expo-audio's AudioControlsService + ExpoAudioControlsModule
+  // BroadcastReceiver already handles next/previous via setActiveForLockScreen.
   useEffect(() => {
+    if (Platform.OS !== "ios") return;
+
     let isMounted = true;
     let subs: any[] = [];
 
@@ -513,6 +640,36 @@ export const useInitializePlayer = () => {
     }
 
     initRemoteControls();
+
+    return () => {
+      isMounted = false;
+      subs.forEach((s) => s.remove());
+    };
+  }, []);
+
+  // Android: Listen for next/previous events from our BroadcastReceiver module
+  // These are broadcast by expo-audio's AudioMediaSessionCallback when the
+  // lock screen next/previous buttons are tapped.
+  useEffect(() => {
+    if (Platform.OS !== "android") return;
+
+    let isMounted = true;
+    const subs: any[] = [];
+
+    try {
+      subs.push(
+        ExpoAudioControls.addListener("onNextTrack", () => {
+          if (isMounted) usePlayerStore.getState().skipNext();
+        }),
+      );
+      subs.push(
+        ExpoAudioControls.addListener("onPreviousTrack", () => {
+          if (isMounted) usePlayerStore.getState().skipPrevious();
+        }),
+      );
+    } catch {
+      // Ignore if module not available
+    }
 
     return () => {
       isMounted = false;

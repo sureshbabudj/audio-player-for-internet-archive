@@ -22,8 +22,11 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { useInitializePlayer } from "@/store/usePlayerStore";
-import { setAudioModeAsync } from "expo-audio";
 import "./global.css";
+
+// Must be called before any component renders so the splash screen
+// stays visible and expo-keep-awake activates at the right time.
+SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const pathname = usePathname();
@@ -50,15 +53,6 @@ export default function RootLayout() {
   useEffect(() => {
     if (fontsLoaded) SplashScreen.hideAsync();
   }, [fontsLoaded]);
-
-  // Configure audio session for background playback
-  useEffect(() => {
-    setAudioModeAsync({
-      playsInSilentMode: true,
-      shouldPlayInBackground: true,
-      interruptionMode: "doNotMix",
-    }).catch(console.error);
-  }, []);
 
   if (!fontsLoaded || !hasHydrated) return null;
 
