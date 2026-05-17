@@ -1,5 +1,6 @@
 import { useLibraryStore } from "@/store/useLibraryStore";
 import { ArchiveTrack, RepeatMode } from "@/types";
+import { analytics } from "@/utils/analytics";
 import MusicInfo from "@/utils/musicInfo";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { encode } from "base-64";
@@ -79,6 +80,9 @@ const activateLockScreen = async (
   track: ArchiveTrack,
   title: string,
 ) => {
+  // Automatically add the track to recently played lists
+  useLibraryStore.getState().addToRecentlyPlayed(track);
+
   const metadata = {
     title: track.title,
     artist: track.creator || "Unknown Artist",
@@ -87,6 +91,17 @@ const activateLockScreen = async (
       track.thumbnail || `https://archive.org/services/img/${track.identifier}`,
     duration: 0, // Will be updated during playback
   };
+
+  analytics.track("song_played", {
+    track_id: track.id,
+    track_title: track.title,
+    artist: track.creator || "Unknown Artist",
+    album: title,
+    source:
+      track.url && (track.url.startsWith("file://") || track.url.startsWith("/"))
+        ? "local"
+        : "archive",
+  });
 
   // 1. Setup immediately using initial metadata
   if (Platform.OS === "android" || Platform.OS === "ios") {
@@ -385,8 +400,6 @@ export const usePlayerStore = create<PlayerState>()(
         if (nextTrack) {
           preload({ uri: nextTrack.url });
         }
-
-        useLibraryStore.getState().addToRecentlyPlayed(track);
       },
 
       loadTrack: async (track, queue = [], title = "Now Playing") => {
@@ -427,8 +440,18 @@ export const usePlayerStore = create<PlayerState>()(
         if (!player) return;
         if (player.playing) {
           player.pause();
+          analytics.track("song_paused", {
+            track_id: currentTrack?.id,
+            track_title: currentTrack?.title,
+            artist: currentTrack?.creator,
+          });
         } else {
           player.play();
+          analytics.track("song_resumed", {
+            track_id: currentTrack?.id,
+            track_title: currentTrack?.title,
+            artist: currentTrack?.creator,
+          });
         }
       },
 
@@ -453,7 +476,15 @@ export const usePlayerStore = create<PlayerState>()(
           isShuffled,
           shuffledIndices,
           shufflePointer,
+          currentTrack,
         } = get();
+
+        analytics.track("song_skipped", {
+          track_id: currentTrack?.id,
+          track_title: currentTrack?.title,
+          artist: currentTrack?.creator,
+          direction: "next",
+        });
 
         let nextIndex: number;
 
@@ -530,7 +561,15 @@ export const usePlayerStore = create<PlayerState>()(
           isShuffled,
           shuffledIndices,
           shufflePointer,
+          currentTrack,
         } = get();
+
+        analytics.track("song_skipped", {
+          track_id: currentTrack?.id,
+          track_title: currentTrack?.title,
+          artist: currentTrack?.creator,
+          direction: "previous",
+        });
 
         if (position > 3000) {
           player?.seekTo(0);
@@ -700,6 +739,9 @@ export const usePlayerStore = create<PlayerState>()(
       setSleepTimer: (minutes) => {
         const endTime = minutes !== null ? Date.now() + minutes * 60000 : null;
         set({ sleepTimer: minutes, sleepTimerEndTime: endTime });
+        analytics.track("sleep_timer_set", {
+          duration_minutes: minutes,
+        });
       },
 
       resetPlayer: () => {

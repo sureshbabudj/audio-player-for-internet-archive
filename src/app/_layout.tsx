@@ -18,7 +18,7 @@ import { Stack, usePathname } from "expo-router";
 import Head from "expo-router/head";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
-import PostHog from "posthog-react-native";
+import { analytics } from "@/utils/analytics";
 import { useEffect, useState } from "react";
 import { Platform, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -31,20 +31,9 @@ import "./global.css";
 // stays visible and expo-keep-awake activates at the right time.
 SplashScreen.preventAutoHideAsync();
 
-const posthog = new PostHog(process.env.EXPO_PUBLIC_POSTHOG_API_KEY || "", {
-  host: process.env.EXPO_PUBLIC_POSTHOG_HOST || "https://app.posthog.com",
-});
-
 function AnalyticsProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
-    if (posthog) {
-      posthog.register({
-        app_name: "one_good_bit",
-        app_version: Constants.expoConfig?.version || "1.0.0",
-        platform: Platform.OS,
-        environment: __DEV__ ? "development" : "production",
-      });
-    }
+    analytics.init();
   }, []);
 
   return <>{children}</>;
@@ -60,6 +49,12 @@ export default function RootLayout() {
   useEffect(() => {
     setHasHydrated(true);
   }, []);
+
+  useEffect(() => {
+    if (pathname) {
+      analytics.screen(pathname);
+    }
+  }, [pathname]);
 
   // Initialize and sync the global audio player
   useInitializePlayer();

@@ -1,4 +1,5 @@
 import { ArchiveItem, ArchiveTrack, Collection } from "@/types";
+import { analytics } from "@/utils/analytics";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
@@ -108,6 +109,11 @@ export const useLibraryStore = create<LibraryState>()(
         set((state) => {
           const isLiked = state.likedTrackIds.includes(track.id);
           if (isLiked) {
+            analytics.track("track_unliked", {
+              track_id: track.id,
+              track_title: track.title,
+              artist: track.creator,
+            });
             return {
               likedTrackIds: state.likedTrackIds.filter(
                 (id) => id !== track.id,
@@ -115,6 +121,11 @@ export const useLibraryStore = create<LibraryState>()(
               likedTracks: state.likedTracks.filter((t) => t.id !== track.id),
             };
           } else {
+            analytics.track("track_liked", {
+              track_id: track.id,
+              track_title: track.title,
+              artist: track.creator,
+            });
             return {
               likedTrackIds: [...state.likedTrackIds, track.id],
               likedTracks: [track, ...state.likedTracks],
