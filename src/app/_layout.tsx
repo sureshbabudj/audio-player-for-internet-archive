@@ -6,6 +6,7 @@ import { Sidebar } from "@/components/Sidebar";
 import { THEME } from "@/constants/colors";
 import { usePlaylistStore } from "@/store/usePlaylistStore";
 import { analytics } from "@/utils/analytics";
+import { recordSession } from "@/utils/storeReview";
 import {
   Inter_400Regular,
   Inter_500Medium,
@@ -33,6 +34,8 @@ SplashScreen.preventAutoHideAsync();
 function AnalyticsProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     analytics.init();
+    // Record session for store review gate (fire-and-forget, never throws)
+    recordSession();
   }, []);
 
   return <>{children}</>;

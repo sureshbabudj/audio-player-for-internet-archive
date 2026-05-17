@@ -2,6 +2,7 @@ import { useLibraryStore } from "@/store/useLibraryStore";
 import { ArchiveTrack, RepeatMode } from "@/types";
 import { analytics } from "@/utils/analytics";
 import { getTrackEmbeddedArtAsync } from "@/utils/trackArtworkResolver";
+import { maybeRequestReview, recordTrackPlayed } from "@/utils/storeReview";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   createAudioPlayer,
@@ -372,6 +373,9 @@ export const usePlayerStore = create<PlayerState>()(
         const trackIndex = fullQueue.findIndex((t) => t.id === track.id);
         const targetIndex = trackIndex >= 0 ? trackIndex : 0;
         await get().loadQueue(fullQueue, targetIndex, title);
+
+        // Fire-and-forget: record play count & maybe prompt for review
+        recordTrackPlayed().then(() => maybeRequestReview()).catch(() => {});
       },
 
       togglePlayPause: () => {
