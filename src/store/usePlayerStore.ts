@@ -1,6 +1,9 @@
 import { useLibraryStore } from "@/store/useLibraryStore";
 import { ArchiveTrack, RepeatMode } from "@/types";
+import MusicInfo from "@/utils/musicInfo";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { encode } from "base-64";
+import * as FileSystem from "expo-file-system/legacy";
 import {
   createAudioPlayer,
   preload,
@@ -71,7 +74,7 @@ interface PlayerState {
  * - Android: Uses expo-audio's built-in MediaSession via setActiveForLockScreen
  * - iOS:     Uses our custom MPNowPlayingInfoCenter module
  */
-const activateLockScreen = (
+const activateLockScreen = async (
   player: AudioPlayer,
   track: ArchiveTrack,
   title: string,
@@ -85,21 +88,24 @@ const activateLockScreen = (
     duration: 0, // Will be updated during playback
   };
 
-  if (Platform.OS === "android") {
-    player.setActiveForLockScreen(true, metadata);
-  } else if (Platform.OS === "ios") {
-    // On iOS, we use our custom module for BOTH metadata and controls.
-    // This gives us 100% control over the MPRemoteCommandCenter.
-    ExpoAudioControls.setupRemoteControls();
-    ExpoAudioControls.updateNowPlaying({
-      title: metadata.title,
-      artist: metadata.artist,
-      album: metadata.albumTitle,
-      artworkUrl: metadata.artworkUrl,
-      isPlaying: true,
-      position: 0,
-      duration: 0,
-    });
+  // 1. Setup immediately using initial metadata
+  if (Platform.OS === "android" || Platform.OS === "ios") {
+    // Both iOS and Android now use our custom module for metadata and controls.
+    // This gives us 100% control over the MPRemoteCommandCenter and Android MediaSession.
+    try {
+      ExpoAudioControls.setupRemoteControls();
+      ExpoAudioControls.updateNowPlaying({
+        title: metadata.title,
+        artist: metadata.artist,
+        album: metadata.albumTitle,
+        artworkUrl: metadata.artworkUrl,
+        isPlaying: true,
+        position: 0,
+        duration: 0,
+      });
+    } catch {
+      // Ignore
+    }
   } else if (
     Platform.OS === "web" &&
     typeof navigator !== "undefined" &&
@@ -143,6 +149,103 @@ const activateLockScreen = (
         /* Action not supported */
       }
     });
+  }
+
+  // 2. Fetch ID3 metadata asynchronously
+  let fileToParse = track.url;
+  let isTempFile = false;
+  const tempUri = `${FileSystem.cacheDirectory}temp_id3.mp3`;
+
+  if (track.url && (track.url.startsWith("http://") || track.url.startsWith("https://"))) {
+    try {
+      const response = await fetch(track.url, {
+        headers: { Range: "bytes=0-262143" },
+      });
+      if (response.ok || response.status === 206) {
+        const arrayBuffer = await response.arrayBuffer();
+        const bytes = new Uint8Array(arrayBuffer);
+        let binary = "";
+        for (let i = 0; i < bytes.byteLength; i++) {
+          binary += String.fromCharCode(bytes[i]);
+        }
+        const base64 = encode(binary);
+        await FileSystem.writeAsStringAsync(tempUri, base64, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+        fileToParse = tempUri;
+        isTempFile = true;
+      }
+    } catch (e) {
+      console.warn("Failed to download ID3 chunk for remote file:", e);
+    }
+  }
+
+  if (fileToParse && (fileToParse.startsWith("file://") || fileToParse.startsWith("/"))) {
+    try {
+      const musicInfo = await MusicInfo.getMusicInfoAsync(fileToParse, {
+        title: true,
+        artist: true,
+        album: true,
+        picture: true,
+      });
+
+      if (musicInfo) {
+        const enrichedMetadata = {
+          title: musicInfo.title || metadata.title,
+          artist: musicInfo.artist || metadata.artist,
+          albumTitle: musicInfo.album || metadata.albumTitle,
+          artworkUrl: musicInfo.picture?.pictureData || metadata.artworkUrl,
+        };
+
+        // Update Native Controls with enriched ID3 metadata
+        if (Platform.OS === "android" || Platform.OS === "ios") {
+          try {
+            ExpoAudioControls.updateNowPlaying({
+              title: enrichedMetadata.title,
+              artist: enrichedMetadata.artist,
+              album: enrichedMetadata.albumTitle,
+              artworkUrl: enrichedMetadata.artworkUrl,
+              isPlaying: true,
+              position: 0,
+              duration: 0,
+            });
+          } catch {}
+        } else if (
+          Platform.OS === "web" &&
+          typeof navigator !== "undefined" &&
+          "mediaSession" in navigator
+        ) {
+          // @ts-ignore
+          navigator.mediaSession.metadata = new MediaMetadata({
+            title: enrichedMetadata.title,
+            artist: enrichedMetadata.artist,
+            album: enrichedMetadata.albumTitle,
+            artwork: enrichedMetadata.artworkUrl ? [{ src: enrichedMetadata.artworkUrl }] : [],
+          });
+        }
+
+        // Update the Zustand store's currentTrack to automatically update the React UI
+        const state = usePlayerStore.getState();
+        if (state.currentTrack && state.currentTrack.id === track.id) {
+          usePlayerStore.setState({
+            currentTrack: {
+              ...state.currentTrack,
+              title: enrichedMetadata.title,
+              creator: enrichedMetadata.artist,
+              thumbnail: enrichedMetadata.artworkUrl,
+            }
+          });
+        }
+      }
+    } catch (e) {
+      console.warn("Failed to fetch ID3 tags via MusicInfo:", e);
+    } finally {
+      if (isTempFile) {
+        try {
+          await FileSystem.deleteAsync(tempUri, { idempotent: true });
+        } catch {}
+      }
+    }
   }
 };
 
@@ -197,8 +300,8 @@ export const usePlayerStore = create<PlayerState>()(
           state.skipNext();
         }
 
-        // iOS lock screen metadata update (Android is handled natively via setActiveForLockScreen)
-        if (Platform.OS === "ios") {
+        // Native lock screen metadata update
+        if (Platform.OS === "ios" || Platform.OS === "android") {
           const track = state.currentTrack;
           if (
             track &&
@@ -598,6 +701,11 @@ export const usePlayerStore = create<PlayerState>()(
           player.clearLockScreenControls?.();
           player.pause();
           player.remove();
+          try {
+             if (typeof ExpoAudioControls?.removeControls === "function") {
+                ExpoAudioControls.removeControls();
+             }
+          } catch {}
         }
         set({
           player: null,
@@ -723,11 +831,9 @@ export const useInitializePlayer = () => {
     return () => clearInterval(interval);
   }, [sleepTimerEndTime]);
 
-  // iOS Remote Media Controls Setup via custom module
-  // On Android, expo-audio's AudioControlsService + ExpoAudioControlsModule
-  // BroadcastReceiver already handles next/previous via setActiveForLockScreen.
+  // Native Remote Media Controls Setup via custom module (iOS & Android)
   useEffect(() => {
-    if (Platform.OS !== "ios") return;
+    if (Platform.OS === "web") return;
 
     let isMounted = true;
     let subs: any[] = [];
@@ -763,6 +869,22 @@ export const useInitializePlayer = () => {
             }
           }),
         );
+        subs.push(
+          ExpoAudioControls.addListener("onSeekForward", () => {
+            if (isMounted) {
+              const { player } = usePlayerStore.getState();
+              if (player) player.seekTo(player.currentTime + 10);
+            }
+          }),
+        );
+        subs.push(
+          ExpoAudioControls.addListener("onSeekBackward", () => {
+            if (isMounted) {
+              const { player } = usePlayerStore.getState();
+              if (player) player.seekTo(player.currentTime - 10);
+            }
+          }),
+        );
       } catch {
         // Ignore
       }
@@ -776,35 +898,7 @@ export const useInitializePlayer = () => {
     };
   }, []);
 
-  // Android: Listen for next/previous events from our BroadcastReceiver module
-  // These are broadcast by expo-audio's AudioMediaSessionCallback when the
-  // lock screen next/previous buttons are tapped.
-  useEffect(() => {
-    if (Platform.OS !== "android") return;
-
-    let isMounted = true;
-    const subs: any[] = [];
-
-    try {
-      subs.push(
-        ExpoAudioControls.addListener("onNextTrack", () => {
-          if (isMounted) usePlayerStore.getState().skipNext();
-        }),
-      );
-      subs.push(
-        ExpoAudioControls.addListener("onPreviousTrack", () => {
-          if (isMounted) usePlayerStore.getState().skipPrevious();
-        }),
-      );
-    } catch {
-      // Ignore if module not available
-    }
-
-    return () => {
-      isMounted = false;
-      subs.forEach((s) => s.remove());
-    };
-  }, []);
+  // Removed separate Android effect as it's now handled with iOS logic above
 
   return { player };
 };

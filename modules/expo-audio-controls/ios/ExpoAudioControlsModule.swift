@@ -6,10 +6,14 @@ public class ExpoAudioControlsModule: Module {
   public func definition() -> ModuleDefinition {
     Name("ExpoAudioControls")
 
-    Events("onNextTrack", "onPreviousTrack", "onPlay", "onPause")
+    Events("onNextTrack", "onPreviousTrack", "onPlay", "onPause", "onSeekForward", "onSeekBackward")
 
     OnCreate {
       setupInterruptionObserver()
+    }
+
+    Function("removeControls") {
+      // No-op on iOS
     }
 
     AsyncFunction("setupRemoteControls") {
@@ -94,17 +98,26 @@ public class ExpoAudioControlsModule: Module {
           infoCenter.playbackState = isPlaying ? .playing : .paused
         }
 
-        if let artworkUrlString = metadata["artworkUrl"] as? String, let artworkUrl = URL(string: artworkUrlString) {
-          URLSession.shared.dataTask(with: artworkUrl) { data, response, error in
-            if let data = data, let image = UIImage(data: data) {
+        if let artworkUrlString = metadata["artworkUrl"] as? String {
+          if artworkUrlString.hasPrefix("data:") {
+            if let base64Data = artworkUrlString.components(separatedBy: "base64,").last,
+               let data = Data(base64Encoded: base64Data, options: .ignoreUnknownCharacters),
+               let image = UIImage(data: data) {
               let artwork = MPMediaItemArtwork(boundsSize: image.size) { _ in image }
-              DispatchQueue.main.async {
-                var updatedInfo = infoCenter.nowPlayingInfo ?? [String: Any]()
-                updatedInfo[MPMediaItemPropertyArtwork] = artwork
-                infoCenter.nowPlayingInfo = updatedInfo
-              }
+              nowPlayingInfo[MPMediaItemPropertyArtwork] = artwork
             }
-          }.resume()
+          } else if let artworkUrl = URL(string: artworkUrlString) {
+            URLSession.shared.dataTask(with: artworkUrl) { data, response, error in
+              if let data = data, let image = UIImage(data: data) {
+                let artwork = MPMediaItemArtwork(boundsSize: image.size) { _ in image }
+                DispatchQueue.main.async {
+                  var updatedInfo = infoCenter.nowPlayingInfo ?? [String: Any]()
+                  updatedInfo[MPMediaItemPropertyArtwork] = artwork
+                  infoCenter.nowPlayingInfo = updatedInfo
+                }
+              }
+            }.resume()
+          }
         }
 
         infoCenter.nowPlayingInfo = nowPlayingInfo

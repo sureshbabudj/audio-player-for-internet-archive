@@ -8,6 +8,8 @@ export type ExpoAudioControlsModuleEvents = {
   onPreviousTrack: () => void;
   onPlay: () => void;
   onPause: () => void;
+  onSeekForward: () => void;
+  onSeekBackward: () => void;
 };
 
 export type ExpoAudioControlsViewProps = {

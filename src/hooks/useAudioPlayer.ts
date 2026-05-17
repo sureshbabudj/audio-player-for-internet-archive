@@ -1,5 +1,17 @@
 import { useState, useCallback, useEffect } from "react";
-import { ArchiveTrack, AudioState } from "../types";
+import { ArchiveTrack } from "../types";
+
+export interface WebAudioState {
+  isPlaying: boolean;
+  currentTime: number;
+  duration: number;
+  volume: number;
+  isMuted: boolean;
+  shuffleMode: boolean;
+  repeatMode: "off" | "one" | "all";
+  currentTrack: ArchiveTrack | null;
+  tracksList: ArchiveTrack[];
+}
 
 const hasExtensionRuntime =
   typeof globalThis !== "undefined" &&
@@ -39,7 +51,7 @@ const LOCAL_STORAGE_KEY = "audioPlayerWebState";
 
 export function useAudioPlayer(tracks: ArchiveTrack[]) {
   const [hasHydrated, setHasHydrated] = useState(hasExtensionRuntime);
-  const [state, setState] = useState<AudioState>({
+  const [state, setState] = useState<WebAudioState>({
     isPlaying: false,
     currentTime: 0,
     duration: 0,
@@ -75,8 +87,8 @@ export function useAudioPlayer(tracks: ArchiveTrack[]) {
     try {
       const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
       if (raw) {
-        const parsed = JSON.parse(raw) as Partial<AudioState>;
-        setState((prev: AudioState) => ({
+        const parsed = JSON.parse(raw) as Partial<WebAudioState>;
+        setState((prev: WebAudioState) => ({
           ...prev,
           ...parsed,
           isPlaying: false,
@@ -107,26 +119,26 @@ export function useAudioPlayer(tracks: ArchiveTrack[]) {
     if (isExtension || !audio) return;
 
     const onTimeUpdate = () => {
-      setState((prev: AudioState) => ({ ...prev, currentTime: audio.currentTime || 0 }));
+      setState((prev: WebAudioState) => ({ ...prev, currentTime: audio.currentTime || 0 }));
     };
 
     const onLoadedMetadata = () => {
-      setState((prev: AudioState) => ({
+      setState((prev: WebAudioState) => ({
         ...prev,
         duration: Number.isFinite(audio.duration) ? audio.duration : 0,
       }));
     };
 
     const onPlay = () => {
-      setState((prev: AudioState) => ({ ...prev, isPlaying: true }));
+      setState((prev: WebAudioState) => ({ ...prev, isPlaying: true }));
     };
 
     const onPause = () => {
-      setState((prev: AudioState) => ({ ...prev, isPlaying: false }));
+      setState((prev: WebAudioState) => ({ ...prev, isPlaying: false }));
     };
 
     const onEnded = () => {
-      setState((prev: AudioState) => {
+      setState((prev: WebAudioState) => {
         if (prev.repeatMode === "one" && prev.currentTrack) {
           audio.currentTime = 0;
           void audio.play();
@@ -220,7 +232,7 @@ export function useAudioPlayer(tracks: ArchiveTrack[]) {
   useEffect(() => {
     if (isExtension) return;
     if (state.tracksList.length > 0 || tracks.length === 0) return;
-    setState((prev: AudioState) => ({ ...prev, tracksList: tracks }));
+    setState((prev: WebAudioState) => ({ ...prev, tracksList: tracks }));
   }, [isExtension, state.tracksList.length, tracks]);
 
   // Listen for sync updates
@@ -249,7 +261,7 @@ export function useAudioPlayer(tracks: ArchiveTrack[]) {
         void audio.play();
       }
 
-      setState((prev: AudioState) => ({ ...prev, currentTrack: track, isPlaying: true }));
+      setState((prev: WebAudioState) => ({ ...prev, currentTrack: track, isPlaying: true }));
     },
     [audio, isExtension, state.isMuted, state.volume],
   );
@@ -269,7 +281,7 @@ export function useAudioPlayer(tracks: ArchiveTrack[]) {
         audio.volume = state.volume;
         audio.muted = state.isMuted;
         void audio.play();
-        setState((prev: AudioState) => ({
+        setState((prev: WebAudioState) => ({
           ...prev,
           currentTrack: list[0],
           isPlaying: true,
@@ -300,7 +312,7 @@ export function useAudioPlayer(tracks: ArchiveTrack[]) {
     }
 
     if (!audio) return;
-    setState((prev: AudioState) => {
+    setState((prev: WebAudioState) => {
       const list = prev.tracksList.length > 0 ? prev.tracksList : tracks;
       if (list.length === 0) return prev;
 
@@ -346,7 +358,7 @@ export function useAudioPlayer(tracks: ArchiveTrack[]) {
     }
 
     if (!audio) return;
-    setState((prev: AudioState) => {
+    setState((prev: WebAudioState) => {
       const list = prev.tracksList.length > 0 ? prev.tracksList : tracks;
       if (list.length === 0) return prev;
 
@@ -393,7 +405,7 @@ export function useAudioPlayer(tracks: ArchiveTrack[]) {
 
       if (!audio) return;
       audio.currentTime = time;
-      setState((prev: AudioState) => ({ ...prev, currentTime: time }));
+      setState((prev: WebAudioState) => ({ ...prev, currentTime: time }));
     },
     [audio, isExtension],
   );
@@ -408,7 +420,7 @@ export function useAudioPlayer(tracks: ArchiveTrack[]) {
       if (audio) {
         audio.volume = volume;
       }
-      setState((prev: AudioState) => ({ ...prev, volume }));
+      setState((prev: WebAudioState) => ({ ...prev, volume }));
     },
     [audio, isExtension],
   );
@@ -419,7 +431,7 @@ export function useAudioPlayer(tracks: ArchiveTrack[]) {
       return;
     }
 
-    setState((prev: AudioState) => {
+    setState((prev: WebAudioState) => {
       const nextMuted = !prev.isMuted;
       if (audio) {
         audio.muted = nextMuted;
@@ -433,7 +445,7 @@ export function useAudioPlayer(tracks: ArchiveTrack[]) {
       void sendRuntimeMessage({ type: "TOGGLE_SHUFFLE" });
       return;
     }
-    setState((prev: AudioState) => ({ ...prev, shuffleMode: !prev.shuffleMode }));
+    setState((prev: WebAudioState) => ({ ...prev, shuffleMode: !prev.shuffleMode }));
   }, [isExtension]);
 
   const toggleRepeat = useCallback(() => {
@@ -442,7 +454,7 @@ export function useAudioPlayer(tracks: ArchiveTrack[]) {
       return;
     }
 
-    setState((prev: AudioState) => {
+    setState((prev: WebAudioState) => {
       const nextMode =
         prev.repeatMode === "off"
           ? "all"
@@ -469,7 +481,7 @@ export function useAudioPlayer(tracks: ArchiveTrack[]) {
         void audio.play();
       }
 
-      setState((prev: AudioState) => ({
+      setState((prev: WebAudioState) => ({
         ...prev,
         tracksList: newTracks,
         currentTrack: startTrack,

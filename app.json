@@ -40,7 +40,12 @@
       }
     },
     "plugins": [
-      "expo-router",
+      [
+        "expo-router",
+        {
+          "origin": "https://archieplay.web.app"
+        }
+      ],
       "expo-font",
       [
         "expo-splash-screen",
@@ -60,7 +65,9 @@
         }
       ],
       "expo-asset",
-      "expo-sharing"
+      "expo-sharing",
+      "expo-image",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,

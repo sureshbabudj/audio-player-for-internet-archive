@@ -1,67 +1,73 @@
 package expo.modules.audiocontrols
 
-import android.content.BroadcastReceiver
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
+import android.content.ServiceConnection
 import android.os.Build
+import android.os.IBinder
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 
 class ExpoAudioControlsModule : Module() {
-  private val receiver = object : BroadcastReceiver() {
-    override fun onReceive(context: Context, intent: Intent) {
-      when (intent.action) {
-        "expo.modules.audiocontrols.NEXT_TRACK" -> {
-          this@ExpoAudioControlsModule.sendEvent("onNextTrack")
-        }
-        "expo.modules.audiocontrols.PREV_TRACK" -> {
-          this@ExpoAudioControlsModule.sendEvent("onPreviousTrack")
-        }
-        "expo.modules.audiocontrols.PLAY" -> {
-          this@ExpoAudioControlsModule.sendEvent("onPlay")
-        }
-        "expo.modules.audiocontrols.PAUSE" -> {
-          this@ExpoAudioControlsModule.sendEvent("onPause")
-        }
+  private var service: ExpoAudioControlsService? = null
+  private var isBound = false
+  private var pendingMetadata: Map<String, Any>? = null
+
+  private val connection = object : ServiceConnection {
+    override fun onServiceConnected(className: ComponentName, binder: IBinder) {
+      val localBinder = binder as ExpoAudioControlsService.LocalBinder
+      service = localBinder.getService()
+      service?.callback = object : ExpoAudioControlsService.ControlsCallback {
+        override fun onPlay() { this@ExpoAudioControlsModule.sendEvent("onPlay") }
+        override fun onPause() { this@ExpoAudioControlsModule.sendEvent("onPause") }
+        override fun onNext() { this@ExpoAudioControlsModule.sendEvent("onNextTrack") }
+        override fun onPrevious() { this@ExpoAudioControlsModule.sendEvent("onPreviousTrack") }
+        override fun onSeekForward() { this@ExpoAudioControlsModule.sendEvent("onSeekForward") }
+        override fun onSeekBackward() { this@ExpoAudioControlsModule.sendEvent("onSeekBackward") }
       }
+      
+      pendingMetadata?.let { service?.updateNowPlaying(it) }
+      pendingMetadata = null
+      isBound = true
+    }
+
+    override fun onServiceDisconnected(arg0: ComponentName) {
+      isBound = false
+      service = null
     }
   }
 
   override fun definition() = ModuleDefinition {
     Name("ExpoAudioControls")
 
-    Events("onNextTrack", "onPreviousTrack", "onPlay", "onPause")
-
-    OnCreate {
-      val context = appContext.reactContext ?: return@OnCreate
-      
-      val filter = IntentFilter().apply {
-        addAction("expo.modules.audiocontrols.NEXT_TRACK")
-        addAction("expo.modules.audiocontrols.PREV_TRACK")
-        addAction("expo.modules.audiocontrols.PLAY")
-        addAction("expo.modules.audiocontrols.PAUSE")
-      }
-      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-        context.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
-      } else {
-        context.registerReceiver(receiver, filter)
-      }
-    }
-
-    OnDestroy {
-      val context = appContext.reactContext
-      try {
-        context?.unregisterReceiver(receiver)
-      } catch (e: Exception) {}
-    }
+    Events("onNextTrack", "onPreviousTrack", "onPlay", "onPause", "onSeekForward", "onSeekBackward")
 
     AsyncFunction("setupRemoteControls") {
-      // Managed natively by expo-audio
+      val context = appContext.reactContext ?: return@AsyncFunction
+      val intent = Intent(context, ExpoAudioControlsService::class.java)
+      
+      // Start the service to ensure it runs even if unbound
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        context.startForegroundService(intent)
+      } else {
+        context.startService(intent)
+      }
+      
+      // Bind to it
+      context.bindService(intent, connection, Context.BIND_AUTO_CREATE)
     }
 
     Function("updateNowPlaying") { metadata: Map<String, Any> ->
-      // Managed natively by expo-audio
+      if (isBound && service != null) {
+        service?.updateNowPlaying(metadata)
+      } else {
+        pendingMetadata = metadata
+      }
+    }
+
+    Function("removeControls") {
+      service?.removeControls()
     }
   }
 }

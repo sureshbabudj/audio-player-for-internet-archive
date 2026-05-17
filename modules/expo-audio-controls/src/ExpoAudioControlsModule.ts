@@ -13,6 +13,7 @@ declare class ExpoAudioControlsModule extends NativeModule<ExpoAudioControlsModu
     position: number;
     isPlaying: boolean;
   }): void;
+  removeControls(): void;
 }
 
 // This call loads the native module object from the JSI.
