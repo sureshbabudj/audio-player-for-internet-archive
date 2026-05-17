@@ -235,6 +235,13 @@ const activateLockScreen = async (
               thumbnail: enrichedMetadata.artworkUrl,
             }
           });
+
+          // ALSO update recently played, liked tracks, etc. in useLibraryStore!
+          useLibraryStore.getState().updateTrackMetadata(track.id, {
+            title: enrichedMetadata.title,
+            creator: enrichedMetadata.artist,
+            thumbnail: enrichedMetadata.artworkUrl,
+          });
         }
       }
     } catch (e) {

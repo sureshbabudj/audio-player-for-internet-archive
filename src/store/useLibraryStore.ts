@@ -20,6 +20,7 @@ interface LibraryState {
   clearRecentlyPlayed: () => void;
   clearLibrary: () => void;
   importLibrary: (data: any) => void;
+  updateTrackMetadata: (trackId: string, updates: Partial<ArchiveTrack>) => void;
 }
 
 export const useLibraryStore = create<LibraryState>()(
@@ -162,6 +163,22 @@ export const useLibraryStore = create<LibraryState>()(
             (data.likedTracks || []).map((t: any) => t.id),
           recentlyPlayed: data.recentlyPlayed || [],
           playCounts: data.playCounts || {},
+        });
+      },
+
+      updateTrackMetadata: (trackId, updates) => {
+        set((state) => {
+          const updateTrack = (t: ArchiveTrack) =>
+            t.id === trackId ? { ...t, ...updates } : t;
+
+          return {
+            recentlyPlayed: state.recentlyPlayed.map(updateTrack),
+            likedTracks: state.likedTracks.map(updateTrack),
+            collections: state.collections.map((c) => ({
+              ...c,
+              tracks: c.tracks.map(updateTrack),
+            })),
+          };
         });
       },
     }),
