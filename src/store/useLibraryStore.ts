@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 import { ArchiveItem, ArchiveTrack, Collection } from "@/types";
 import { analytics } from "@/utils/analytics";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -21,7 +22,10 @@ interface LibraryState {
   clearRecentlyPlayed: () => void;
   clearLibrary: () => void;
   importLibrary: (data: any) => void;
-  updateTrackMetadata: (trackId: string, updates: Partial<ArchiveTrack>) => void;
+  updateTrackMetadata: (
+    trackId: string,
+    updates: Partial<ArchiveTrack>,
+  ) => void;
 }
 
 export const useLibraryStore = create<LibraryState>()(
@@ -191,6 +195,40 @@ export const useLibraryStore = create<LibraryState>()(
             })),
           };
         });
+
+        // 2. Update Playlist Store (using require to avoid circular dependencies)
+        try {
+          const { usePlaylistStore } = require("./usePlaylistStore");
+          usePlaylistStore.setState((state: any) => ({
+            playlists: state.playlists.map((p: any) => ({
+              ...p,
+              tracks: p.tracks.map((t: any) =>
+                t.id === trackId ? { ...t, ...updates } : t,
+              ),
+            })),
+          }));
+        } catch (e) {
+          console.warn("Failed to update playlists metadata:", e);
+        }
+
+        // 3. Update Player Store (using require to avoid circular dependencies)
+        try {
+          const { usePlayerStore } = require("./usePlayerStore");
+          usePlayerStore.setState((state: any) => {
+            const updateTrack = (t: any) =>
+              t && t.id === trackId ? { ...t, ...updates } : t;
+
+            return {
+              currentTrack:
+                state.currentTrack && state.currentTrack.id === trackId
+                  ? { ...state.currentTrack, ...updates }
+                  : state.currentTrack,
+              queue: state.queue ? state.queue.map(updateTrack) : [],
+            };
+          });
+        } catch (e) {
+          console.warn("Failed to update player metadata:", e);
+        }
       },
     }),
     {

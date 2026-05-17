@@ -82,6 +82,18 @@ export default class MusicInfo {
     const loader = new MusicInfoLoader(fileUri, options);
     return loader.loadInfo();
   }
+
+  static async getThumbnailAsync(
+    fileUri: string,
+  ): Promise<MusicInfoResponse | null> {
+    return MusicInfo.getMusicInfoAsync(fileUri, {
+      title: false,
+      artist: false,
+      album: false,
+      genre: false,
+      picture: true,
+    });
+  }
 }
 
 /* -------------------------------------------------------

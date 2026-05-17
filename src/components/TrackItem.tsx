@@ -1,8 +1,10 @@
 import { THEME } from "@/constants/colors";
+import { useLibraryStore } from "@/store/useLibraryStore";
 import { usePlaylistStore } from "@/store/usePlaylistStore";
 import { ArchiveTrack } from "@/types";
+import { queueTrackArtworkExtraction } from "@/utils/trackArtworkResolver";
 import { Heart, Music, Plus, Radio, Trash2, Zap } from "lucide-react-native";
-import React, { memo } from "react";
+import React, { memo, useEffect, useState } from "react";
 import { Image, Text, TouchableOpacity, View } from "react-native";
 
 interface TrackItemProps {
@@ -30,16 +32,46 @@ const TrackItem: React.FC<TrackItemProps> = memo(
     rank,
   }) => {
     const openSelector = usePlaylistStore((state) => state.openSelector);
+    const [resolvedThumbnail, setResolvedThumbnail] = useState<string | null>(
+      track.thumbnail && track.thumbnail.startsWith("data:")
+        ? track.thumbnail
+        : null,
+    );
+
+    useEffect(() => {
+      if (resolvedThumbnail && resolvedThumbnail.startsWith("data:")) return;
+
+      let isMounted = true;
+      queueTrackArtworkExtraction(track, (dataUri) => {
+        if (isMounted) {
+          setResolvedThumbnail(dataUri);
+          // Save it back to store so it persists persistently
+          useLibraryStore.getState().updateTrackMetadata(track.id, {
+            thumbnail: dataUri,
+          });
+        }
+      });
+
+      return () => {
+        isMounted = false;
+      };
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [track.id, track.url, resolvedThumbnail]);
 
     const getIcon = () => {
-      if (track.thumbnail || track.identifier) {
+      const displayUrl =
+        resolvedThumbnail ||
+        (track.thumbnail && track.thumbnail.startsWith("data:")
+          ? track.thumbnail
+          : null) ||
+        (track.identifier
+          ? `https://archive.org/services/img/${track.identifier}`
+          : null);
+
+      if (displayUrl) {
         return (
           <Image
-            source={{
-              uri:
-                track.thumbnail ||
-                `https://archive.org/services/img/${track.identifier}`,
-            }}
+            source={{ uri: displayUrl }}
             className="w-full h-full object-cover"
           />
         );

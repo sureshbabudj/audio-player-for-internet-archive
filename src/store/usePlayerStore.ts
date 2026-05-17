@@ -1,10 +1,8 @@
 import { useLibraryStore } from "@/store/useLibraryStore";
 import { ArchiveTrack, RepeatMode } from "@/types";
 import { analytics } from "@/utils/analytics";
-import MusicInfo from "@/utils/musicInfo";
+import { getTrackEmbeddedArtAsync } from "@/utils/trackArtworkResolver";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { encode } from "base-64";
-import * as FileSystem from "expo-file-system/legacy";
 import {
   createAudioPlayer,
   preload,
@@ -98,7 +96,8 @@ const activateLockScreen = async (
     artist: track.creator || "Unknown Artist",
     album: title,
     source:
-      track.url && (track.url.startsWith("file://") || track.url.startsWith("/"))
+      track.url &&
+      (track.url.startsWith("file://") || track.url.startsWith("/"))
         ? "local"
         : "archive",
   });
@@ -167,107 +166,63 @@ const activateLockScreen = async (
   }
 
   // 2. Fetch ID3 metadata asynchronously
-  let fileToParse = track.url;
-  let isTempFile = false;
-  const tempUri = `${FileSystem.cacheDirectory}temp_id3.mp3`;
+  try {
+    const artworkUrl = await getTrackEmbeddedArtAsync(track);
+    if (artworkUrl) {
+      const enrichedMetadata = {
+        title: track.title,
+        artist: track.creator || "Unknown Artist",
+        albumTitle: title,
+        artworkUrl: artworkUrl,
+      };
 
-  if (track.url && (track.url.startsWith("http://") || track.url.startsWith("https://"))) {
-    try {
-      const response = await fetch(track.url, {
-        headers: { Range: "bytes=0-262143" },
-      });
-      if (response.ok || response.status === 206) {
-        const arrayBuffer = await response.arrayBuffer();
-        const bytes = new Uint8Array(arrayBuffer);
-        let binary = "";
-        for (let i = 0; i < bytes.byteLength; i++) {
-          binary += String.fromCharCode(bytes[i]);
-        }
-        const base64 = encode(binary);
-        await FileSystem.writeAsStringAsync(tempUri, base64, {
-          encoding: FileSystem.EncodingType.Base64,
-        });
-        fileToParse = tempUri;
-        isTempFile = true;
-      }
-    } catch (e) {
-      console.warn("Failed to download ID3 chunk for remote file:", e);
-    }
-  }
-
-  if (fileToParse && (fileToParse.startsWith("file://") || fileToParse.startsWith("/"))) {
-    try {
-      const musicInfo = await MusicInfo.getMusicInfoAsync(fileToParse, {
-        title: true,
-        artist: true,
-        album: true,
-        picture: true,
-      });
-
-      if (musicInfo) {
-        const enrichedMetadata = {
-          title: musicInfo.title || metadata.title,
-          artist: musicInfo.artist || metadata.artist,
-          albumTitle: musicInfo.album || metadata.albumTitle,
-          artworkUrl: musicInfo.picture?.pictureData || metadata.artworkUrl,
-        };
-
-        // Update Native Controls with enriched ID3 metadata
-        if (Platform.OS === "android" || Platform.OS === "ios") {
-          try {
-            ExpoAudioControls.updateNowPlaying({
-              title: enrichedMetadata.title,
-              artist: enrichedMetadata.artist,
-              album: enrichedMetadata.albumTitle,
-              artworkUrl: enrichedMetadata.artworkUrl,
-              isPlaying: true,
-              position: 0,
-              duration: 0,
-            });
-          } catch {}
-        } else if (
-          Platform.OS === "web" &&
-          typeof navigator !== "undefined" &&
-          "mediaSession" in navigator
-        ) {
-          // @ts-ignore
-          navigator.mediaSession.metadata = new MediaMetadata({
+      // Update Native Controls with enriched ID3 metadata
+      if (Platform.OS === "android" || Platform.OS === "ios") {
+        try {
+          ExpoAudioControls.updateNowPlaying({
             title: enrichedMetadata.title,
             artist: enrichedMetadata.artist,
             album: enrichedMetadata.albumTitle,
-            artwork: enrichedMetadata.artworkUrl ? [{ src: enrichedMetadata.artworkUrl }] : [],
+            artworkUrl: enrichedMetadata.artworkUrl,
+            isPlaying: true,
+            position: 0,
+            duration: 0,
           });
-        }
-
-        // Update the Zustand store's currentTrack to automatically update the React UI
-        const state = usePlayerStore.getState();
-        if (state.currentTrack && state.currentTrack.id === track.id) {
-          usePlayerStore.setState({
-            currentTrack: {
-              ...state.currentTrack,
-              title: enrichedMetadata.title,
-              creator: enrichedMetadata.artist,
-              thumbnail: enrichedMetadata.artworkUrl,
-            }
-          });
-
-          // ALSO update recently played, liked tracks, etc. in useLibraryStore!
-          useLibraryStore.getState().updateTrackMetadata(track.id, {
-            title: enrichedMetadata.title,
-            creator: enrichedMetadata.artist,
-            thumbnail: enrichedMetadata.artworkUrl,
-          });
-        }
-      }
-    } catch (e) {
-      console.warn("Failed to fetch ID3 tags via MusicInfo:", e);
-    } finally {
-      if (isTempFile) {
-        try {
-          await FileSystem.deleteAsync(tempUri, { idempotent: true });
         } catch {}
+      } else if (
+        Platform.OS === "web" &&
+        typeof navigator !== "undefined" &&
+        "mediaSession" in navigator
+      ) {
+        // @ts-ignore
+        navigator.mediaSession.metadata = new MediaMetadata({
+          title: enrichedMetadata.title,
+          artist: enrichedMetadata.artist,
+          album: enrichedMetadata.albumTitle,
+          artwork: enrichedMetadata.artworkUrl
+            ? [{ src: enrichedMetadata.artworkUrl }]
+            : [],
+        });
+      }
+
+      // Update the Zustand store's currentTrack to automatically update the React UI
+      const state = usePlayerStore.getState();
+      if (state.currentTrack && state.currentTrack.id === track.id) {
+        usePlayerStore.setState({
+          currentTrack: {
+            ...state.currentTrack,
+            thumbnail: enrichedMetadata.artworkUrl,
+          },
+        });
+
+        // ALSO update recently played, liked tracks, etc. in useLibraryStore!
+        useLibraryStore.getState().updateTrackMetadata(track.id, {
+          thumbnail: enrichedMetadata.artworkUrl,
+        });
       }
     }
+  } catch (e) {
+    console.warn("Failed to fetch ID3 tags via MusicInfo:", e);
   }
 };
 
@@ -751,9 +706,9 @@ export const usePlayerStore = create<PlayerState>()(
           player.pause();
           player.remove();
           try {
-             if (typeof ExpoAudioControls?.removeControls === "function") {
-                ExpoAudioControls.removeControls();
-             }
+            if (typeof ExpoAudioControls?.removeControls === "function") {
+              ExpoAudioControls.removeControls();
+            }
           } catch {}
         }
         set({
