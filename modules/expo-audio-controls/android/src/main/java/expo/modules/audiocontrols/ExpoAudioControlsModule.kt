@@ -44,18 +44,19 @@ class ExpoAudioControlsModule : Module() {
     Events("onNextTrack", "onPreviousTrack", "onPlay", "onPause", "onSeekForward", "onSeekBackward")
 
     AsyncFunction("setupRemoteControls") {
-      val context = appContext.reactContext ?: return@AsyncFunction
-      val intent = Intent(context, ExpoAudioControlsService::class.java)
-      
-      // Start the service to ensure it runs even if unbound
-      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-        context.startForegroundService(intent)
-      } else {
-        context.startService(intent)
+      appContext.reactContext?.let { context ->
+        val intent = Intent(context, ExpoAudioControlsService::class.java)
+        
+        // Start the service to ensure it runs even if unbound
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+          context.startForegroundService(intent)
+        } else {
+          context.startService(intent)
+        }
+        
+        // Bind to it
+        context.bindService(intent, connection, Context.BIND_AUTO_CREATE)
       }
-      
-      // Bind to it
-      context.bindService(intent, connection, Context.BIND_AUTO_CREATE)
     }
 
     Function("updateNowPlaying") { metadata: Map<String, Any> ->

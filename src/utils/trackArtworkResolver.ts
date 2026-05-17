@@ -44,15 +44,7 @@ async function saveBase64ToPhysicalFile(
     const mimeType = parts[0]?.match(/data:(image\/\w+)/)?.[1] || "image/jpeg";
     const ext = mimeType.split("/")[1] || "jpg";
 
-    const artDir = `${FileSystem.documentDirectory}album_art/`;
-    
-    // Ensure directory exists
-    const dirInfo = await FileSystem.getInfoAsync(artDir);
-    if (!dirInfo.exists) {
-      await FileSystem.makeDirectoryAsync(artDir, { intermediates: true });
-    }
-
-    const localArtPath = `${artDir}art_${sanitizedId}.${ext}`;
+    const localArtPath = `${FileSystem.cacheDirectory}art_${sanitizedId}.${ext}`;
     await FileSystem.writeAsStringAsync(localArtPath, base64Data, {
       encoding: FileSystem.EncodingType.Base64,
     });
