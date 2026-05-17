@@ -138,6 +138,7 @@ async function fetchFirstChunkAsBlob(
         break;
       }
     }
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
   } catch (err) {
     // Gracefully handle reader cancel interrupt
   }
@@ -195,10 +196,12 @@ export default class MusicInfo {
                     const bytes = new Uint8Array(tag.tags.picture.data);
                     const format = tag.tags.picture.format || "image/jpeg";
                     // Standard mime type normalize
-                    const mimeType = format.includes("/") ? format : `image/${format}`;
+                    const mimeType = format.includes("/")
+                      ? format
+                      : `image/${format}`;
                     const blob = new Blob([bytes], { type: mimeType });
                     const blobUrl = URL.createObjectURL(blob);
-                    
+
                     response.picture = {
                       description: tag.tags.picture.description || "",
                       pictureData: blobUrl,
@@ -246,6 +249,14 @@ export default class MusicInfo {
       picture: true,
     });
   }
+
+  static async getMusicInfoFromBufferAsync(
+    buffer: Uint8Array,
+    options?: MusicInfoOptions,
+  ): Promise<MusicInfoResponse | null> {
+    const loader = new MusicInfoLoader(null, options, buffer);
+    return loader.loadInfo();
+  }
 }
 
 /* -------------------------------------------------------
@@ -253,7 +264,8 @@ export default class MusicInfo {
  * ----------------------------------------------------- */
 
 class MusicInfoLoader {
-  private fileUri: string;
+  private fileUri: string | null;
+  private memoryBuffer: Uint8Array | null;
   private options: Required<MusicInfoOptions>;
   private expectedFramesNumber = 0;
 
@@ -264,8 +276,13 @@ class MusicInfoLoader {
   private version = 0;
   private finished = false;
 
-  constructor(fileUri: string, options?: MusicInfoOptions) {
+  constructor(
+    fileUri: string | null,
+    options?: MusicInfoOptions,
+    memoryBuffer?: Uint8Array | null,
+  ) {
     this.fileUri = fileUri;
+    this.memoryBuffer = memoryBuffer || null;
 
     this.options = {
       title: options?.title ?? true,
@@ -285,7 +302,13 @@ class MusicInfoLoader {
    * ----------------------------------------------------- */
 
   private async loadFileToBuffer() {
-    const data = await FileSystem.readAsStringAsync(this.fileUri, {
+    if (this.memoryBuffer) {
+      this.buffer.setData(this.memoryBuffer);
+      this.filePosition += this.memoryBuffer.length;
+      return;
+    }
+
+    const data = await FileSystem.readAsStringAsync(this.fileUri!, {
       encoding: FileSystem.EncodingType.Base64,
       position: this.filePosition,
       length: BUFFER_SIZE,
@@ -301,8 +324,12 @@ class MusicInfoLoader {
    * ----------------------------------------------------- */
 
   async loadInfo(): Promise<MusicInfoResponse | null> {
-    const info = await FileSystem.getInfoAsync(this.fileUri);
-    this.dataSize = info.exists ? info.size : 0;
+    if (this.memoryBuffer) {
+      this.dataSize = this.memoryBuffer.length;
+    } else {
+      const info = await FileSystem.getInfoAsync(this.fileUri!);
+      this.dataSize = info.exists ? info.size : 0;
+    }
 
     try {
       await this.process();

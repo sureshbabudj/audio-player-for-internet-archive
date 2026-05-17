@@ -6,7 +6,7 @@ import { queueTrackArtworkExtraction, resolvedArtCache } from "@/utils/trackArtw
 import { Image } from "expo-image";
 import { Heart, Music, Plus, Radio, Trash2, Zap } from "lucide-react-native";
 import React, { memo, useEffect, useState } from "react";
-import { Text, TouchableOpacity, View } from "react-native";
+import { Platform, Text, TouchableOpacity, View } from "react-native";
 
 interface TrackItemProps {
   track: ArchiveTrack;
@@ -54,13 +54,14 @@ const TrackItem: React.FC<TrackItemProps> = memo(
         return;
 
       let isMounted = true;
-      queueTrackArtworkExtraction(track, (fileUri) => {
+      queueTrackArtworkExtraction(track, (artUri) => {
         if (isMounted) {
-          setResolvedThumbnail(fileUri);
-          // Save it back to store so it persists persistently
-          useLibraryStore.getState().updateTrackMetadata(track.id, {
-            thumbnail: fileUri,
-          });
+          setResolvedThumbnail(artUri);
+          if (Platform.OS !== "web") {
+            useLibraryStore.getState().updateTrackMetadata(track.id, {
+              thumbnail: artUri,
+            });
+          }
         }
       });
 

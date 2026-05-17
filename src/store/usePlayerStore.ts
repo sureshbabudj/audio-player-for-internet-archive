@@ -159,6 +159,7 @@ const activateLockScreen = async (
       try {
         // @ts-ignore
         navigator.mediaSession.setActionHandler(action, handler);
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
       } catch (error) {
         /* Action not supported */
       }
@@ -773,11 +774,13 @@ export const usePlayerStore = create<PlayerState>()(
                 });
               }
               if (Array.isArray(data.state.originalQueue)) {
-                data.state.originalQueue = data.state.originalQueue.map((t: any) => {
-                  const cleaned = cleanWebTrack(t);
-                  if (cleaned !== t) changed = true;
-                  return cleaned;
-                });
+                data.state.originalQueue = data.state.originalQueue.map(
+                  (t: any) => {
+                    const cleaned = cleanWebTrack(t);
+                    if (cleaned !== t) changed = true;
+                    return cleaned;
+                  },
+                );
               }
               if (changed) {
                 await AsyncStorage.setItem(name, JSON.stringify(data));
