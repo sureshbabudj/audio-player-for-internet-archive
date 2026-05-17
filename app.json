@@ -16,7 +16,8 @@
         ],
         "ITSAppUsesNonExemptEncryption": false
       },
-      "appleTeamId": "FP96G88XFR"
+      "appleTeamId": "FP96G88XFR",
+      "buildNumber": "2"
     },
     "android": {
       "adaptiveIcon": {
