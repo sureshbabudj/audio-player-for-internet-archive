@@ -29,13 +29,48 @@ class TaskQueue {
 
 const fetchQueue = new TaskQueue();
 
+/**
+ * Saves a base64 Data URI to a physical file inside the persistent document directory.
+ * This completely prevents OOM (Out Of Memory) crashes from huge Base64 strings in the JS heap
+ * and ensures ultra-fast, lightweight Zustand and AsyncStorage storage footprints.
+ */
+async function saveBase64ToPhysicalFile(
+  dataUri: string,
+  sanitizedId: string,
+): Promise<string | null> {
+  try {
+    const parts = dataUri.split(";base64,");
+    const base64Data = parts[1] || parts[0];
+    const mimeType = parts[0]?.match(/data:(image\/\w+)/)?.[1] || "image/jpeg";
+    const ext = mimeType.split("/")[1] || "jpg";
+
+    const artDir = `${FileSystem.documentDirectory}album_art/`;
+    
+    // Ensure directory exists
+    const dirInfo = await FileSystem.getInfoAsync(artDir);
+    if (!dirInfo.exists) {
+      await FileSystem.makeDirectoryAsync(artDir, { intermediates: true });
+    }
+
+    const localArtPath = `${artDir}art_${sanitizedId}.${ext}`;
+    await FileSystem.writeAsStringAsync(localArtPath, base64Data, {
+      encoding: FileSystem.EncodingType.Base64,
+    });
+
+    return localArtPath;
+  } catch (e) {
+    console.warn("Failed to write artwork to physical file:", e);
+    return null;
+  }
+}
+
 export async function getTrackEmbeddedArtAsync(
   track: ArchiveTrack,
 ): Promise<string | null> {
   if (!track.url) return null;
 
-  // 1. If we already have a loaded Base64 thumbnail, return it
-  if (track.thumbnail && track.thumbnail.startsWith("data:")) {
+  // 1. If we already have a resolved local file URI or Base64 thumbnail in track, return it
+  if (track.thumbnail && (track.thumbnail.startsWith("file://") || track.thumbnail.startsWith("data:"))) {
     return track.thumbnail;
   }
 
@@ -93,9 +128,14 @@ export async function getTrackEmbeddedArtAsync(
       });
 
       if (musicInfo?.picture?.pictureData) {
-        const dataUri = musicInfo.picture.pictureData;
-        resolvedArtCache[track.id] = dataUri;
-        return dataUri;
+        const rawDataUri = musicInfo.picture.pictureData;
+        
+        // Save the high-res base64 image to a persistent local physical file
+        const physicalFileUri = await saveBase64ToPhysicalFile(rawDataUri, sanitizedId);
+        if (physicalFileUri) {
+          resolvedArtCache[track.id] = physicalFileUri;
+          return physicalFileUri;
+        }
       }
     }
   } catch (e) {
@@ -117,7 +157,7 @@ export async function getTrackEmbeddedArtAsync(
  */
 export function queueTrackArtworkExtraction(
   track: ArchiveTrack,
-  onResolved: (dataUri: string) => void,
+  onResolved: (fileUri: string) => void,
 ) {
   if (!track.url) return;
 
@@ -126,17 +166,17 @@ export function queueTrackArtworkExtraction(
     onResolved(resolvedArtCache[track.id]);
     return;
   }
-  if (track.thumbnail && track.thumbnail.startsWith("data:")) {
+  if (track.thumbnail && (track.thumbnail.startsWith("file://") || track.thumbnail.startsWith("data:"))) {
     onResolved(track.thumbnail);
     return;
   }
 
   // 2. Add range-load to the task queue
   fetchQueue.add(async () => {
-    const art = await getTrackEmbeddedArtAsync(track);
-    if (art) {
-      resolvedArtCache[track.id] = art;
-      onResolved(art);
+    const artUri = await getTrackEmbeddedArtAsync(track);
+    if (artUri) {
+      resolvedArtCache[track.id] = artUri;
+      onResolved(artUri);
     }
   });
 }

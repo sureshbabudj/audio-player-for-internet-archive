@@ -33,21 +33,28 @@ const TrackItem: React.FC<TrackItemProps> = memo(
   }) => {
     const openSelector = usePlaylistStore((state) => state.openSelector);
     const [resolvedThumbnail, setResolvedThumbnail] = useState<string | null>(
-      track.thumbnail && track.thumbnail.startsWith("data:")
+      track.thumbnail &&
+        (track.thumbnail.startsWith("file://") ||
+          track.thumbnail.startsWith("data:"))
         ? track.thumbnail
         : null,
     );
 
     useEffect(() => {
-      if (resolvedThumbnail && resolvedThumbnail.startsWith("data:")) return;
+      if (
+        resolvedThumbnail &&
+        (resolvedThumbnail.startsWith("file://") ||
+          resolvedThumbnail.startsWith("data:"))
+      )
+        return;
 
       let isMounted = true;
-      queueTrackArtworkExtraction(track, (dataUri) => {
+      queueTrackArtworkExtraction(track, (fileUri) => {
         if (isMounted) {
-          setResolvedThumbnail(dataUri);
+          setResolvedThumbnail(fileUri);
           // Save it back to store so it persists persistently
           useLibraryStore.getState().updateTrackMetadata(track.id, {
-            thumbnail: dataUri,
+            thumbnail: fileUri,
           });
         }
       });
@@ -61,7 +68,9 @@ const TrackItem: React.FC<TrackItemProps> = memo(
     const getIcon = () => {
       const displayUrl =
         resolvedThumbnail ||
-        (track.thumbnail && track.thumbnail.startsWith("data:")
+        (track.thumbnail &&
+        (track.thumbnail.startsWith("file://") ||
+          track.thumbnail.startsWith("data:"))
           ? track.thumbnail
           : null) ||
         (track.identifier
