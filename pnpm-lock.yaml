@@ -95,6 +95,9 @@ importers:
       expo-web-browser:
         specifier: ~55.0.16
         version: 55.0.16(expo@55.0.24)(react-native@0.83.6(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.0))
+      jsmediatags:
+        specifier: ^3.9.7
+        version: 3.9.7
       lucide-react-native:
         specifier: ^1.11.0
         version: 1.11.0(react-native-svg@15.15.3(react-native@0.83.6(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.0))(react@19.2.0))(react-native@0.83.6(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.0))(react@19.2.0)
@@ -147,6 +150,9 @@ importers:
       '@types/base-64':
         specifier: ^1.0.2
         version: 1.0.2
+      '@types/jsmediatags':
+        specifier: ^3.9.6
+        version: 3.9.6
       '@types/react':
         specifier: ~19.2.2
         version: 19.2.14
@@ -1596,6 +1602,9 @@ packages:
 
   '@types/istanbul-reports@3.0.4':
     resolution: {integrity: sha512-pk2B1NWalF9toCRu6gjBzR69syFjP4Od8WRAX+0mmf9lAjCRicLOWc+ZrxZHx/0XRjotgkF9t6iaMJ+aXcOdZQ==}
+
+  '@types/jsmediatags@3.9.6':
+    resolution: {integrity: sha512-a2IVxVGXBCCVzONBFKGBb2mnTNMAt0shl+Mb5+wM5YVxymhgqNilr/7/x+XePYM2DnmWwCYlBRjq+8q7nsp2PA==}
 
   '@types/json-schema@7.0.15':
     resolution: {integrity: sha512-5+fP8P8MFNC+AyZCDxrB2pkZFPGzqQWUzpSeuuVLvm8VMcorNYavBqoFcxK8bQz4Qsbn4oUEEem4wDLfcysGHA==}
@@ -3502,6 +3511,10 @@ packages:
     resolution: {integrity: sha512-/sM3dO2FOzXjKQhJuo0Q173wf2KOo8t4I8vHy6lF9poUp7bKT0/NHE8fPX23PwfhnykfqnC2xRxOnVw5XuGIaA==}
     engines: {node: '>=6'}
     hasBin: true
+
+  jsmediatags@3.9.7:
+    resolution: {integrity: sha512-xCAO8C3li3t5hYkXqn8iv8zQQUB4T1QqRN2aSONHMls21ICdEvXi4xtb6W70/fAFYSDwMHd32hIqvo4YuXoNcQ==}
+    engines: {node: '>=4.0.0'}
 
   json-buffer@3.0.1:
     resolution: {integrity: sha512-4bV5BfR2mqfQTJm+V5tPPdf+ZpuhiIvTuAB5g8kcrXOZpTT/QwwVRWBywX1ozr6lEuPdbHxwaJlm9G6mI2sfSQ==}
@@ -5422,6 +5435,10 @@ packages:
     resolution: {integrity: sha512-GCPAHLvrIH13+c0SuacwvRYj2SxJXQ4kaVTT5xgL3kPrz56XxkF21IGhjSE1+W0aw7gpBWRGXLCPnPby6lSpmQ==}
     engines: {node: '>=12'}
 
+  xhr2@0.1.4:
+    resolution: {integrity: sha512-3QGhDryRzTbIDj+waTRvMBe8SyPhW79kz3YnNb+HQt/6LPYQT3zT3Jt0Y8pBofZqQX26x8Ecfv0FXR72uH5VpA==}
+    engines: {node: '>= 0.6'}
+
   xml2js@0.6.0:
     resolution: {integrity: sha512-eLTh0kA8uHceqesPqSE+VvO1CDDJWMwlQfB6LuN6T8w6MaDJ8Txm8P7s5cHD0miF0V+GGTZrDQfxPZQVsur33w==}
     engines: {node: '>=4.0.0'}
@@ -7236,6 +7253,8 @@ snapshots:
   '@types/istanbul-reports@3.0.4':
     dependencies:
       '@types/istanbul-lib-report': 3.0.3
+
+  '@types/jsmediatags@3.9.6': {}
 
   '@types/json-schema@7.0.15': {}
 
@@ -9383,6 +9402,10 @@ snapshots:
 
   jsesc@3.1.0: {}
 
+  jsmediatags@3.9.7:
+    dependencies:
+      xhr2: 0.1.4
+
   json-buffer@3.0.1: {}
 
   json-parse-even-better-errors@3.0.2: {}
@@ -11437,6 +11460,8 @@ snapshots:
       uuid: 7.0.3
 
   xdg-basedir@5.1.0: {}
+
+  xhr2@0.1.4: {}
 
   xml2js@0.6.0:
     dependencies:

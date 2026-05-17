@@ -2,8 +2,20 @@ import { ArchiveTrack } from "@/types";
 import MusicInfo from "@/utils/musicInfo";
 import { encode } from "base-64";
 import * as FileSystem from "expo-file-system/legacy";
+import { Platform } from "react-native";
 
-const resolvedArtCache: Record<string, string> = {};
+function uint8ArrayToBase64(bytes: Uint8Array): string {
+  let binary = "";
+  const len = bytes.byteLength;
+  const chunk = 8192;
+  for (let i = 0; i < len; i += chunk) {
+    const slice = bytes.subarray(i, Math.min(i + chunk, len));
+    binary += String.fromCharCode.apply(null, slice as any);
+  }
+  return encode(binary);
+}
+
+export const resolvedArtCache: Record<string, string> = {};
 
 class TaskQueue {
   private queue: (() => Promise<void>)[] = [];
@@ -71,13 +83,40 @@ export async function getTrackEmbeddedArtAsync(
     return resolvedArtCache[track.id];
   }
 
+  // 3. Web-specific flow (direct parsing, no FileSystem writes, raw Base64 return)
+  if (Platform.OS === "web") {
+    try {
+      const musicInfo = await MusicInfo.getMusicInfoAsync(track.url, {
+        title: false,
+        artist: false,
+        album: false,
+        picture: true,
+      });
+
+      if (musicInfo?.picture?.pictureData) {
+        resolvedArtCache[track.id] = musicInfo.picture.pictureData;
+        return musicInfo.picture.pictureData;
+      }
+    } catch (e) {
+      console.warn("Failed web artwork extraction in getTrackEmbeddedArtAsync:", e);
+    }
+
+    // Web Fallback: Internet Archive cover art image API
+    if (track.identifier) {
+      const fallbackUrl = `https://archive.org/services/img/${track.identifier}`;
+      resolvedArtCache[track.id] = fallbackUrl;
+      return fallbackUrl;
+    }
+    return null;
+  }
+
   const sanitizedId = track.id.replace(/[^a-zA-Z0-9]/g, "_");
   const tempUri = `${FileSystem.cacheDirectory}temp_thumb_${sanitizedId}.mp3`;
   let fileToParse = track.url;
   let isTempFile = false;
 
   try {
-    // 3. If remote URL, download first 256KB chunk
+    // 3. If remote URL, download first 256KB chunk via fetch Range request and write to cache
     if (
       track.url.startsWith("http://") ||
       track.url.startsWith("https://")
@@ -88,11 +127,7 @@ export async function getTrackEmbeddedArtAsync(
       if (response.ok || response.status === 206) {
         const arrayBuffer = await response.arrayBuffer();
         const bytes = new Uint8Array(arrayBuffer);
-        let binary = "";
-        for (let i = 0; i < bytes.byteLength; i++) {
-          binary += String.fromCharCode(bytes[i]);
-        }
-        const base64 = encode(binary);
+        const base64 = uint8ArrayToBase64(bytes);
         await FileSystem.writeAsStringAsync(tempUri, base64, {
           encoding: FileSystem.EncodingType.Base64,
         });

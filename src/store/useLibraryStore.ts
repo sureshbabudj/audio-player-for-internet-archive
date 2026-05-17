@@ -4,6 +4,7 @@ import { analytics } from "@/utils/analytics";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { Platform } from "react-native";
 
 interface LibraryState {
   collections: Collection[];
@@ -236,7 +237,61 @@ export const useLibraryStore = create<LibraryState>()(
       storage: {
         getItem: async (name) => {
           const str = await AsyncStorage.getItem(name);
-          return str ? JSON.parse(str) : null;
+          if (!str) return null;
+          try {
+            const data = JSON.parse(str);
+            if (Platform.OS === "web" && data?.state) {
+              const cleanWebTrack = (track: any) => {
+                if (!track) return track;
+                if (
+                  track.thumbnail &&
+                  (track.thumbnail.startsWith("data:") ||
+                    track.thumbnail.startsWith("blob:"))
+                ) {
+                  return {
+                    ...track,
+                    thumbnail: `https://archive.org/services/img/${track.identifier}`,
+                  };
+                }
+                return track;
+              };
+
+              let changed = false;
+              if (Array.isArray(data.state.likedTracks)) {
+                data.state.likedTracks = data.state.likedTracks.map((t: any) => {
+                  const cleaned = cleanWebTrack(t);
+                  if (cleaned !== t) changed = true;
+                  return cleaned;
+                });
+              }
+              if (Array.isArray(data.state.recentlyPlayed)) {
+                data.state.recentlyPlayed = data.state.recentlyPlayed.map((t: any) => {
+                  const cleaned = cleanWebTrack(t);
+                  if (cleaned !== t) changed = true;
+                  return cleaned;
+                });
+              }
+              if (Array.isArray(data.state.collections)) {
+                data.state.collections = data.state.collections.map((col: any) => {
+                  if (Array.isArray(col.tracks)) {
+                    const tracksCleaned = col.tracks.map((t: any) => {
+                      const cleaned = cleanWebTrack(t);
+                      if (cleaned !== t) changed = true;
+                      return cleaned;
+                    });
+                    return { ...col, tracks: tracksCleaned };
+                  }
+                  return col;
+                });
+              }
+              if (changed) {
+                await AsyncStorage.setItem(name, JSON.stringify(data));
+              }
+            }
+            return data;
+          } catch {
+            return null;
+          }
         },
         setItem: async (name, value) => {
           await AsyncStorage.setItem(name, JSON.stringify(value));

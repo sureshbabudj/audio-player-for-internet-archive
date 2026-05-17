@@ -1,5 +1,37 @@
-import { decode, encode } from "base-64";
+/* eslint-disable @typescript-eslint/no-require-imports */
+import { encode } from "base-64";
 import * as FileSystem from "expo-file-system/legacy";
+import { Platform } from "react-native";
+
+const BASE64_LOOKUP = new Uint8Array(256);
+const BASE64_CHARS =
+  "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+for (let i = 0; i < BASE64_CHARS.length; i++) {
+  BASE64_LOOKUP[BASE64_CHARS.charCodeAt(i)] = i;
+}
+BASE64_LOOKUP[45] = 62; // -
+BASE64_LOOKUP[95] = 63; // _
+
+function base64ToUint8Array(base64: string): Uint8Array {
+  let len = base64.length;
+  if (base64.endsWith("==")) len -= 2;
+  else if (base64.endsWith("=")) len -= 1;
+
+  const bytes = new Uint8Array((base64.length * 3) / 4);
+  let p = 0;
+  for (let i = 0; i < len; i += 4) {
+    const encoded1 = BASE64_LOOKUP[base64.charCodeAt(i)];
+    const encoded2 = BASE64_LOOKUP[base64.charCodeAt(i + 1)];
+    const encoded3 = BASE64_LOOKUP[base64.charCodeAt(i + 2)];
+    const encoded4 = BASE64_LOOKUP[base64.charCodeAt(i + 3)];
+
+    bytes[p++] = (encoded1 << 2) | (encoded2 >> 4);
+    bytes[p++] = ((encoded2 & 15) << 4) | (encoded3 >> 2);
+    bytes[p++] = ((encoded3 & 3) << 6) | (encoded4 & 63);
+  }
+
+  return bytes.subarray(0, p);
+}
 
 /* -------------------------------------------------------
  * Types & Interfaces
@@ -74,11 +106,131 @@ class BufferReader {
  * Main MusicInfo API
  * ----------------------------------------------------- */
 
+async function fetchFirstChunkAsBlob(
+  url: string,
+  chunkSize = 256 * 1024,
+): Promise<Blob | null> {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch: ${response.status}`);
+  }
+
+  const reader = response.body?.getReader();
+  if (!reader) {
+    return await response.blob();
+  }
+
+  const chunks: Uint8Array[] = [];
+  let receivedLength = 0;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      chunks.push(value);
+      receivedLength += value.length;
+
+      if (receivedLength >= chunkSize) {
+        await reader.cancel(
+          "We only need the first chunk for metadata parsing.",
+        );
+        break;
+      }
+    }
+  } catch (err) {
+    // Gracefully handle reader cancel interrupt
+  }
+
+  const allChunks = new Uint8Array(receivedLength);
+  let position = 0;
+  for (const chunk of chunks) {
+    allChunks.set(chunk, position);
+    position += chunk.length;
+  }
+
+  return new Blob([allChunks.subarray(0, chunkSize)], { type: "audio/mpeg" });
+}
+
 export default class MusicInfo {
   static async getMusicInfoAsync(
     fileUri: string,
     options?: MusicInfoOptions,
   ): Promise<MusicInfoResponse | null> {
+    if (Platform.OS === "web") {
+      try {
+        const jsmediatags = require("jsmediatags/dist/jsmediatags.min.js");
+
+        let mediaInput: Blob | string = fileUri;
+
+        if (fileUri.startsWith("http")) {
+          try {
+            const blob = await fetchFirstChunkAsBlob(fileUri);
+            if (blob) {
+              mediaInput = blob;
+            }
+          } catch (e) {
+            console.warn(
+              "Failed to fetch streaming chunk on web, attempting direct read:",
+              e,
+            );
+          }
+        }
+
+        return await new Promise<MusicInfoResponse | null>((resolve) => {
+          jsmediatags.read(mediaInput, {
+            onSuccess: (tag: any) => {
+              const response: MusicInfoResponse = {};
+              if (tag.tags) {
+                if (options?.title !== false && tag.tags.title)
+                  response.title = tag.tags.title;
+                if (options?.artist !== false && tag.tags.artist)
+                  response.artist = tag.tags.artist;
+                if (options?.album !== false && tag.tags.album)
+                  response.album = tag.tags.album;
+                if (options?.genre !== false && tag.tags.genre)
+                  response.genre = tag.tags.genre;
+                if (options?.picture !== false && tag.tags.picture) {
+                  try {
+                    const bytes = new Uint8Array(tag.tags.picture.data);
+                    const format = tag.tags.picture.format || "image/jpeg";
+                    // Standard mime type normalize
+                    const mimeType = format.includes("/") ? format : `image/${format}`;
+                    const blob = new Blob([bytes], { type: mimeType });
+                    const blobUrl = URL.createObjectURL(blob);
+                    
+                    response.picture = {
+                      description: tag.tags.picture.description || "",
+                      pictureData: blobUrl,
+                    };
+                  } catch (err) {
+                    console.warn(
+                      "Failed converting picture in MusicInfo:",
+                      err,
+                    );
+                  }
+                }
+              }
+              resolve(response);
+            },
+            onError: (error: any) => {
+              console.warn(
+                "MusicInfo web parsing failed via jsmediatags:",
+                error,
+              );
+              resolve(null);
+            },
+          });
+        });
+      } catch (err) {
+        console.warn(
+          "Failed to load or read jsmediatags dynamically on web:",
+          err,
+        );
+        return null;
+      }
+    }
+
     const loader = new MusicInfoLoader(fileUri, options);
     return loader.loadInfo();
   }
@@ -139,7 +291,7 @@ class MusicInfoLoader {
       length: BUFFER_SIZE,
     });
 
-    const bytes = Uint8Array.from(decode(data), (c) => c.charCodeAt(0));
+    const bytes = base64ToUint8Array(data);
     this.buffer.setData(bytes);
     this.filePosition += BUFFER_SIZE;
   }

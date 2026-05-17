@@ -208,17 +208,26 @@ const activateLockScreen = async (
       // Update the Zustand store's currentTrack to automatically update the React UI
       const state = usePlayerStore.getState();
       if (state.currentTrack && state.currentTrack.id === track.id) {
-        usePlayerStore.setState({
-          currentTrack: {
-            ...state.currentTrack,
-            thumbnail: enrichedMetadata.artworkUrl,
-          },
-        });
+        if (Platform.OS !== "web") {
+          usePlayerStore.setState({
+            currentTrack: {
+              ...state.currentTrack,
+              thumbnail: enrichedMetadata.artworkUrl,
+            },
+          });
 
-        // ALSO update recently played, liked tracks, etc. in useLibraryStore!
-        useLibraryStore.getState().updateTrackMetadata(track.id, {
-          thumbnail: enrichedMetadata.artworkUrl,
-        });
+          // ALSO update recently played, liked tracks, etc. in useLibraryStore!
+          useLibraryStore.getState().updateTrackMetadata(track.id, {
+            thumbnail: enrichedMetadata.artworkUrl,
+          });
+        } else {
+          // On Web, we simply trigger a store state notification without writing the Blob URL to storage
+          usePlayerStore.setState({
+            currentTrack: {
+              ...state.currentTrack,
+            },
+          });
+        }
       }
     }
   } catch (e) {
@@ -729,7 +738,55 @@ export const usePlayerStore = create<PlayerState>()(
       storage: {
         getItem: async (name) => {
           const str = await AsyncStorage.getItem(name);
-          return str ? JSON.parse(str) : null;
+          if (!str) return null;
+          try {
+            const data = JSON.parse(str);
+            if (Platform.OS === "web" && data?.state) {
+              const cleanWebTrack = (track: any) => {
+                if (!track) return track;
+                if (
+                  track.thumbnail &&
+                  (track.thumbnail.startsWith("data:") ||
+                    track.thumbnail.startsWith("blob:"))
+                ) {
+                  return {
+                    ...track,
+                    thumbnail: `https://archive.org/services/img/${track.identifier}`,
+                  };
+                }
+                return track;
+              };
+
+              let changed = false;
+              if (data.state.currentTrack) {
+                const cleaned = cleanWebTrack(data.state.currentTrack);
+                if (cleaned !== data.state.currentTrack) {
+                  data.state.currentTrack = cleaned;
+                  changed = true;
+                }
+              }
+              if (Array.isArray(data.state.queue)) {
+                data.state.queue = data.state.queue.map((t: any) => {
+                  const cleaned = cleanWebTrack(t);
+                  if (cleaned !== t) changed = true;
+                  return cleaned;
+                });
+              }
+              if (Array.isArray(data.state.originalQueue)) {
+                data.state.originalQueue = data.state.originalQueue.map((t: any) => {
+                  const cleaned = cleanWebTrack(t);
+                  if (cleaned !== t) changed = true;
+                  return cleaned;
+                });
+              }
+              if (changed) {
+                await AsyncStorage.setItem(name, JSON.stringify(data));
+              }
+            }
+            return data;
+          } catch {
+            return null;
+          }
         },
         setItem: async (name, value) => {
           await AsyncStorage.setItem(name, JSON.stringify(value));

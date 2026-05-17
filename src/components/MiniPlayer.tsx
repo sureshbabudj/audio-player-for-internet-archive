@@ -1,9 +1,11 @@
 import { THEME } from "@/constants/colors";
 import { usePlayerStore } from "@/store/usePlayerStore";
+import { resolvedArtCache } from "@/utils/trackArtworkResolver";
 import { useRouter } from "expo-router";
 import { Pause, Play, SkipForward } from "lucide-react-native";
 import React from "react";
-import { Image, Platform, Text, TouchableOpacity, View } from "react-native";
+import { Image } from "expo-image";
+import { Platform, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const isWeb = Platform.OS === "web";
@@ -34,12 +36,13 @@ export function MiniPlayer() {
           {/* Thumbnail */}
           <View className="w-12 h-12 rounded-xl overflow-hidden mr-3 bg-surface-light">
             <Image
-              source={{
-                uri:
-                  currentTrack.thumbnail ||
-                  `https://archive.org/services/img/${currentTrack.identifier}`,
-              }}
-              className="w-full h-full object-cover"
+              source={
+                resolvedArtCache[currentTrack.id] ||
+                currentTrack.thumbnail ||
+                `https://archive.org/services/img/${currentTrack.identifier}`
+              }
+              style={{ width: "100%", height: "100%" }}
+              contentFit="cover"
             />
           </View>
 

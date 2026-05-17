@@ -1,5 +1,6 @@
 import { TrackItem } from "@/components/TrackItem";
 import { THEME } from "@/constants/colors";
+import { resolvedArtCache } from "@/utils/trackArtworkResolver";
 import { useLibraryStore } from "@/store/useLibraryStore";
 import { usePlayerStore } from "@/store/usePlayerStore";
 import { formatTime } from "@/utils/time";
@@ -20,10 +21,10 @@ import {
   Zap,
 } from "lucide-react-native";
 import React, { useState } from "react";
+import { Image } from "expo-image";
 import {
   ActivityIndicator,
   FlatList,
-  Image,
   Modal,
   Platform,
   Pressable,
@@ -162,12 +163,13 @@ export function AudioPlayer() {
               className="md:w-[320px] md:h-[320px] rounded-[48px] overflow-hidden shadow-2xl shadow-black/80 border border-white/10 bg-surface-light"
             >
               <Image
-                source={{
-                  uri:
-                    currentTrack.thumbnail ||
-                    `https://archive.org/services/img/${currentTrack.identifier}`,
-                }}
-                className="w-full h-full object-cover"
+                source={
+                  resolvedArtCache[currentTrack.id] ||
+                  currentTrack.thumbnail ||
+                  `https://archive.org/services/img/${currentTrack.identifier}`
+                }
+                style={{ width: "100%", height: "100%" }}
+                contentFit="cover"
               />
               {isBuffering && (
                 <View className="absolute inset-0 items-center justify-center bg-black/40">
