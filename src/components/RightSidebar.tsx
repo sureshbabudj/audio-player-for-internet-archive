@@ -3,6 +3,7 @@ import { WaveAnimation } from "@/components/WaveAnimation";
 import { THEME } from "@/constants/colors";
 import { useLibraryStore } from "@/store/useLibraryStore";
 import { usePlayerStore } from "@/store/usePlayerStore";
+import { resolvedArtCache } from "@/utils/trackArtworkResolver";
 import Slider from "@react-native-community/slider";
 import { usePathname } from "expo-router";
 import {
@@ -126,13 +127,14 @@ export function RightSidebar() {
           {!showQueue && !isPlayerPage ? (
             <View className="flex-1">
               <View className="flex-1 items-center justify-center mb-6">
-                <View 
-                  style={{ flex: 1, aspectRatio: 1, maxWidth: '100%' }}
+                <View
+                  style={{ flex: 1, aspectRatio: 1, maxWidth: "100%" }}
                   className="relative shadow-2xl shadow-black/50"
                 >
                   <Image
                     source={{
                       uri:
+                        resolvedArtCache.get(currentTrack.id) ||
                         currentTrack.thumbnail ||
                         `https://archive.org/services/img/${currentTrack.identifier}`,
                     }}

@@ -5,6 +5,7 @@ import { RightSidebar } from "@/components/RightSidebar";
 import { Sidebar } from "@/components/Sidebar";
 import { THEME } from "@/constants/colors";
 import { usePlaylistStore } from "@/store/usePlaylistStore";
+import { analytics } from "@/utils/analytics";
 import {
   Inter_400Regular,
   Inter_500Medium,
@@ -12,15 +13,13 @@ import {
   Inter_700Bold,
 } from "@expo-google-fonts/inter";
 import { SpaceGrotesk_700Bold } from "@expo-google-fonts/space-grotesk";
-import Constants from "expo-constants";
 import { useFonts } from "expo-font";
 import { Stack, usePathname } from "expo-router";
 import Head from "expo-router/head";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
-import { analytics } from "@/utils/analytics";
 import { useEffect, useState } from "react";
-import { Platform, View } from "react-native";
+import { View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 

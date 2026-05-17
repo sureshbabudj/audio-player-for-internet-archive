@@ -1,11 +1,12 @@
 import { THEME } from "@/constants/colors";
 import { useLibraryStore } from "@/store/useLibraryStore";
+import { UniversalAlert } from "@/utils/platformCompatibility";
 import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system/legacy";
 import { useRouter } from "expo-router";
 import { Database, Search } from "lucide-react-native";
 import React from "react";
-import { Alert, Platform, Text, TouchableOpacity, View } from "react-native";
+import { Platform, Text, TouchableOpacity, View } from "react-native";
 
 interface EmptyStateProps {
   title: string;
@@ -53,41 +54,20 @@ export function EmptyState({
       }
 
       const confirmImport = () => {
-        if (Platform.OS === "web") {
-          if (
-            window.confirm(
-              `This will replace your current library with ${data.collections?.length || 0} collections and ${data.likedTracks?.length || 0} liked tracks. Continue?`,
-            )
-          ) {
+        UniversalAlert.show(
+          "Import Library",
+          `This will replace your current library with ${data.collections?.length || 0} collections and ${data.likedTracks?.length || 0} liked tracks. Continue?`,
+          () => {
             importLibrary(data);
-            alert("Library imported successfully!");
+            UniversalAlert.alert("Success", "Library imported successfully!");
           }
-        } else {
-          Alert.alert(
-            "Import Library",
-            `This will replace your current library with ${data.collections?.length || 0} collections and ${data.likedTracks?.length || 0} liked tracks. Continue?`,
-            [
-              { text: "Cancel", style: "cancel" },
-              {
-                text: "Import",
-                onPress: () => {
-                  importLibrary(data);
-                  Alert.alert("Success", "Library imported successfully!");
-                },
-              },
-            ],
-          );
-        }
+        );
       };
       confirmImport();
     } catch (e) {
       console.error("Import error:", e);
       const errorMsg = "Failed to import backup file. Make sure it's a valid ArchiPlay JSON backup.";
-      if (Platform.OS === "web") {
-        alert(`Error: ${errorMsg}`);
-      } else {
-        Alert.alert("Error", errorMsg);
-      }
+      UniversalAlert.alert("Error", errorMsg);
     }
   };
 

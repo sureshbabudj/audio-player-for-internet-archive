@@ -8,6 +8,8 @@ const HOST = process.env.EXPO_PUBLIC_POSTHOG_HOST || "https://app.posthog.com";
 
 export const posthog = new PostHog(API_KEY, {
   host: HOST,
+  flushAt: 15,             // Flush events in batches of 15
+  flushInterval: 10000,    // Or every 10 seconds
 });
 
 export const analytics = {

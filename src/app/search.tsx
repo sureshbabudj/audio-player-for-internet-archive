@@ -4,12 +4,12 @@ import { THEME } from "@/constants/colors";
 import { useLibraryStore } from "@/store/useLibraryStore";
 import { ArchiveItem } from "@/types";
 import { searchArchive } from "@/utils/archive";
+import { FlashList } from "@shopify/flash-list";
 import { useRouter } from "expo-router";
 import { Search, SlidersHorizontal, X } from "lucide-react-native";
 import React, { useCallback, useState } from "react";
 import {
   ActivityIndicator,
-  FlatList,
   KeyboardAvoidingView,
   Platform,
   Text,
@@ -179,7 +179,7 @@ export default function SearchScreen() {
             </Text>
           </View>
         ) : (
-          <FlatList
+          <FlashList
             data={results}
             renderItem={({ item }) => (
               <TouchableOpacity onPress={() => handleItemPress(item)}>

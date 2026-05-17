@@ -34,7 +34,7 @@ const TrackItem: React.FC<TrackItemProps> = memo(
   }) => {
     const openSelector = usePlaylistStore((state) => state.openSelector);
     const [resolvedThumbnail, setResolvedThumbnail] = useState<string | null>(
-      resolvedArtCache[track.id] ||
+      resolvedArtCache.get(track.id) ||
       (track.thumbnail &&
         (track.thumbnail.startsWith("file://") ||
           track.thumbnail.startsWith("data:") ||
@@ -74,7 +74,7 @@ const TrackItem: React.FC<TrackItemProps> = memo(
     const getIcon = () => {
       const displayUrl =
         resolvedThumbnail ||
-        resolvedArtCache[track.id] ||
+        resolvedArtCache.get(track.id) ||
         (track.thumbnail &&
         (track.thumbnail.startsWith("file://") ||
           track.thumbnail.startsWith("data:") ||

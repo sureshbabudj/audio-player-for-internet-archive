@@ -3,12 +3,12 @@ import { ScreenHeader } from "@/components/ScreenHeader";
 import { TrackList } from "@/components/TrackList";
 import { THEME } from "@/constants/colors";
 import { useLibraryStore } from "@/store/useLibraryStore";
+import { FlashList } from "@shopify/flash-list";
 
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ChevronRight, Clock, Heart, List, Trash2 } from "lucide-react-native";
 import React, { useEffect, useState } from "react";
 import {
-  FlatList,
   Image,
   ScrollView,
   Text,
@@ -115,7 +115,7 @@ export default function LibraryScreen() {
 
       {/* Content */}
       {activeTab === "saved" ? (
-        <FlatList
+        <FlashList
           data={collections}
           keyExtractor={(item) => item.id}
           className="flex-1 px-4"
@@ -152,7 +152,6 @@ export default function LibraryScreen() {
             </TouchableOpacity>
           )}
           showsVerticalScrollIndicator={false}
-          removeClippedSubviews={true}
           contentContainerStyle={{ paddingBottom: 100 }}
         />
       ) : tracks.length === 0 ? (

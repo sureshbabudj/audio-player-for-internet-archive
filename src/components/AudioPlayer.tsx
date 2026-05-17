@@ -164,7 +164,7 @@ export function AudioPlayer() {
             >
               <Image
                 source={
-                  resolvedArtCache[currentTrack.id] ||
+                  resolvedArtCache.get(currentTrack.id) ||
                   currentTrack.thumbnail ||
                   `https://archive.org/services/img/${currentTrack.identifier}`
                 }

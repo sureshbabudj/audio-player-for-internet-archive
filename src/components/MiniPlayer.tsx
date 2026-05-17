@@ -37,7 +37,7 @@ export function MiniPlayer() {
           <View className="w-12 h-12 rounded-xl overflow-hidden mr-3 bg-surface-light">
             <Image
               source={
-                resolvedArtCache[currentTrack.id] ||
+                resolvedArtCache.get(currentTrack.id) ||
                 currentTrack.thumbnail ||
                 `https://archive.org/services/img/${currentTrack.identifier}`
               }

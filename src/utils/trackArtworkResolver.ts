@@ -1,21 +1,44 @@
 import { ArchiveTrack } from "@/types";
 import MusicInfo from "@/utils/musicInfo";
-import { encode } from "base-64";
 import * as FileSystem from "expo-file-system/legacy";
 import { Platform } from "react-native";
 
-function uint8ArrayToBase64(bytes: Uint8Array): string {
-  let binary = "";
-  const len = bytes.byteLength;
-  const chunk = 8192;
-  for (let i = 0; i < len; i += chunk) {
-    const slice = bytes.subarray(i, Math.min(i + chunk, len));
-    binary += String.fromCharCode.apply(null, slice as any);
+class SizeBoundedCache {
+  private map = new Map<string, string>();
+  private maxKeys: number;
+
+  constructor(maxKeys = 100) {
+    this.maxKeys = maxKeys;
   }
-  return encode(binary);
+
+  get(key: string): string | undefined {
+    if (!this.map.has(key)) return undefined;
+    const value = this.map.get(key)!;
+    // Move to end (most recently used)
+    this.map.delete(key);
+    this.map.set(key, value);
+    return value;
+  }
+
+  set(key: string, value: string): void {
+    if (this.map.has(key)) {
+      this.map.delete(key);
+    } else if (this.map.size >= this.maxKeys) {
+      // Evict oldest (first key in Map)
+      const oldestKey = this.map.keys().next().value;
+      if (oldestKey !== undefined) {
+        this.map.delete(oldestKey);
+      }
+    }
+    this.map.set(key, value);
+  }
+
+  clear() {
+    this.map.clear();
+  }
 }
 
-export const resolvedArtCache: Record<string, string> = {};
+export const resolvedArtCache = new SizeBoundedCache(100);
 
 class TaskQueue {
   private queue: (() => Promise<void>)[] = [];
@@ -74,13 +97,18 @@ export async function getTrackEmbeddedArtAsync(
   if (!track.url) return null;
 
   // 1. If we already have a resolved local file URI or Base64 thumbnail in track, return it
-  if (track.thumbnail && (track.thumbnail.startsWith("file://") || track.thumbnail.startsWith("data:"))) {
+  if (
+    track.thumbnail &&
+    (track.thumbnail.startsWith("file://") ||
+      track.thumbnail.startsWith("data:"))
+  ) {
     return track.thumbnail;
   }
 
   // 2. Try in-memory cache
-  if (resolvedArtCache[track.id]) {
-    return resolvedArtCache[track.id];
+  const cached = resolvedArtCache.get(track.id);
+  if (cached) {
+    return cached;
   }
 
   // 3. Web-specific flow (direct parsing, no FileSystem writes, raw Base64 return)
@@ -94,17 +122,20 @@ export async function getTrackEmbeddedArtAsync(
       });
 
       if (musicInfo?.picture?.pictureData) {
-        resolvedArtCache[track.id] = musicInfo.picture.pictureData;
+        resolvedArtCache.set(track.id, musicInfo.picture.pictureData);
         return musicInfo.picture.pictureData;
       }
     } catch (e) {
-      console.warn("Failed web artwork extraction in getTrackEmbeddedArtAsync:", e);
+      console.warn(
+        "Failed web artwork extraction in getTrackEmbeddedArtAsync:",
+        e,
+      );
     }
 
     // Web Fallback: Internet Archive cover art image API
     if (track.identifier) {
       const fallbackUrl = `https://archive.org/services/img/${track.identifier}`;
-      resolvedArtCache[track.id] = fallbackUrl;
+      resolvedArtCache.set(track.id, fallbackUrl);
       return fallbackUrl;
     }
     return null;
@@ -114,17 +145,14 @@ export async function getTrackEmbeddedArtAsync(
 
   try {
     // 3. If remote URL, download first 256KB chunk via fetch Range request and parse in-memory
-    if (
-      track.url.startsWith("http://") ||
-      track.url.startsWith("https://")
-    ) {
+    if (track.url.startsWith("http://") || track.url.startsWith("https://")) {
       const response = await fetch(track.url, {
         headers: { Range: "bytes=0-262143" },
       });
       if (response.ok || response.status === 206) {
         const arrayBuffer = await response.arrayBuffer();
         const bytes = new Uint8Array(arrayBuffer);
-        
+
         // Parse ID3 tags 100% in-memory from the binary bytes! No file writes, 1ms speed!
         const musicInfo = await MusicInfo.getMusicInfoFromBufferAsync(bytes, {
           title: false,
@@ -136,9 +164,12 @@ export async function getTrackEmbeddedArtAsync(
         if (musicInfo?.picture?.pictureData) {
           const rawDataUri = musicInfo.picture.pictureData;
           // Save the high-res base64 image to a persistent local physical file
-          const physicalFileUri = await saveBase64ToPhysicalFile(rawDataUri, sanitizedId);
+          const physicalFileUri = await saveBase64ToPhysicalFile(
+            rawDataUri,
+            sanitizedId,
+          );
           if (physicalFileUri) {
-            resolvedArtCache[track.id] = physicalFileUri;
+            resolvedArtCache.set(track.id, physicalFileUri);
             return physicalFileUri;
           }
         }
@@ -163,9 +194,12 @@ export async function getTrackEmbeddedArtAsync(
 
       if (musicInfo?.picture?.pictureData) {
         const rawDataUri = musicInfo.picture.pictureData;
-        const physicalFileUri = await saveBase64ToPhysicalFile(rawDataUri, sanitizedId);
+        const physicalFileUri = await saveBase64ToPhysicalFile(
+          rawDataUri,
+          sanitizedId,
+        );
         if (physicalFileUri) {
-          resolvedArtCache[track.id] = physicalFileUri;
+          resolvedArtCache.set(track.id, physicalFileUri);
           return physicalFileUri;
         }
       }
@@ -187,11 +221,16 @@ export function queueTrackArtworkExtraction(
   if (!track.url) return;
 
   // 1. Instant cache check
-  if (resolvedArtCache[track.id]) {
-    onResolved(resolvedArtCache[track.id]);
+  const cached = resolvedArtCache.get(track.id);
+  if (cached) {
+    onResolved(cached);
     return;
   }
-  if (track.thumbnail && (track.thumbnail.startsWith("file://") || track.thumbnail.startsWith("data:"))) {
+  if (
+    track.thumbnail &&
+    (track.thumbnail.startsWith("file://") ||
+      track.thumbnail.startsWith("data:"))
+  ) {
     onResolved(track.thumbnail);
     return;
   }
@@ -200,7 +239,7 @@ export function queueTrackArtworkExtraction(
   fetchQueue.add(async () => {
     const artUri = await getTrackEmbeddedArtAsync(track);
     if (artUri) {
-      resolvedArtCache[track.id] = artUri;
+      resolvedArtCache.set(track.id, artUri);
       onResolved(artUri);
     }
   });
