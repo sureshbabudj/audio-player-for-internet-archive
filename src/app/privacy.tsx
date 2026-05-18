@@ -56,12 +56,23 @@ export default function PrivacyPolicyScreen() {
             4. Analytics
           </Text>
           <Text className="text-white/70 font-body text-base mb-6 leading-6">
-            We do not use any third-party analytics or tracking tools within the
-            application.
+            We use PostHog to collect basic, anonymous product interaction data
+            to help us improve the app. This includes screen visits and playback
+            events (like playing, pausing, or liking a song). We do not collect
+            personally identifiable information.
           </Text>
 
           <Text className="text-white font-display text-xl mb-4">
-            5. Changes to This Policy
+            5. Open Source & Advertising
+          </Text>
+          <Text className="text-white/70 font-body text-base mb-6 leading-6">
+            ArchiPlay is an open-source project. Its source code is publicly
+            available for review. As of now, the application is completely free
+            and contains no advertisements.
+          </Text>
+
+          <Text className="text-white font-display text-xl mb-4">
+            6. Changes to This Policy
           </Text>
           <Text className="text-white/70 font-body text-base mb-6 leading-6">
             We may update our Privacy Policy from time to time. We will notify
@@ -70,7 +81,7 @@ export default function PrivacyPolicyScreen() {
           </Text>
 
           <Text className="text-white font-display text-xl mb-4">
-            6. Contact Us
+            7. Contact Us
           </Text>
           <Text className="text-white/70 font-body text-base mb-6 leading-6">
             If you have any questions about this Privacy Policy, you can contact
