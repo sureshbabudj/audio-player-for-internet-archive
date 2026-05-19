@@ -64,6 +64,7 @@ interface PlayerState {
   setPlaybackSpeed: (speed: number) => void;
   setSleepTimer: (minutes: number | null) => void;
   resetPlayer: () => void;
+  preloadNextTrack: () => void;
 
   // Internal Sync
   setPlaybackStatus: (status: any) => void;
@@ -362,10 +363,7 @@ export const usePlayerStore = create<PlayerState>()(
           activateLockScreen(newPlayer, track, title);
         }
 
-        const nextTrack = tracks[startIndex + 1];
-        if (nextTrack) {
-          preload({ uri: nextTrack.url });
-        }
+        get().preloadNextTrack();
       },
 
       loadTrack: async (track, queue = [], title = "Now Playing") => {
@@ -510,10 +508,7 @@ export const usePlayerStore = create<PlayerState>()(
           activateLockScreen(newPlayer, nextTrack, queueTitle);
         }
 
-        const afterNext = queue[nextIndex + 1];
-        if (afterNext) {
-          preload({ uri: afterNext.url });
-        }
+        get().preloadNextTrack();
       },
 
       skipPrevious: () => {
@@ -599,6 +594,8 @@ export const usePlayerStore = create<PlayerState>()(
         } else {
           activateLockScreen(newPlayer, prevTrack, queueTitle);
         }
+
+        get().preloadNextTrack();
       },
 
       playFromQueue: async (index) => {
@@ -650,6 +647,8 @@ export const usePlayerStore = create<PlayerState>()(
         } else {
           activateLockScreen(newPlayer, track, queueTitle);
         }
+
+        get().preloadNextTrack();
       },
 
       setRepeatMode: (mode) => {
@@ -658,6 +657,7 @@ export const usePlayerStore = create<PlayerState>()(
           player.loop = mode === "one";
         }
         set({ repeatMode: mode });
+        get().preloadNextTrack();
       },
 
       toggleShuffle: () => {
@@ -691,6 +691,8 @@ export const usePlayerStore = create<PlayerState>()(
             shufflePointer: -1,
           });
         }
+
+        get().preloadNextTrack();
       },
 
       setVolume: (vol) => {
@@ -736,6 +738,54 @@ export const usePlayerStore = create<PlayerState>()(
           position: 0,
           duration: 0,
         });
+      },
+
+      preloadNextTrack: () => {
+        const {
+          queue,
+          currentIndex,
+          isShuffled,
+          shuffledIndices,
+          shufflePointer,
+          repeatMode,
+        } = get();
+
+        if (queue.length === 0) return;
+
+        let nextIndex: number | null = null;
+
+        if (isShuffled && shuffledIndices.length > 0) {
+          let nextPointer = shufflePointer + 1;
+          if (nextPointer >= shuffledIndices.length) {
+            if (repeatMode === "all" || repeatMode === "one") {
+              nextPointer = 0;
+            } else {
+              nextPointer = -1;
+            }
+          }
+          if (nextPointer !== -1) {
+            nextIndex = shuffledIndices[nextPointer];
+          }
+        } else {
+          let tempNextIndex = currentIndex + 1;
+          if (tempNextIndex >= queue.length) {
+            if (repeatMode === "all" || repeatMode === "one") {
+              tempNextIndex = 0;
+            } else {
+              tempNextIndex = -1;
+            }
+          }
+          if (tempNextIndex !== -1) {
+            nextIndex = tempNextIndex;
+          }
+        }
+
+        if (nextIndex !== null && nextIndex !== undefined) {
+          const nextTrack = queue[nextIndex];
+          if (nextTrack && nextTrack.url) {
+            preload({ uri: nextTrack.url });
+          }
+        }
       },
     }),
     {
