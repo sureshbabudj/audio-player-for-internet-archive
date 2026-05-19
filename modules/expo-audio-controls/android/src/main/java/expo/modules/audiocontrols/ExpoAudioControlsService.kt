@@ -164,15 +164,34 @@ class ExpoAudioControlsService : Service() {
   }
 
   fun removeControls() {
-    stopForeground(true)
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+      stopForeground(STOP_FOREGROUND_REMOVE)
+    } else {
+      @Suppress("DEPRECATION")
+      stopForeground(true)
+    }
+    stopSelf()
   }
 
   private fun updateNotification() {
     val notification = buildNotification()
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-      startForeground(112233, notification, android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
+    if (isPlaying) {
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        startForeground(112233, notification, android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
+      } else {
+        startForeground(112233, notification)
+      }
     } else {
-      startForeground(112233, notification)
+      // Pause: stop the foreground state to conserve battery, but keep the notification so they can resume
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+        stopForeground(STOP_FOREGROUND_DETACH)
+      } else {
+        @Suppress("DEPRECATION")
+        stopForeground(false)
+      }
+      // Since we stopped foreground, manually update the notification manager to show the paused state
+      val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+      manager.notify(112233, notification)
     }
   }
 

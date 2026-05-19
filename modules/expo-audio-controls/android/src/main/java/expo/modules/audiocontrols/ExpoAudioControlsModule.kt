@@ -68,7 +68,20 @@ class ExpoAudioControlsModule : Module() {
     }
 
     Function("removeControls") {
+      appContext.reactContext?.let { context ->
+        if (isBound) {
+          try {
+            context.unbindService(connection)
+          } catch (e: Exception) {
+            // Ignore
+          }
+          isBound = false
+        }
+        val intent = Intent(context, ExpoAudioControlsService::class.java)
+        context.stopService(intent)
+      }
       service?.removeControls()
+      service = null
     }
   }
 }
