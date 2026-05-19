@@ -1,7 +1,13 @@
 import { ScreenHeader } from "@/components/ScreenHeader";
+import { APP_LINKS } from "@/constants/appLinks";
 import { THEME } from "@/constants/colors";
 import { useLibraryStore } from "@/store/useLibraryStore";
 import { usePlayerStore } from "@/store/usePlayerStore";
+import {
+  UniversalAlert,
+  UniversalFileSystem,
+} from "@/utils/platformCompatibility";
+import { requestReviewNow } from "@/utils/storeReview";
 import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
@@ -10,6 +16,7 @@ import {
   ExternalLink,
   Info,
   Mail,
+  Mailbox,
   MessageSquare,
   RotateCcw,
   Share2,
@@ -18,7 +25,6 @@ import {
 } from "lucide-react-native";
 import React from "react";
 import {
-  Alert,
   Linking,
   Platform,
   ScrollView,
@@ -46,6 +52,14 @@ const GithubIcon = (
   </Svg>
 );
 
+/** Resolved store URL for the current platform, or null if not applicable */
+const storeUrl: string | null =
+  Platform.OS === "ios"
+    ? APP_LINKS.ios
+    : Platform.OS === "android"
+      ? (APP_LINKS.android ?? null)
+      : null;
+
 export default function SettingsScreen() {
   const {
     collections,
@@ -62,42 +76,47 @@ export default function SettingsScreen() {
       <ScrollView className="flex-1 px-6" showsVerticalScrollIndicator={false}>
         <View className="pt-2">
           <SectionHeader title="App" />
-          <SettingsItem
-            icon={Star}
-            label="Rate ArchiPlay"
-            onPress={() =>
-              Linking.openURL("https://apps.apple.com/app/archiplay")
-            }
-          />
+
+          {/* Rate — only shown on iOS/Android, and only if a store URL exists */}
+          {storeUrl && (
+            <SettingsItem
+              icon={Star}
+              label="Rate ArchiPlay"
+              onPress={() => requestReviewNow()}
+            />
+          )}
+
           <SettingsItem
             icon={Mail}
             label="Send Feedback"
-            onPress={() => Linking.openURL("mailto:archiplay@genaul.com")}
+            onPress={() => Linking.openURL(APP_LINKS.feedback)}
           />
+
           <SettingsItem
-            icon={ExternalLink}
-            label="Visit Website"
-            onPress={() => Linking.openURL("https://archieplay.web.app/")}
+            icon={Mailbox}
+            label="Support"
+            onPress={() => Linking.openURL(APP_LINKS.support)}
           />
+
+          {/* Visit Website — hidden on web (users are already there) */}
+          {Platform.OS !== "web" && (
+            <SettingsItem
+              icon={ExternalLink}
+              label="Visit Website"
+              onPress={() => Linking.openURL(APP_LINKS.website)}
+            />
+          )}
 
           <SectionHeader title="Open Source" />
           <SettingsItem
             icon={GithubIcon}
             label="GitHub Repository"
-            onPress={() =>
-              Linking.openURL(
-                "https://github.com/sureshbabudj/audio-player-for-internet-archive",
-              )
-            }
+            onPress={() => Linking.openURL(APP_LINKS.github)}
           />
           <SettingsItem
             icon={MessageSquare}
             label="Report an Issue"
-            onPress={() =>
-              Linking.openURL(
-                "https://github.com/sureshbabudj/audio-player-for-internet-archive/issues",
-              )
-            }
+            onPress={() => Linking.openURL(APP_LINKS.issues)}
           />
 
           <SectionHeader title="Backup & Restore" />
@@ -126,7 +145,7 @@ export default function SettingsScreen() {
                   URL.revokeObjectURL(url);
                 } else {
                   const fileUri = `${FileSystem.cacheDirectory}${filename}`;
-                  await FileSystem.writeAsStringAsync(fileUri, json);
+                  await UniversalFileSystem.writeText(fileUri, json);
 
                   if (await Sharing.isAvailableAsync()) {
                     await Sharing.shareAsync(fileUri, {
@@ -135,7 +154,7 @@ export default function SettingsScreen() {
                       UTI: "public.json",
                     });
                   } else {
-                    Alert.alert(
+                    UniversalAlert.alert(
                       "Error",
                       "Sharing is not available on this device.",
                     );
@@ -143,7 +162,7 @@ export default function SettingsScreen() {
                 }
               } catch (e) {
                 console.error("Export error:", e);
-                Alert.alert("Error", "Failed to export data.");
+                UniversalAlert.alert("Error", "Failed to export data.");
               }
             }}
           />
@@ -166,7 +185,7 @@ export default function SettingsScreen() {
                   const response = await fetch(fileUri);
                   json = await response.text();
                 } else {
-                  json = await FileSystem.readAsStringAsync(fileUri);
+                  json = (await UniversalFileSystem.readText(fileUri)) || "";
                 }
 
                 const data = JSON.parse(json);
@@ -175,26 +194,20 @@ export default function SettingsScreen() {
                   throw new Error("Invalid backup file format");
                 }
 
-                Alert.alert(
+                UniversalAlert.show(
                   "Import Library",
                   `This will replace your current library with ${data.collections?.length || 0} collections and ${data.likedTracks?.length || 0} liked tracks. Continue?`,
-                  [
-                    { text: "Cancel", style: "cancel" },
-                    {
-                      text: "Import",
-                      onPress: () => {
-                        importLibrary(data);
-                        Alert.alert(
-                          "Success",
-                          "Library imported successfully!",
-                        );
-                      },
-                    },
-                  ],
+                  () => {
+                    importLibrary(data);
+                    UniversalAlert.alert(
+                      "Success",
+                      "Library imported successfully!",
+                    );
+                  },
                 );
               } catch (e) {
                 console.error("Import error:", e);
-                Alert.alert(
+                UniversalAlert.alert(
                   "Error",
                   "Failed to import backup file. Make sure it's a valid ArchiPlay JSON backup.",
                 );
@@ -207,7 +220,10 @@ export default function SettingsScreen() {
             icon={RotateCcw}
             label="Clear Image Cache"
             onPress={() => {
-              Alert.alert("Cache", "All image cache has been cleared.");
+              UniversalAlert.alert(
+                "Cache",
+                "All image cache has been cleared.",
+              );
             }}
           />
 
@@ -215,12 +231,12 @@ export default function SettingsScreen() {
           <SettingsItem
             icon={Shield}
             label="Privacy Policy"
-            onPress={() => Linking.openURL("https://archieplay.web.app/privacy")}
+            onPress={() => Linking.openURL(APP_LINKS.privacy)}
           />
           <SettingsItem
             icon={Info}
             label="Terms of Service"
-            onPress={() => Linking.openURL("https://archieplay.web.app/terms")}
+            onPress={() => Linking.openURL(APP_LINKS.terms)}
           />
 
           <SectionHeader title="Danger Zone" />
@@ -229,20 +245,14 @@ export default function SettingsScreen() {
             label="Reset All Data"
             color={THEME.error}
             onPress={() => {
-              Alert.alert(
+              UniversalAlert.show(
                 "Reset Library",
                 "This will permanently delete all your collections, playlists, and playback history. This action cannot be undone.",
-                [
-                  { text: "Cancel", style: "cancel" },
-                  {
-                    text: "Reset Everything",
-                    style: "destructive",
-                    onPress: () => {
-                      clearLibrary();
-                      usePlayerStore.getState().resetPlayer();
-                    },
-                  },
-                ],
+                () => {
+                  clearLibrary();
+                  usePlayerStore.getState().resetPlayer();
+                  UniversalAlert.alert("Reset", "All data has been reset.");
+                },
               );
             }}
           />

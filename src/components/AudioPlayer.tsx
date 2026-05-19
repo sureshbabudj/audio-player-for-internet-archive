@@ -1,5 +1,6 @@
 import { TrackItem } from "@/components/TrackItem";
 import { THEME } from "@/constants/colors";
+import { resolvedArtCache } from "@/utils/trackArtworkResolver";
 import { useLibraryStore } from "@/store/useLibraryStore";
 import { usePlayerStore } from "@/store/usePlayerStore";
 import { formatTime } from "@/utils/time";
@@ -19,13 +20,14 @@ import {
   SkipForward,
   Zap,
 } from "lucide-react-native";
-import React from "react";
+import React, { useState } from "react";
+import { Image } from "expo-image";
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
-  Image,
+  Modal,
   Platform,
+  Pressable,
   Text,
   TouchableOpacity,
   View,
@@ -57,6 +59,8 @@ export function AudioPlayer() {
   const toggleShuffle = usePlayerStore((state) => state.toggleShuffle);
   const playFromQueue = usePlayerStore((state) => state.playFromQueue);
   const setSleepTimer = usePlayerStore((state) => state.setSleepTimer);
+
+  const [sleepTimerModalVisible, setSleepTimerModalVisible] = useState(false);
 
   const liked = useLibraryStore((state) =>
     currentTrack ? state.likedTrackIds.includes(currentTrack.id) : false,
@@ -93,25 +97,7 @@ export function AudioPlayer() {
   };
 
   const handleSleepTimerPress = () => {
-    Alert.alert(
-      "Sleep Timer",
-      sleepTimer
-        ? `Timer active: ${sleepTimer} minutes remaining.`
-        : "Select duration:",
-      [
-        {
-          text: "Off",
-          onPress: () => setSleepTimer(null),
-          style: "destructive",
-        },
-        { text: "1 Minutes", onPress: () => setSleepTimer(1) },
-        { text: "15 Minutes", onPress: () => setSleepTimer(15) },
-        { text: "30 Minutes", onPress: () => setSleepTimer(30) },
-        { text: "45 Minutes", onPress: () => setSleepTimer(45) },
-        { text: "60 Minutes", onPress: () => setSleepTimer(60) },
-        { text: "Cancel", style: "cancel" },
-      ],
-    );
+    setSleepTimerModalVisible(true);
   };
 
   const displayPosition = slidingPosition !== null ? slidingPosition : position;
@@ -128,12 +114,15 @@ export function AudioPlayer() {
         <TouchableOpacity onPress={() => router.back()}>
           <ChevronDown size={28} color={THEME.white} />
         </TouchableOpacity>
-        <View className="items-center">
-          <Text className="text-white/40 text-[10px] font-bold uppercase tracking-widest mb-0.5">
+        <View className="flex-1 items-center px-4">
+          <Text
+            className="text-white/40 text-[10px] font-bold uppercase tracking-widest mb-0.5"
+            numberOfLines={1}
+          >
             Playing From
           </Text>
           <Text
-            className="font-display text-base text-primary"
+            className="font-display text-base text-primary text-center"
             numberOfLines={1}
           >
             {queueTitle || "Now Playing"}
@@ -168,15 +157,19 @@ export function AudioPlayer() {
       {!showQueue ? (
         <View className="flex-1">
           {/* Album Art Section */}
-          <View className="flex-1 items-center justify-center mt-4">
-            <View className="w-[75%] aspect-square md:w-[380px] md:h-[380px] rounded-[48px] overflow-hidden shadow-2xl shadow-black/80 border border-white/10 bg-surface-light mb-8">
+          <View className="flex-1 items-center justify-center p-6">
+            <View
+              style={{ flex: 1, aspectRatio: 1, maxWidth: "100%" }}
+              className="md:w-[320px] md:h-[320px] rounded-[48px] overflow-hidden shadow-2xl shadow-black/80 border border-white/10 bg-surface-light"
+            >
               <Image
-                source={{
-                  uri:
-                    currentTrack.thumbnail ||
-                    `https://archive.org/services/img/${currentTrack.identifier}`,
-                }}
-                className="w-full h-full object-cover"
+                source={
+                  resolvedArtCache.get(currentTrack.id) ||
+                  currentTrack.thumbnail ||
+                  `https://archive.org/services/img/${currentTrack.identifier}`
+                }
+                style={{ width: "100%", height: "100%" }}
+                contentFit="cover"
               />
               {isBuffering && (
                 <View className="absolute inset-0 items-center justify-center bg-black/40">
@@ -184,15 +177,15 @@ export function AudioPlayer() {
                 </View>
               )}
             </View>
+          </View>
 
-            {/* Visualizer */}
-            <View className="h-[72px] items-center justify-center">
-              {isPlaying && <WaveAnimation size="large" height={72} />}
-            </View>
+          {/* Visualizer */}
+          <View className="h-[60px] items-center justify-center mb-4">
+            {isPlaying && <WaveAnimation size="large" height={60} />}
           </View>
 
           {/* Track Info & Like */}
-          <View className="px-8 mb-6 flex-row items-center justify-between">
+          <View className="px-8 mb-4 flex-row items-center justify-between">
             <View className="flex-1 mr-4">
               <Text
                 className="text-white font-display text-2xl mb-1"
@@ -201,7 +194,7 @@ export function AudioPlayer() {
                 {currentTrack.title}
               </Text>
               <Text
-                className="text-white/50 font-body text-lg"
+                className="text-white/50 font-body text-base"
                 numberOfLines={1}
               >
                 {currentTrack.creator || "Unknown Artist"}
@@ -343,6 +336,68 @@ export function AudioPlayer() {
           />
         </View>
       )}
+
+      {/* Custom Sleep Timer Modal */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={sleepTimerModalVisible}
+        onRequestClose={() => setSleepTimerModalVisible(false)}
+      >
+        <Pressable
+          className="flex-1 bg-black/80 justify-center items-center"
+          onPress={() => setSleepTimerModalVisible(false)}
+        >
+          <Pressable
+            className="bg-[#1a1a1a] w-4/5 rounded-3xl p-6 border border-white/10 shadow-2xl"
+            onPress={(e) => e.stopPropagation()}
+          >
+            <Text className="text-xl font-bold text-white mb-2 text-center">
+              Sleep Timer
+            </Text>
+            <Text className="text-white/60 mb-6 text-center text-sm">
+              {sleepTimer
+                ? `Timer active: ${sleepTimer} minutes remaining.`
+                : "Select duration to stop playback"}
+            </Text>
+
+            <View className="flex-col gap-2">
+              {[
+                { label: "Off", value: null },
+                { label: "1 Minute", value: 1 },
+                { label: "15 Minutes", value: 15 },
+                { label: "30 Minutes", value: 30 },
+                { label: "45 Minutes", value: 45 },
+                { label: "60 Minutes", value: 60 },
+              ].map((option, idx) => (
+                <TouchableOpacity
+                  key={idx}
+                  className={`py-4 rounded-2xl flex-row justify-center items-center ${option.value === sleepTimer && option.value !== null ? "bg-primary/20" : "bg-white/5"}`}
+                  onPress={() => {
+                    setSleepTimer(option.value);
+                    setSleepTimerModalVisible(false);
+                  }}
+                >
+                  <Text
+                    className={`font-semibold ${option.value === null ? "text-red-400" : option.value === sleepTimer ? "text-primary" : "text-white"}`}
+                  >
+                    {option.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <TouchableOpacity
+              className="mt-4 py-4 rounded-2xl border border-white/10"
+              onPress={() => setSleepTimerModalVisible(false)}
+            >
+              <Text className="text-white/60 text-center font-semibold">
+                Cancel
+              </Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 

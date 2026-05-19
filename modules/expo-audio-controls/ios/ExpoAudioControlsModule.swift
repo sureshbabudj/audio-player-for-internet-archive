@@ -6,100 +6,122 @@ public class ExpoAudioControlsModule: Module {
   public func definition() -> ModuleDefinition {
     Name("ExpoAudioControls")
 
-    Events("onNextTrack", "onPreviousTrack", "onPlay", "onPause")
+    Events("onNextTrack", "onPreviousTrack", "onPlay", "onPause", "onSeekForward", "onSeekBackward")
 
     OnCreate {
       setupInterruptionObserver()
     }
 
+    Function("removeControls") {
+      // No-op on iOS
+    }
+
     AsyncFunction("setupRemoteControls") {
-      let commandCenter = MPRemoteCommandCenter.shared()
+      DispatchQueue.main.async {
+        let commandCenter = MPRemoteCommandCenter.shared()
 
-      // Clear existing targets to avoid duplicates and conflicts
-      commandCenter.playCommand.removeTarget(nil)
-      commandCenter.pauseCommand.removeTarget(nil)
-      commandCenter.nextTrackCommand.removeTarget(nil)
-      commandCenter.previousTrackCommand.removeTarget(nil)
-      commandCenter.togglePlayPauseCommand.removeTarget(nil)
+        // Clear existing targets to avoid duplicates and conflicts
+        commandCenter.playCommand.removeTarget(nil)
+        commandCenter.pauseCommand.removeTarget(nil)
+        commandCenter.nextTrackCommand.removeTarget(nil)
+        commandCenter.previousTrackCommand.removeTarget(nil)
+        commandCenter.togglePlayPauseCommand.removeTarget(nil)
 
-      // Play Command
-      commandCenter.playCommand.isEnabled = true
-      commandCenter.playCommand.addTarget { [weak self] event in
-        self?.sendEvent("onPlay")
-        return .success
-      }
+        // Play Command
+        commandCenter.playCommand.isEnabled = true
+        commandCenter.playCommand.addTarget { [weak self] event in
+          self?.sendEvent("onPlay")
+          return .success
+        }
 
-      // Pause Command
-      commandCenter.pauseCommand.isEnabled = true
-      commandCenter.pauseCommand.addTarget { [weak self] event in
-        self?.sendEvent("onPause")
-        return .success
-      }
+        // Pause Command
+        commandCenter.pauseCommand.isEnabled = true
+        commandCenter.pauseCommand.addTarget { [weak self] event in
+          self?.sendEvent("onPause")
+          return .success
+        }
 
-      // Next Track Command
-      commandCenter.nextTrackCommand.isEnabled = true
-      commandCenter.nextTrackCommand.addTarget { [weak self] event in
-        self?.sendEvent("onNextTrack")
-        return .success
-      }
+        // Next Track Command
+        commandCenter.nextTrackCommand.isEnabled = true
+        commandCenter.nextTrackCommand.addTarget { [weak self] event in
+          self?.sendEvent("onNextTrack")
+          return .success
+        }
 
-      // Previous Track Command
-      commandCenter.previousTrackCommand.isEnabled = true
-      commandCenter.previousTrackCommand.addTarget { [weak self] event in
-        self?.sendEvent("onPreviousTrack")
-        return .success
-      }
-      
-      // Toggle Play/Pause (often used by headphones)
-      commandCenter.togglePlayPauseCommand.isEnabled = true
-      commandCenter.togglePlayPauseCommand.addTarget { [weak self] event in
-        // We decide based on current state in JS, but we can emit a generic event or just toggle
-        self?.sendEvent("onPlay") // For simplicity, trigger a play/pause toggle in JS
-        return .success
+        // Previous Track Command
+        commandCenter.previousTrackCommand.isEnabled = true
+        commandCenter.previousTrackCommand.addTarget { [weak self] event in
+          self?.sendEvent("onPreviousTrack")
+          return .success
+        }
+        
+        // Toggle Play/Pause (often used by headphones)
+        commandCenter.togglePlayPauseCommand.isEnabled = true
+        commandCenter.togglePlayPauseCommand.addTarget { [weak self] event in
+          // We decide based on current state in JS, but we can emit a generic event or just toggle
+          self?.sendEvent("onPlay") // For simplicity, trigger a play/pause toggle in JS
+          return .success
+        }
       }
     }
 
     Function("updateNowPlaying") { (metadata: [String: Any]) in
-      let infoCenter = MPNowPlayingInfoCenter.default()
-      var nowPlayingInfo = infoCenter.nowPlayingInfo ?? [String: Any]()
+      DispatchQueue.main.async {
+        let infoCenter = MPNowPlayingInfoCenter.default()
+        var nowPlayingInfo = infoCenter.nowPlayingInfo ?? [String: Any]()
+        let commandCenter = MPRemoteCommandCenter.shared()
 
-      if let title = metadata["title"] as? String {
-        nowPlayingInfo[MPMediaItemPropertyTitle] = title
-      }
-      if let artist = metadata["artist"] as? String {
-        nowPlayingInfo[MPMediaItemPropertyArtist] = artist
-      }
-      if let album = metadata["album"] as? String {
-        nowPlayingInfo[MPMediaItemPropertyAlbumTitle] = album
-      }
-      if let duration = metadata["duration"] as? Double {
-        nowPlayingInfo[MPMediaItemPropertyPlaybackDuration] = duration / 1000.0
-      }
-      if let position = metadata["position"] as? Double {
-        nowPlayingInfo[MPNowPlayingInfoPropertyElapsedPlaybackTime] = position / 1000.0
-      }
-      
-      let isPlaying = metadata["isPlaying"] as? Bool ?? false
-      nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackRate] = isPlaying ? 1.0 : 0.0
+        // Re-enable next/prev commands explicitly here in case expo-audio clears them
+        commandCenter.nextTrackCommand.isEnabled = true
+        commandCenter.previousTrackCommand.isEnabled = true
 
-      if #available(iOS 13.0, *) {
-        infoCenter.playbackState = isPlaying ? .playing : .paused
-      }
+        if let title = metadata["title"] as? String {
+          nowPlayingInfo[MPMediaItemPropertyTitle] = title
+        }
+        if let artist = metadata["artist"] as? String {
+          nowPlayingInfo[MPMediaItemPropertyArtist] = artist
+        }
+        if let album = metadata["album"] as? String {
+          nowPlayingInfo[MPMediaItemPropertyAlbumTitle] = album
+        }
+        if let duration = metadata["duration"] as? Double {
+          nowPlayingInfo[MPMediaItemPropertyPlaybackDuration] = duration / 1000.0
+        }
+        if let position = metadata["position"] as? Double {
+          nowPlayingInfo[MPNowPlayingInfoPropertyElapsedPlaybackTime] = position / 1000.0
+        }
+        
+        let isPlaying = metadata["isPlaying"] as? Bool ?? false
+        nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackRate] = isPlaying ? 1.0 : 0.0
 
-      if let artworkUrlString = metadata["artworkUrl"] as? String, let artworkUrl = URL(string: artworkUrlString) {
-        URLSession.shared.dataTask(with: artworkUrl) { data, response, error in
-          if let data = data, let image = UIImage(data: data) {
-            let artwork = MPMediaItemArtwork(boundsSize: image.size) { _ in image }
-            DispatchQueue.main.async {
-              var updatedInfo = infoCenter.nowPlayingInfo ?? [String: Any]()
-              updatedInfo[MPMediaItemPropertyArtwork] = artwork
-              infoCenter.nowPlayingInfo = updatedInfo
+        if #available(iOS 13.0, *) {
+          infoCenter.playbackState = isPlaying ? .playing : .paused
+        }
+
+        if let artworkUrlString = metadata["artworkUrl"] as? String {
+          if artworkUrlString.hasPrefix("data:") {
+            if let base64Data = artworkUrlString.components(separatedBy: "base64,").last,
+               let data = Data(base64Encoded: base64Data, options: .ignoreUnknownCharacters),
+               let image = UIImage(data: data) {
+              let artwork = MPMediaItemArtwork(boundsSize: image.size) { _ in image }
+              nowPlayingInfo[MPMediaItemPropertyArtwork] = artwork
             }
+          } else if let artworkUrl = URL(string: artworkUrlString) {
+            URLSession.shared.dataTask(with: artworkUrl) { data, response, error in
+              if let data = data, let image = UIImage(data: data) {
+                let artwork = MPMediaItemArtwork(boundsSize: image.size) { _ in image }
+                DispatchQueue.main.async {
+                  var updatedInfo = infoCenter.nowPlayingInfo ?? [String: Any]()
+                  updatedInfo[MPMediaItemPropertyArtwork] = artwork
+                  infoCenter.nowPlayingInfo = updatedInfo
+                }
+              }
+            }.resume()
           }
-        }.resume()
-      }
+        }
 
-      infoCenter.nowPlayingInfo = nowPlayingInfo
+        infoCenter.nowPlayingInfo = nowPlayingInfo
+      }
     }
   }
 

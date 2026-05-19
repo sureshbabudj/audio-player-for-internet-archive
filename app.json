@@ -16,7 +16,8 @@
         ],
         "ITSAppUsesNonExemptEncryption": false
       },
-      "appleTeamId": "FP96G88XFR"
+      "appleTeamId": "FP96G88XFR",
+      "buildNumber": "3"
     },
     "android": {
       "adaptiveIcon": {
@@ -40,7 +41,12 @@
       }
     },
     "plugins": [
-      "expo-router",
+      [
+        "expo-router",
+        {
+          "origin": "https://archieplay.web.app"
+        }
+      ],
       "expo-font",
       [
         "expo-splash-screen",
@@ -60,7 +66,9 @@
         }
       ],
       "expo-asset",
-      "expo-sharing"
+      "expo-sharing",
+      "expo-image",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,

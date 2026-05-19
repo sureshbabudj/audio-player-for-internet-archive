@@ -1,0 +1,20 @@
+# robots.txt for ArchiePlay
+# Optimized for Search Engine Optimization (SEO) and Agentic Engine Optimization (AEO)
+
+User-agent: *
+Allow: /
+Disallow: /_sitemap
+Disallow: /+not-found
+
+# Allow deep discovery of collections for AI agentic summaries
+User-agent: Googlebot
+Allow: /collection/
+Allow: /playlists/
+
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+Sitemap: https://archieplay.web.app/sitemap.xml

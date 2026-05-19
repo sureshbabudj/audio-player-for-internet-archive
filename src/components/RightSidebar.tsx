@@ -3,6 +3,7 @@ import { WaveAnimation } from "@/components/WaveAnimation";
 import { THEME } from "@/constants/colors";
 import { useLibraryStore } from "@/store/useLibraryStore";
 import { usePlayerStore } from "@/store/usePlayerStore";
+import { resolvedArtCache } from "@/utils/trackArtworkResolver";
 import Slider from "@react-native-community/slider";
 import { usePathname } from "expo-router";
 import {
@@ -95,7 +96,7 @@ export function RightSidebar() {
   const displayPosition = slidingPosition !== null ? slidingPosition : position;
 
   return (
-    <View className="flex-1 bg-dark py-12 px-8">
+    <View className="flex-1 bg-dark py-6 px-8">
       {currentTrack ? (
         <View className="flex-1">
           <View className="flex-row items-center justify-between mb-8">
@@ -125,22 +126,26 @@ export function RightSidebar() {
 
           {!showQueue && !isPlayerPage ? (
             <View className="flex-1">
-              <View className="mb-10">
-                <View className="relative shadow-2xl shadow-black/50">
+              <View className="flex-1 items-center justify-center mb-6">
+                <View
+                  style={{ flex: 1, aspectRatio: 1, maxWidth: "100%" }}
+                  className="relative shadow-2xl shadow-black/50"
+                >
                   <Image
                     source={{
                       uri:
+                        resolvedArtCache.get(currentTrack.id) ||
                         currentTrack.thumbnail ||
                         `https://archive.org/services/img/${currentTrack.identifier}`,
                     }}
-                    className="w-full aspect-square rounded-[48px] border border-white/5"
+                    className="w-full h-full rounded-[48px] border border-white/5"
                   />
                   <TouchableOpacity
                     onPress={() => toggleLike(currentTrack)}
-                    className="absolute top-6 right-6 w-12 h-12 rounded-full bg-black/40 backdrop-blur-md items-center justify-center border border-white/10"
+                    className="absolute top-4 right-4 w-10 h-10 rounded-full bg-black/40 backdrop-blur-md items-center justify-center border border-white/10"
                   >
                     <Heart
-                      size={24}
+                      size={20}
                       color={isLiked ? THEME.primary : THEME.white}
                       fill={isLiked ? THEME.primary : "transparent"}
                     />
@@ -148,7 +153,7 @@ export function RightSidebar() {
                 </View>
               </View>
 
-              <View className="mb-10">
+              <View className="mb-6">
                 <Text
                   className="text-white font-display text-3xl font-bold mb-2"
                   numberOfLines={2}
@@ -163,13 +168,13 @@ export function RightSidebar() {
                 </Text>
               </View>
 
-              <View className="flex-1 justify-center py-4">
-                <WaveAnimation size="large" height={80} />
+              <View className="items-center justify-center py-2 h-[80px]">
+                <WaveAnimation size="large" height={60} />
               </View>
 
               <View className="mt-auto">
                 {/* Seekbar */}
-                <View className="mb-8">
+                <View className="mb-4">
                   <Slider
                     value={displayPosition}
                     minimumValue={0}
@@ -195,7 +200,7 @@ export function RightSidebar() {
                 </View>
 
                 {/* Controls */}
-                <View className="flex-row items-center justify-between px-2 mb-6">
+                <View className="flex-row items-center justify-between px-2 mb-2">
                   <TouchableOpacity onPress={toggleShuffle}>
                     <Shuffle
                       size={22}

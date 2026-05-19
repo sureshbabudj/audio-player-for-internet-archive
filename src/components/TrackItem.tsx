@@ -1,9 +1,12 @@
 import { THEME } from "@/constants/colors";
+import { useLibraryStore } from "@/store/useLibraryStore";
 import { usePlaylistStore } from "@/store/usePlaylistStore";
 import { ArchiveTrack } from "@/types";
+import { queueTrackArtworkExtraction, resolvedArtCache } from "@/utils/trackArtworkResolver";
+import { Image } from "expo-image";
 import { Heart, Music, Plus, Radio, Trash2, Zap } from "lucide-react-native";
-import React, { memo } from "react";
-import { Image, Text, TouchableOpacity, View } from "react-native";
+import React, { memo, useEffect, useState } from "react";
+import { Platform, Text, TouchableOpacity, View } from "react-native";
 
 interface TrackItemProps {
   track: ArchiveTrack;
@@ -30,17 +33,64 @@ const TrackItem: React.FC<TrackItemProps> = memo(
     rank,
   }) => {
     const openSelector = usePlaylistStore((state) => state.openSelector);
+    const [resolvedThumbnail, setResolvedThumbnail] = useState<string | null>(
+      resolvedArtCache.get(track.id) ||
+      (track.thumbnail &&
+        (track.thumbnail.startsWith("file://") ||
+          track.thumbnail.startsWith("data:") ||
+          track.thumbnail.startsWith("blob:"))
+        ? track.thumbnail
+        : null),
+    );
+
+    useEffect(() => {
+      if (type === "search") return;
+      if (
+        resolvedThumbnail &&
+        (resolvedThumbnail.startsWith("file://") ||
+          resolvedThumbnail.startsWith("data:") ||
+          resolvedThumbnail.startsWith("blob:"))
+      )
+        return;
+
+      let isMounted = true;
+      queueTrackArtworkExtraction(track, (artUri) => {
+        if (isMounted) {
+          setResolvedThumbnail(artUri);
+          if (Platform.OS !== "web") {
+            useLibraryStore.getState().updateTrackMetadata(track.id, {
+              thumbnail: artUri,
+            });
+          }
+        }
+      });
+
+      return () => {
+        isMounted = false;
+      };
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [track.id, track.url, resolvedThumbnail]);
 
     const getIcon = () => {
-      if (track.thumbnail || track.identifier) {
+      const displayUrl =
+        resolvedThumbnail ||
+        resolvedArtCache.get(track.id) ||
+        (track.thumbnail &&
+        (track.thumbnail.startsWith("file://") ||
+          track.thumbnail.startsWith("data:") ||
+          track.thumbnail.startsWith("blob:"))
+          ? track.thumbnail
+          : null) ||
+        (track.identifier
+          ? `https://archive.org/services/img/${track.identifier}`
+          : null);
+
+      if (displayUrl) {
         return (
           <Image
-            source={{
-              uri:
-                track.thumbnail ||
-                `https://archive.org/services/img/${track.identifier}`,
-            }}
-            className="w-full h-full object-cover"
+            source={displayUrl}
+            style={{ width: "100%", height: "100%" }}
+            contentFit="cover"
           />
         );
       }

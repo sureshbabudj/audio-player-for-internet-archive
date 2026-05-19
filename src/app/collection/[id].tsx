@@ -4,12 +4,13 @@ import { THEME } from "@/constants/colors";
 import { useLibraryStore } from "@/store/useLibraryStore";
 import { usePlayerStore } from "@/store/usePlayerStore";
 import { fetchItemTracks, getItemMetadata } from "@/utils/archive";
+import { FlashList } from "@shopify/flash-list";
+import Head from "expo-router/head";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Play, Plus, Trash2 } from "lucide-react-native";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  FlatList,
   Image,
   Text,
   TouchableOpacity,
@@ -166,21 +167,53 @@ export default function CollectionDetailScreen() {
     );
   }
 
+  const structuredData = item ? {
+    "@context": "https://schema.org",
+    "@type": "MusicPlaylist",
+    "name": item.title,
+    "author": {
+      "@type": "Person",
+      "name": item.creator || "Internet Archive"
+    },
+    "numTracks": tracks.length,
+    "track": tracks.map((t: any, idx: number) => ({
+      "@type": "MusicRecording",
+      "position": idx + 1,
+      "name": t.title,
+      "byArtist": {
+        "@type": "MusicGroup",
+        "name": t.creator || "Unknown Artist"
+      }
+    }))
+  } : null;
+
   return (
     <View className="flex-1 bg-darker">
+      {item && (
+        <Head>
+          <title>{item.title} - Collection on ArchiePlay</title>
+          <meta name="description" content={`Listen to ${item.title} by ${item.creator || "Internet Archive"} in high fidelity on ArchiePlay.`} />
+          <link rel="canonical" href={`https://archieplay.web.app/collection/${item.id}`} />
+          <meta property="og:title" content={`${item.title} - ArchiePlay`} />
+          <meta property="og:description" content={`Listen to ${item.title} by ${item.creator || "Internet Archive"} in high fidelity on ArchiePlay.`} />
+          <meta property="og:image" content={item.thumbnail} />
+          <meta property="og:type" content="music.playlist" />
+          {structuredData && (
+            <script type="application/ld+json">
+              {JSON.stringify(structuredData)}
+            </script>
+          )}
+        </Head>
+      )}
       <ScreenHeader type="detail" title={item?.title} />
 
-      <FlatList
+      <FlashList
         data={tracks}
         renderItem={renderTrackItem}
         keyExtractor={(track) => track.id}
         ListHeaderComponent={HeaderComponent}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 150, paddingHorizontal: 24 }}
-        removeClippedSubviews={true}
-        initialNumToRender={10}
-        maxToRenderPerBatch={10}
-        windowSize={5}
       />
     </View>
   );

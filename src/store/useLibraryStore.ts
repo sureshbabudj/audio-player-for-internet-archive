@@ -1,16 +1,10 @@
-import { ArchiveItem, ArchiveTrack } from "@/types";
+/* eslint-disable @typescript-eslint/no-require-imports */
+import { ArchiveItem, ArchiveTrack, Collection } from "@/types";
+import { analytics } from "@/utils/analytics";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-
-interface Collection {
-  id: string;
-  title: string;
-  creator: string | null;
-  thumbnail: string;
-  tracks: ArchiveTrack[];
-  addedAt: number;
-}
+import { Platform } from "react-native";
 
 interface LibraryState {
   collections: Collection[];
@@ -29,6 +23,10 @@ interface LibraryState {
   clearRecentlyPlayed: () => void;
   clearLibrary: () => void;
   importLibrary: (data: any) => void;
+  updateTrackMetadata: (
+    trackId: string,
+    updates: Partial<ArchiveTrack>,
+  ) => void;
 }
 
 export const useLibraryStore = create<LibraryState>()(
@@ -116,6 +114,11 @@ export const useLibraryStore = create<LibraryState>()(
         set((state) => {
           const isLiked = state.likedTrackIds.includes(track.id);
           if (isLiked) {
+            analytics.track("track_unliked", {
+              track_id: track.id,
+              track_title: track.title,
+              artist: track.creator,
+            });
             return {
               likedTrackIds: state.likedTrackIds.filter(
                 (id) => id !== track.id,
@@ -123,6 +126,11 @@ export const useLibraryStore = create<LibraryState>()(
               likedTracks: state.likedTracks.filter((t) => t.id !== track.id),
             };
           } else {
+            analytics.track("track_liked", {
+              track_id: track.id,
+              track_title: track.title,
+              artist: track.creator,
+            });
             return {
               likedTrackIds: [...state.likedTrackIds, track.id],
               likedTracks: [track, ...state.likedTracks],
@@ -173,13 +181,117 @@ export const useLibraryStore = create<LibraryState>()(
           playCounts: data.playCounts || {},
         });
       },
+
+      updateTrackMetadata: (trackId, updates) => {
+        set((state) => {
+          const updateTrack = (t: ArchiveTrack) =>
+            t.id === trackId ? { ...t, ...updates } : t;
+
+          return {
+            recentlyPlayed: state.recentlyPlayed.map(updateTrack),
+            likedTracks: state.likedTracks.map(updateTrack),
+            collections: state.collections.map((c) => ({
+              ...c,
+              tracks: c.tracks.map(updateTrack),
+            })),
+          };
+        });
+
+        // 2. Update Playlist Store (using require to avoid circular dependencies)
+        try {
+          const { usePlaylistStore } = require("./usePlaylistStore");
+          usePlaylistStore.setState((state: any) => ({
+            playlists: state.playlists.map((p: any) => ({
+              ...p,
+              tracks: p.tracks.map((t: any) =>
+                t.id === trackId ? { ...t, ...updates } : t,
+              ),
+            })),
+          }));
+        } catch (e) {
+          console.warn("Failed to update playlists metadata:", e);
+        }
+
+        // 3. Update Player Store (using require to avoid circular dependencies)
+        try {
+          const { usePlayerStore } = require("./usePlayerStore");
+          usePlayerStore.setState((state: any) => {
+            const updateTrack = (t: any) =>
+              t && t.id === trackId ? { ...t, ...updates } : t;
+
+            return {
+              currentTrack:
+                state.currentTrack && state.currentTrack.id === trackId
+                  ? { ...state.currentTrack, ...updates }
+                  : state.currentTrack,
+              queue: state.queue ? state.queue.map(updateTrack) : [],
+            };
+          });
+        } catch (e) {
+          console.warn("Failed to update player metadata:", e);
+        }
+      },
     }),
     {
       name: "library-storage",
       storage: {
         getItem: async (name) => {
           const str = await AsyncStorage.getItem(name);
-          return str ? JSON.parse(str) : null;
+          if (!str) return null;
+          try {
+            const data = JSON.parse(str);
+            if (Platform.OS === "web" && data?.state) {
+              const cleanWebTrack = (track: any) => {
+                if (!track) return track;
+                if (
+                  track.thumbnail &&
+                  (track.thumbnail.startsWith("data:") ||
+                    track.thumbnail.startsWith("blob:"))
+                ) {
+                  return {
+                    ...track,
+                    thumbnail: `https://archive.org/services/img/${track.identifier}`,
+                  };
+                }
+                return track;
+              };
+
+              let changed = false;
+              if (Array.isArray(data.state.likedTracks)) {
+                data.state.likedTracks = data.state.likedTracks.map((t: any) => {
+                  const cleaned = cleanWebTrack(t);
+                  if (cleaned !== t) changed = true;
+                  return cleaned;
+                });
+              }
+              if (Array.isArray(data.state.recentlyPlayed)) {
+                data.state.recentlyPlayed = data.state.recentlyPlayed.map((t: any) => {
+                  const cleaned = cleanWebTrack(t);
+                  if (cleaned !== t) changed = true;
+                  return cleaned;
+                });
+              }
+              if (Array.isArray(data.state.collections)) {
+                data.state.collections = data.state.collections.map((col: any) => {
+                  if (Array.isArray(col.tracks)) {
+                    const tracksCleaned = col.tracks.map((t: any) => {
+                      const cleaned = cleanWebTrack(t);
+                      if (cleaned !== t) changed = true;
+                      return cleaned;
+                    });
+                    return { ...col, tracks: tracksCleaned };
+                  }
+                  return col;
+                });
+              }
+              if (changed) {
+                await AsyncStorage.setItem(name, JSON.stringify(data));
+              }
+            }
+            return data;
+          } catch {
+            return null;
+          }
         },
         setItem: async (name, value) => {
           await AsyncStorage.setItem(name, JSON.stringify(value));

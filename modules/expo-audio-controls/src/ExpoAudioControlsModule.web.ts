@@ -9,8 +9,21 @@ class ExpoAudioControlsModule extends NativeModule<ExpoAudioControlsModuleEvents
       navigator.mediaSession.setActionHandler('pause', () => this.emit('onPause'));
       navigator.mediaSession.setActionHandler('previoustrack', () => this.emit('onPreviousTrack'));
       navigator.mediaSession.setActionHandler('nexttrack', () => this.emit('onNextTrack'));
+      navigator.mediaSession.setActionHandler('seekbackward', () => this.emit('onSeekBackward'));
+      navigator.mediaSession.setActionHandler('seekforward', () => this.emit('onSeekForward'));
     }
     console.log('Remote controls setup requested on web');
+  }
+
+  removeControls(): void {
+    if ('mediaSession' in navigator) {
+      navigator.mediaSession.setActionHandler('play', null);
+      navigator.mediaSession.setActionHandler('pause', null);
+      navigator.mediaSession.setActionHandler('previoustrack', null);
+      navigator.mediaSession.setActionHandler('nexttrack', null);
+      navigator.mediaSession.setActionHandler('seekbackward', null);
+      navigator.mediaSession.setActionHandler('seekforward', null);
+    }
   }
 
   updateNowPlaying(metadata: {
