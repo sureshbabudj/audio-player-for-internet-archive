@@ -4,6 +4,7 @@ import { PlaylistSelector } from "@/components/PlaylistSelector";
 import { RightSidebar } from "@/components/RightSidebar";
 import { Sidebar } from "@/components/Sidebar";
 import { THEME } from "@/constants/colors";
+import { useLibraryStore } from "@/store/useLibraryStore";
 import { usePlaylistStore } from "@/store/usePlaylistStore";
 import { analytics } from "@/utils/analytics";
 import { recordSession } from "@/utils/storeReview";
@@ -15,7 +16,7 @@ import {
 } from "@expo-google-fonts/inter";
 import { SpaceGrotesk_700Bold } from "@expo-google-fonts/space-grotesk";
 import { useFonts } from "expo-font";
-import { Stack, usePathname } from "expo-router";
+import { Stack, usePathname, useRouter } from "expo-router";
 import Head from "expo-router/head";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
@@ -43,6 +44,7 @@ function AnalyticsProvider({ children }: { children: React.ReactNode }) {
 
 export default function RootLayout() {
   const pathname = usePathname();
+  const router = useRouter();
   const selectorVisible = usePlaylistStore((state) => state.selectorVisible);
   const trackToSelect = usePlaylistStore((state) => state.trackToSelect);
   const closeSelector = usePlaylistStore((state) => state.closeSelector);
@@ -75,11 +77,14 @@ export default function RootLayout() {
 
   if (!fontsLoaded || !hasHydrated) return null;
 
+  const isOnboarding = pathname === "/onboarding";
+
   const isDetailScreen =
     pathname === "/player" ||
     pathname === "/search" ||
     pathname.startsWith("/collection/") ||
-    pathname.startsWith("/playlists/");
+    pathname.startsWith("/playlists/") ||
+    isOnboarding;
 
   return (
     <AnalyticsProvider>
@@ -114,9 +119,11 @@ export default function RootLayout() {
         <GestureHandlerRootView style={{ flex: 1 }}>
           <View className="flex-1 bg-darker flex-row">
             {/* Sidebar - only on large screens */}
-            <View className="hidden md:flex w-[280px]">
-              <Sidebar />
-            </View>
+            {!isOnboarding && (
+              <View className="hidden md:flex w-[280px]">
+                <Sidebar />
+              </View>
+            )}
 
             <View className="flex-1 overflow-hidden flex-row bg-darker md:m-4 md:rounded-[40px] md:border md:border-white/5 md:bg-dark">
               <View className="flex-1">
@@ -131,6 +138,13 @@ export default function RootLayout() {
                     animation: "slide_from_right",
                   }}
                 >
+                  <Stack.Screen
+                    name="onboarding"
+                    options={{
+                      headerShown: false,
+                      animation: "fade",
+                    }}
+                  />
                   <Stack.Screen
                     name="index"
                     options={{
@@ -225,19 +239,23 @@ export default function RootLayout() {
                 </Stack>
               </View>
 
-              <View className="hidden xl:flex w-[350px] border-l border-white/5">
-                <RightSidebar />
-              </View>
+              {!isOnboarding && (
+                <View className="hidden xl:flex w-[350px] border-l border-white/5">
+                  <RightSidebar />
+                </View>
+              )}
             </View>
 
             {/* Mobile Navigation */}
-            <View
-              className="md:hidden absolute bottom-0 left-0 right-0"
-              style={{ zIndex: isDetailScreen ? -1 : 1 }}
-            >
-              <MiniPlayer />
-              <BottomNav />
-            </View>
+            {!isOnboarding && (
+              <View
+                className="md:hidden absolute bottom-0 left-0 right-0"
+                style={{ zIndex: isDetailScreen ? -1 : 1 }}
+              >
+                <MiniPlayer />
+                <BottomNav />
+              </View>
+            )}
 
             <PlaylistSelector
               visible={selectorVisible}

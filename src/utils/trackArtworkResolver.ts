@@ -204,8 +204,14 @@ export async function getTrackEmbeddedArtAsync(
         }
       }
     }
-  } catch (e) {
-    console.warn("Error in getTrackEmbeddedArtAsync:", e);
+  } catch (e: any) {
+    const msg = e?.message || "";
+    if (
+      !msg.includes("React Native Runtime is shutting down") &&
+      !msg.includes("Runtime is shutting down")
+    ) {
+      console.warn("Error in getTrackEmbeddedArtAsync:", e);
+    }
   }
 
   return null;

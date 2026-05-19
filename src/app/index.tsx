@@ -14,10 +14,35 @@ import { ScrollView, Text, TouchableOpacity, View } from "react-native";
 export default function HomeScreen() {
   const router = useRouter();
 
-  const { collections, playCounts, recentlyPlayed, likedTracks } =
-    useLibraryStore();
+  const {
+    collections,
+    playCounts,
+    recentlyPlayed,
+    likedTracks,
+    hasCompletedOnboarding,
+  } = useLibraryStore();
   const { playlists } = usePlaylistStore();
   const { loadTrack, currentTrack } = usePlayerStore();
+
+  const [isStoreHydrated, setIsStoreHydrated] = React.useState(false);
+
+  React.useEffect(() => {
+    if (useLibraryStore.persist.hasHydrated()) {
+      setIsStoreHydrated(true);
+    } else {
+      const unsub = useLibraryStore.persist.onFinishHydration(() => {
+        setIsStoreHydrated(true);
+      });
+      return unsub;
+    }
+  }, []);
+
+  React.useEffect(() => {
+    if (isStoreHydrated && hasCompletedOnboarding === false) {
+      router.replace("/onboarding" as any);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isStoreHydrated, hasCompletedOnboarding]);
 
   const allTracks = useMemo(
     () => collections.flatMap((c) => c.tracks),
@@ -39,6 +64,10 @@ export default function HomeScreen() {
     mostlyPlayedTracks.length === 0 &&
     likedTracks.length === 0 &&
     collections.length === 0;
+
+  if (!isStoreHydrated || hasCompletedOnboarding === false) {
+    return <View style={{ flex: 1, backgroundColor: "#0A0A0A" }} />;
+  }
 
   return (
     <View className="flex-1 bg-darker">

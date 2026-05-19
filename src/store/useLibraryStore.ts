@@ -2,9 +2,9 @@
 import { ArchiveItem, ArchiveTrack, Collection } from "@/types";
 import { analytics } from "@/utils/analytics";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Platform } from "react-native";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { Platform } from "react-native";
 
 interface LibraryState {
   collections: Collection[];
@@ -12,6 +12,7 @@ interface LibraryState {
   likedTrackIds: string[];
   recentlyPlayed: ArchiveTrack[];
   playCounts: Record<string, number>;
+  hasCompletedOnboarding?: boolean;
 
   addCollection: (item: ArchiveItem, tracks: ArchiveTrack[]) => void;
   removeCollection: (collectionId: string) => void;
@@ -27,6 +28,7 @@ interface LibraryState {
     trackId: string,
     updates: Partial<ArchiveTrack>,
   ) => void;
+  setHasCompletedOnboarding: (val: boolean) => void;
 }
 
 export const useLibraryStore = create<LibraryState>()(
@@ -37,6 +39,8 @@ export const useLibraryStore = create<LibraryState>()(
       likedTrackIds: [],
       recentlyPlayed: [],
       playCounts: {},
+      hasCompletedOnboarding: false,
+      setHasCompletedOnboarding: (val) => set({ hasCompletedOnboarding: val }),
 
       addCollection: (item, tracks) => {
         set((state) => {
@@ -258,31 +262,37 @@ export const useLibraryStore = create<LibraryState>()(
 
               let changed = false;
               if (Array.isArray(data.state.likedTracks)) {
-                data.state.likedTracks = data.state.likedTracks.map((t: any) => {
-                  const cleaned = cleanWebTrack(t);
-                  if (cleaned !== t) changed = true;
-                  return cleaned;
-                });
+                data.state.likedTracks = data.state.likedTracks.map(
+                  (t: any) => {
+                    const cleaned = cleanWebTrack(t);
+                    if (cleaned !== t) changed = true;
+                    return cleaned;
+                  },
+                );
               }
               if (Array.isArray(data.state.recentlyPlayed)) {
-                data.state.recentlyPlayed = data.state.recentlyPlayed.map((t: any) => {
-                  const cleaned = cleanWebTrack(t);
-                  if (cleaned !== t) changed = true;
-                  return cleaned;
-                });
+                data.state.recentlyPlayed = data.state.recentlyPlayed.map(
+                  (t: any) => {
+                    const cleaned = cleanWebTrack(t);
+                    if (cleaned !== t) changed = true;
+                    return cleaned;
+                  },
+                );
               }
               if (Array.isArray(data.state.collections)) {
-                data.state.collections = data.state.collections.map((col: any) => {
-                  if (Array.isArray(col.tracks)) {
-                    const tracksCleaned = col.tracks.map((t: any) => {
-                      const cleaned = cleanWebTrack(t);
-                      if (cleaned !== t) changed = true;
-                      return cleaned;
-                    });
-                    return { ...col, tracks: tracksCleaned };
-                  }
-                  return col;
-                });
+                data.state.collections = data.state.collections.map(
+                  (col: any) => {
+                    if (Array.isArray(col.tracks)) {
+                      const tracksCleaned = col.tracks.map((t: any) => {
+                        const cleaned = cleanWebTrack(t);
+                        if (cleaned !== t) changed = true;
+                        return cleaned;
+                      });
+                      return { ...col, tracks: tracksCleaned };
+                    }
+                    return col;
+                  },
+                );
               }
               if (changed) {
                 await AsyncStorage.setItem(name, JSON.stringify(data));

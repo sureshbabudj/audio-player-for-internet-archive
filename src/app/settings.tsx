@@ -14,6 +14,7 @@ import * as Sharing from "expo-sharing";
 import {
   Database,
   ExternalLink,
+  HelpCircle,
   Info,
   Mail,
   Mailbox,
@@ -23,6 +24,7 @@ import {
   Shield,
   Star,
 } from "lucide-react-native";
+import { useRouter } from "expo-router";
 import React from "react";
 import {
   Linking,
@@ -61,6 +63,7 @@ const storeUrl: string | null =
       : null;
 
 export default function SettingsScreen() {
+  const router = useRouter();
   const {
     collections,
     playCounts,
@@ -68,6 +71,7 @@ export default function SettingsScreen() {
     likedTracks,
     clearLibrary,
     importLibrary,
+    setHasCompletedOnboarding,
   } = useLibraryStore();
 
   return (
@@ -85,6 +89,15 @@ export default function SettingsScreen() {
               onPress={() => requestReviewNow()}
             />
           )}
+
+          <SettingsItem
+            icon={HelpCircle}
+            label="Replay Welcome Tour"
+            onPress={() => {
+              setHasCompletedOnboarding(false);
+              router.push("/onboarding" as any);
+            }}
+          />
 
           <SettingsItem
             icon={Mail}
