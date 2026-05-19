@@ -16,12 +16,12 @@ export default function SupportScreen() {
       <ScrollView className="flex-1 px-6" showsVerticalScrollIndicator={false}>
         <View className="py-8">
           <Text className="text-white font-display text-2xl mb-6">
-            ArchiePlay — Support & Resources
+            ArchiPlay — Support & Resources
           </Text>
 
           <Text className="text-white/80 font-body text-base mb-6 leading-6">
             Thank you for using{" "}
-            <Text className="font-bold text-white">ArchiePlay</Text>, an
+            <Text className="font-bold text-white">ArchiPlay</Text>, an
             open-source media player client for the Internet Archive. Archiplay
             is committed to providing a reliable, privacy-focused streaming
             experience.
@@ -82,7 +82,7 @@ export default function SupportScreen() {
           </Text>
 
           <Text className="text-white/70 font-body text-base mb-4 leading-6">
-            ArchiePlay is a neutral utility player that accesses metadata,
+            ArchiPlay is a neutral utility player that accesses metadata,
             thumbnails, and audio streams in real-time via the public, official
             APIs provided by the{" "}
             <Text className="font-bold text-white">

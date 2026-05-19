@@ -89,7 +89,7 @@ If you are experiencing issues, have questions, or want to share feedback, we're
 
 ### ⚖️ Legal & Content Notice
 
-ArchiePlay is a neutral third-party utility application that accesses metadata, thumbnails, and audio streams in real-time via the official public APIs provided by the **Internet Archive (archive.org)**.
+ArchiPlay is a neutral third-party utility application that accesses metadata, thumbnails, and audio streams in real-time via the official public APIs provided by the **Internet Archive (archive.org)**.
 
 - This application does not host, store, bundle, or modify any third-party media content.
 - All streamed content is hosted entirely by the Internet Archive under their respective terms of service and digital rights management.

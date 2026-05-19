@@ -1,4 +1,4 @@
-# robots.txt for ArchiePlay
+# robots.txt for ArchiPlay
 # Optimized for Search Engine Optimization (SEO) and Agentic Engine Optimization (AEO)
 
 User-agent: *
