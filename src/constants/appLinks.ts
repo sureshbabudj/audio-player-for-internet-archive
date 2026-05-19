@@ -32,4 +32,7 @@ export const APP_LINKS = {
 
   /** Terms of service page */
   terms: "https://archieplay.web.app/terms",
+
+  /** Support page */
+  support: "https://archieplay.web.app/support",
 } as const;

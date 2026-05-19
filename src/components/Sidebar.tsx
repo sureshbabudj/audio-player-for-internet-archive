@@ -6,6 +6,7 @@ import {
   Home,
   Library,
   ListMusic,
+  Mailbox,
   Pause,
   Play,
   Settings,
@@ -31,6 +32,7 @@ export function Sidebar() {
     { icon: ListMusic, route: "/playlists", label: "Playlists" },
     { icon: ChartNoAxesCombined, route: "/stats", label: "Insights" },
     { icon: Settings, route: "/settings", label: "Settings" },
+    { icon: Mailbox, route: "/support", label: "Support" },
   ];
 
   return (

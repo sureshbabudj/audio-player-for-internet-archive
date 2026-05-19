@@ -1,9 +1,12 @@
 import { ScreenHeader } from "@/components/ScreenHeader";
-import { THEME } from "@/constants/colors";
 import { APP_LINKS } from "@/constants/appLinks";
+import { THEME } from "@/constants/colors";
 import { useLibraryStore } from "@/store/useLibraryStore";
 import { usePlayerStore } from "@/store/usePlayerStore";
-import { UniversalAlert, UniversalFileSystem } from "@/utils/platformCompatibility";
+import {
+  UniversalAlert,
+  UniversalFileSystem,
+} from "@/utils/platformCompatibility";
 import { requestReviewNow } from "@/utils/storeReview";
 import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system/legacy";
@@ -13,6 +16,7 @@ import {
   ExternalLink,
   Info,
   Mail,
+  Mailbox,
   MessageSquare,
   RotateCcw,
   Share2,
@@ -53,7 +57,7 @@ const storeUrl: string | null =
   Platform.OS === "ios"
     ? APP_LINKS.ios
     : Platform.OS === "android"
-      ? APP_LINKS.android ?? null
+      ? (APP_LINKS.android ?? null)
       : null;
 
 export default function SettingsScreen() {
@@ -86,6 +90,12 @@ export default function SettingsScreen() {
             icon={Mail}
             label="Send Feedback"
             onPress={() => Linking.openURL(APP_LINKS.feedback)}
+          />
+
+          <SettingsItem
+            icon={Mailbox}
+            label="Support"
+            onPress={() => Linking.openURL(APP_LINKS.support)}
           />
 
           {/* Visit Website — hidden on web (users are already there) */}
@@ -175,7 +185,7 @@ export default function SettingsScreen() {
                   const response = await fetch(fileUri);
                   json = await response.text();
                 } else {
-                  json = await UniversalFileSystem.readText(fileUri) || "";
+                  json = (await UniversalFileSystem.readText(fileUri)) || "";
                 }
 
                 const data = JSON.parse(json);
@@ -189,8 +199,11 @@ export default function SettingsScreen() {
                   `This will replace your current library with ${data.collections?.length || 0} collections and ${data.likedTracks?.length || 0} liked tracks. Continue?`,
                   () => {
                     importLibrary(data);
-                    UniversalAlert.alert("Success", "Library imported successfully!");
-                  }
+                    UniversalAlert.alert(
+                      "Success",
+                      "Library imported successfully!",
+                    );
+                  },
                 );
               } catch (e) {
                 console.error("Import error:", e);
@@ -207,7 +220,10 @@ export default function SettingsScreen() {
             icon={RotateCcw}
             label="Clear Image Cache"
             onPress={() => {
-              UniversalAlert.alert("Cache", "All image cache has been cleared.");
+              UniversalAlert.alert(
+                "Cache",
+                "All image cache has been cleared.",
+              );
             }}
           />
 
@@ -236,7 +252,7 @@ export default function SettingsScreen() {
                   clearLibrary();
                   usePlayerStore.getState().resetPlayer();
                   UniversalAlert.alert("Reset", "All data has been reset.");
-                }
+                },
               );
             }}
           />
