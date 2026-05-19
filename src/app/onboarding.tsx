@@ -113,7 +113,7 @@ export default function OnboardingScreen() {
       title: "Ready to Explore?",
       subtitle: "Your library is waiting",
       description:
-        "Search and add classical concerts, old-time radio, or podcast archives. Your discovery starts now!",
+        "Explore a massive universe of free, public-domain audio. Stream rare concert tapes, vintage audio, and podcast archives instantly.",
       icon: HeartHandshake,
       color: THEME.primary,
       accent: "bg-primary/10 border-primary/20",

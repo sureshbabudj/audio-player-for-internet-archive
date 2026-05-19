@@ -9,7 +9,7 @@ import { usePlaylistStore } from "@/store/usePlaylistStore";
 import { useRouter } from "expo-router";
 import { ListMusic } from "lucide-react-native";
 import React, { useMemo } from "react";
-import { ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { ScrollView, Text, TouchableOpacity, View, Platform } from "react-native";
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -38,7 +38,7 @@ export default function HomeScreen() {
   }, []);
 
   React.useEffect(() => {
-    if (isStoreHydrated && hasCompletedOnboarding === false) {
+    if (Platform.OS !== "web" && isStoreHydrated && hasCompletedOnboarding === false) {
       router.replace("/onboarding" as any);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -65,7 +65,7 @@ export default function HomeScreen() {
     likedTracks.length === 0 &&
     collections.length === 0;
 
-  if (!isStoreHydrated || hasCompletedOnboarding === false) {
+  if (!isStoreHydrated || (Platform.OS !== "web" && hasCompletedOnboarding === false)) {
     return <View style={{ flex: 1, backgroundColor: "#0A0A0A" }} />;
   }
 

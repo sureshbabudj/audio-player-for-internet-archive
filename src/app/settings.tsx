@@ -3,6 +3,7 @@ import { APP_LINKS } from "@/constants/appLinks";
 import { THEME } from "@/constants/colors";
 import { useLibraryStore } from "@/store/useLibraryStore";
 import { usePlayerStore } from "@/store/usePlayerStore";
+import { usePlaylistStore } from "@/store/usePlaylistStore";
 import {
   UniversalAlert,
   UniversalFileSystem,
@@ -10,6 +11,7 @@ import {
 import { requestReviewNow } from "@/utils/storeReview";
 import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system/legacy";
+import { useRouter } from "expo-router";
 import * as Sharing from "expo-sharing";
 import {
   Database,
@@ -24,7 +26,6 @@ import {
   Shield,
   Star,
 } from "lucide-react-native";
-import { useRouter } from "expo-router";
 import React from "react";
 import {
   Linking,
@@ -90,14 +91,16 @@ export default function SettingsScreen() {
             />
           )}
 
-          <SettingsItem
-            icon={HelpCircle}
-            label="Replay Welcome Tour"
-            onPress={() => {
-              setHasCompletedOnboarding(false);
-              router.push("/onboarding" as any);
-            }}
-          />
+          {Platform.OS !== "web" && (
+            <SettingsItem
+              icon={HelpCircle}
+              label="Replay Welcome Tour"
+              onPress={() => {
+                setHasCompletedOnboarding(false);
+                router.push("/onboarding" as any);
+              }}
+            />
+          )}
 
           <SettingsItem
             icon={Mail}
@@ -143,7 +146,8 @@ export default function SettingsScreen() {
                   playCounts,
                   recentlyPlayed,
                   likedTracks,
-                  version: "1.0",
+                  playlists: usePlaylistStore.getState().playlists,
+                  version: "1.1",
                 };
                 const json = JSON.stringify(data, null, 2);
                 const filename = `archiplay_backup_${Date.now()}.json`;
@@ -207,17 +211,23 @@ export default function SettingsScreen() {
                   throw new Error("Invalid backup file format");
                 }
 
-                UniversalAlert.show(
-                  "Import Library",
-                  `This will replace your current library with ${data.collections?.length || 0} collections and ${data.likedTracks?.length || 0} liked tracks. Continue?`,
-                  () => {
-                    importLibrary(data);
-                    UniversalAlert.alert(
-                      "Success",
-                      "Library imported successfully!",
-                    );
-                  },
-                );
+                const playlistCount = data.playlists?.length || 0;
+                let message = `This will replace your current library with ${data.collections?.length || 0} collections and ${data.likedTracks?.length || 0} liked tracks.`;
+                if (playlistCount > 0) {
+                  message += ` It will also import ${playlistCount} playlists.`;
+                }
+                message += " Continue?";
+
+                UniversalAlert.show("Import Library", message, () => {
+                  importLibrary(data);
+                  if (Array.isArray(data.playlists)) {
+                    usePlaylistStore.setState({ playlists: data.playlists });
+                  }
+                  UniversalAlert.alert(
+                    "Success",
+                    "Library and playlists imported successfully!",
+                  );
+                });
               } catch (e) {
                 console.error("Import error:", e);
                 UniversalAlert.alert(
@@ -263,7 +273,10 @@ export default function SettingsScreen() {
                 "This will permanently delete all your collections, playlists, and playback history. This action cannot be undone.",
                 () => {
                   clearLibrary();
+                  setHasCompletedOnboarding(false);
+                  usePlaylistStore.setState({ playlists: [] });
                   usePlayerStore.getState().resetPlayer();
+                  router.replace("/onboarding" as any);
                   UniversalAlert.alert("Reset", "All data has been reset.");
                 },
               );
